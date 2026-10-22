@@ -29,7 +29,7 @@ D11 (um projeto com Postgres via `pg` precisa funcionar).
 | ~~D8~~ | ~~Onde roda~~ | ~~No navegador (WebContainers)~~. Substituída pela D10: o WebContainers não roda qualquer stack (ex.: Postgres via `pg`, que usa TCP) |
 | D9 | Status ao vivo | Todos veem, em tempo real, quando o Claude de alguém está trabalhando e em quê. Exemplo do Lucas: na jam aparece *Claude Code de Lucas está trabalhando em: "breve resumo"*. O status some quando ele termina |
 | D10 | Onde o projeto e o Claude rodam | **No PC de cada um.** Cada pessoa usa o próprio Claude Code, com o projeto rodando na própria máquina. Um conector local liga o Claude Code e a pasta do projeto ao app. Sem máquina na nuvem |
-| D12 | Achar amigos | Além de buscar pelo usuário do GitHub, a pessoa pode escolher entre os seus **mútuos** no GitHub: quem ela segue **e** a segue de volta (cruzamento de `GET /user/following` com `/user/followers`, com o token do login) |
+| D12 | Achar amigos | Na tela de adicionar amigos, os **mútuos** do GitHub (quem a pessoa segue **e** a segue de volta; cruzamento de `GET /user/following` com `/user/followers`, com o token do login) aparecem como **sugestões**. Não viram amigos automaticamente: é pedido e aceite, como qualquer amizade. A busca pelo usuário do GitHub continua |
 | D11 | Stack | O sistema se adapta à stack de qualquer projeto, não só de um. Nada no Coodevelopment pode depender da linguagem, framework ou banco do projeto da jam |
 
 ## Arquitetura proposta
