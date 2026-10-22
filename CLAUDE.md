@@ -1,6 +1,6 @@
 # Coodevelopment
 
-Codesenvolvimento com o Claude Code na nuvem: até três pessoas, uma jam por
+Codesenvolvimento com o Claude no navegador: até três pessoas, uma jam por
 repositório do GitHub, contexto e preview em tempo real.
 
 - Decisões e arquitetura: `docs/decisoes.md`
