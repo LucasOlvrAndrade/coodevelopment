@@ -86,8 +86,9 @@ partes:
      conflito**;
    - as mudanças de cada um **chegam ao vivo na pasta dos outros**, e o projeto
      rodando localmente se atualiza sozinho: esse é o preview.
-3. **O fechamento.** Ao fechar a jam, ou quando ela fecha sozinha, o trabalho
-   de todos vira um commit no repositório, sem merge para resolver depois.
+3. **O fechamento.** Quando qualquer participante fecha a jam, o trabalho de
+   todos vira um commit no repositório, sem merge para resolver depois. A jam
+   nunca fecha sozinha; até alguém fechar, o estado fica guardado no servidor.
 
 **Diferenciais.**
 
@@ -157,8 +158,7 @@ acontecendo.
   em: ..."* aparecer para os outros. Meta: até 1 s em 95% dos casos.
 - **Latência da sincronização:** de um arquivo mudar num PC a chegar na pasta
   dos outros. Meta: até 2 s em 95% dos casos.
-- **Jams salvas:** jams fechadas (manual ou automaticamente) que terminam com
-  commit e push. Meta: 100%.
+- **Jams salvas:** jams fechadas que terminam com commit e push. Meta: 100%.
 - **Conflitos sem aviso:** edições simultâneas do mesmo arquivo sem aviso
   prévio. Meta: zero.
 - **Simultaneidade:** parte do tempo de jam com dois ou mais Claudes
@@ -197,9 +197,12 @@ acontecendo.
   respeitando o `.gitignore`; dependências, build e `.env` nunca vão (D11).
 - **Feed da jam:** avisos, arquivos alterados e ações que afetam os outros
   (ex.: dependências que mudaram e precisam ser reinstaladas).
-- **Fechar jam com commit (D5):** commit e push ao fechar e quando a jam fecha
-  sozinha (todos saíram ou ociosa).
-- **Reabrir jam:** voltar a trabalhar a partir do último commit.
+- **Fechar jam com commit (D5, D14, D15):** qualquer participante fecha; commit
+  e push com mensagem montada a partir dos avisos da sessão. A jam nunca fecha
+  sozinha, e continua se o criador sair.
+- **Reabrir jam (D17):** voltar a trabalhar a partir do último commit; se a
+  pasta local de alguém estiver diferente, um popup pergunta se ele quer
+  atualizá-la ou seguir com a versão mais antiga.
 - **Página da jam polida e responsiva:** no computador e no celular.
 
 ### Out of Scope for MVP
@@ -323,3 +326,50 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
   aceitaram); o MVP não se protege de participante mal-intencionado além das
   travas de Technical Considerations.
 - Os mútuos do GitHub são uma boa aproximação de quem a pessoa quer chamar.
+
+## Risks & Open Questions
+
+### Key Risks
+
+- **Hooks do Claude Code não bastarem:** sem injetar contexto a cada prompt ou
+  interceptar edição antes de acontecer, a feature principal fica pela metade.
+  Risco que derruba o produto; primeiro a verificar.
+- **O Claude não chamar `anunciar`:** o modelo pode pular a ferramenta e
+  editar direto. Mitigação proposta: o hook antes da edição recusa mexer em
+  arquivo sem aviso ativo.
+- **Escrita simultânea no mesmo arquivo:** dois PCs gravando ao mesmo tempo
+  podem fazer uma mudança sobrescrever a outra; a sincronização tem de
+  garantir que nada se perca.
+- **Final de linha no Windows:** CRLF num PC e LF no outro geram "mudanças"
+  falsas, ruído ou loop; o conector precisa normalizar.
+- **Ações fora dos arquivos:** migração, instalação de pacote e testes em banco
+  compartilhado acontecem num PC e afetam os outros; precisam ir para o feed.
+- **Mudança na interface do Claude Code:** atualização de hooks ou MCP pode
+  quebrar o conector.
+- **Custo ou limite do serviço de tempo real:** horas de jam podem passar do
+  plano gratuito.
+- **Permissão ampla no GitHub:** criar repo e convidar colaborador pede acesso
+  a todos os repositórios privados do usuário.
+- **Jam aberta indefinidamente (D14):** como a jam não fecha sozinha, trabalho
+  pode ficar dias só no servidor, sem chegar ao GitHub.
+
+### Open Questions
+
+- Na D17, "seguir com a versão mais antiga": as mudanças dessa pasta antiga
+  sincronizam por cima da versão atual dos outros, ou ela fica só local até a
+  pessoa atualizar?
+- Na D14, mostrar algum lembrete quando a jam tem trabalho não commitado há
+  muito tempo?
+
+### Areas Needing Further Research
+
+- Interface atual de hooks e MCP do Claude Code: o que dá para injetar,
+  interceptar e bloquear (**primeiro**).
+- Serviço de tempo real: Liveblocks, PartyKit, Ably e outros em latência,
+  preço e armazenamento de estado.
+- Algoritmo de sincronização de arquivos: CRDT ou reserva de arquivo com
+  última escrita vence.
+- Permissões mínimas do GitHub para criar repo, convidar e commitar; se um
+  GitHub App reduz o acesso pedido.
+- Vigia de arquivos no Windows: desempenho em pastas grandes e respeito ao
+  `.gitignore`.

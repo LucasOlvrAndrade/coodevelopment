@@ -23,7 +23,13 @@ D11 (um projeto com Postgres via `pg` precisa funcionar).
 | D2 | Sessões | Uma sessão do Claude Code por pessoa, nos mesmos arquivos. A cada prompt, o Claude avisa que vai trabalhar em mudanças e dá um resumo curto do que é |
 | ~~D3~~ | ~~Quem paga o Claude~~ | ~~Uma chave só, do Lucas~~. Deixou de se aplicar com a D10: cada um usa o próprio Claude Code com a própria assinatura |
 | D4 | Repositório | Na conta de quem cria a jam, com duas opções: importar um repo que ele já tem ou criar um novo. Os outros entram como colaboradores |
-| D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Se a jam fechar sozinha (todos saíram, ociosa, PC desligado), o commit e o push acontecem do mesmo jeito |
+| D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Até alguém fechar, o estado dos arquivos fica guardado no servidor (a jam não fecha sozinha, D14) |
+| D14 | Fechamento automático | **Não existe.** A jam só fecha quando um participante fecha |
+| D15 | Quem fecha | Qualquer participante |
+| D16 | Criador sai | Nada acontece; a jam continua com os outros |
+| D17 | Pasta local diferente ao reabrir | Popup perguntando se quer atualizar a pasta local ou seguir com a versão mais antiga |
+| D18 | Mensagem do commit | Montada a partir dos avisos (`anunciar`) feitos durante a jam |
+| D19 | Nome no status | Vem do perfil do GitHub |
 | D6 | Tamanho da jam | No máximo 3 pessoas por enquanto |
 | D7 | Limites de uso | Nenhum por enquanto; no começo o uso é só do Lucas e do pai dele |
 | ~~D8~~ | ~~Onde roda~~ | ~~No navegador (WebContainers)~~. Substituída pela D10: o WebContainers não roda qualquer stack (ex.: Postgres via `pg`, que usa TCP) |
