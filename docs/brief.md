@@ -202,7 +202,10 @@ acontecendo.
   sozinha, e continua se o criador sair.
 - **Reabrir jam (D17):** voltar a trabalhar a partir do último commit; se a
   pasta local de alguém estiver diferente, um popup pergunta se ele quer
-  atualizá-la ou seguir com a versão mais antiga.
+  atualizá-la ou seguir com a versão mais antiga; seguindo com a antiga, ele
+  fica só local (nada sincroniza) até atualizar.
+- **Lembrete de trabalho não salvo (D20):** a jam avisa quando tem trabalho sem
+  commit há muito tempo.
 - **Página da jam polida e responsiva:** no computador e no celular.
 
 ### Out of Scope for MVP
@@ -351,15 +354,12 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
 - **Permissão ampla no GitHub:** criar repo e convidar colaborador pede acesso
   a todos os repositórios privados do usuário.
 - **Jam aberta indefinidamente (D14):** como a jam não fecha sozinha, trabalho
-  pode ficar dias só no servidor, sem chegar ao GitHub.
+  pode ficar dias só no servidor, sem chegar ao GitHub. Mitigação: lembrete de
+  trabalho não salvo (D20).
 
 ### Open Questions
 
-- Na D17, "seguir com a versão mais antiga": as mudanças dessa pasta antiga
-  sincronizam por cima da versão atual dos outros, ou ela fica só local até a
-  pessoa atualizar?
-- Na D14, mostrar algum lembrete quando a jam tem trabalho não commitado há
-  muito tempo?
+- Depois de quanto tempo sem commit o lembrete da D20 aparece (para o PRD).
 
 ### Areas Needing Further Research
 

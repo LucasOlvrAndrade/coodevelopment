@@ -27,7 +27,8 @@ D11 (um projeto com Postgres via `pg` precisa funcionar).
 | D14 | Fechamento automático | **Não existe.** A jam só fecha quando um participante fecha |
 | D15 | Quem fecha | Qualquer participante |
 | D16 | Criador sai | Nada acontece; a jam continua com os outros |
-| D17 | Pasta local diferente ao reabrir | Popup perguntando se quer atualizar a pasta local ou seguir com a versão mais antiga |
+| D17 | Pasta local diferente ao reabrir | Popup perguntando se quer atualizar a pasta local ou seguir com a versão mais antiga. Quem segue com a antiga fica **só local**: as mudanças dele não sincronizam até ele atualizar, para nunca sobrescrever o trabalho dos outros |
+| D20 | Lembrete de trabalho não salvo | A jam mostra um lembrete quando tem trabalho sem commit há muito tempo (a jam não fecha sozinha, D14) |
 | D18 | Mensagem do commit | Montada a partir dos avisos (`anunciar`) feitos durante a jam |
 | D19 | Nome no status | Vem do perfil do GitHub |
 | D6 | Tamanho da jam | No máximo 3 pessoas por enquanto |

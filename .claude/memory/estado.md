@@ -13,7 +13,8 @@ vivo "Claude Code de Lucas está trabalhando em: ..." (D9), repo importado ou
 criado na conta do criador (D4), commit ao fechar a jam (D5) com mensagem
 montada dos avisos (D18), a jam nunca fecha sozinha (D14), qualquer
 participante fecha (D15), continua se o criador sair (D16), popup ao reabrir
-com pasta diferente (D17), nome do perfil do GitHub (D19), mútuos do GitHub
+com pasta diferente, e quem segue com a antiga fica só local (D17), lembrete
+de trabalho sem commit (D20), nome do perfil do GitHub (D19), mútuos do GitHub
 como sugestão de amigo (D12), conector `npx` com ajuda para instalar o Node
 (D13), até 3 pessoas (D6), sem limite (D7).
 
@@ -31,4 +32,4 @@ claude-code`; o assistente interativo trava neste terminal).
 Brief em andamento no modo interativo do template oficial
 (`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 a 10 aprovadas e
 gravadas (a 6 ganhou a ajuda do Node, D13; D14 a D19 ajustaram 3, 5 e 6);
-seção 11 (Appendices) em revisão. Sem prazo (confirmado em 22/10).
+seção 10 revista com D17/D20 e aprovada; seção 11 (Appendices) em revisão. Sem prazo (confirmado em 22/10).
