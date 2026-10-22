@@ -9,9 +9,11 @@ sistema tem que servir para projetos de qualquer stack.
 
 Nome: **Coodevelopment**, em `coodevelopment.lucas-andrade.dev`.
 
-Primeiro uso real: o Lucas e o pai implementando juntos o sistema de backup do
-projeto RBC (Next.js + Postgres via `pg`). O app é para começar a trabalhar
-junto; hoje eles não trabalham no mesmo projeto ao mesmo tempo.
+Usuários iniciais: o Lucas e o pai, os dois desenvolvedores com Claude Code no
+Windows. O app é para começar a trabalhar junto; hoje eles não trabalham no
+mesmo projeto ao mesmo tempo. O sistema não é desenhado para nenhum projeto
+específico: o RBC foi citado só como exemplo, e serve apenas para testar a
+D11 (um projeto com Postgres via `pg` precisa funcionar).
 
 ## Decisões do Lucas (2026-10-22)
 
@@ -24,7 +26,7 @@ junto; hoje eles não trabalham no mesmo projeto ao mesmo tempo.
 | D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Se a jam fechar sozinha (todos saíram, ociosa, PC desligado), o commit e o push acontecem do mesmo jeito |
 | D6 | Tamanho da jam | No máximo 3 pessoas por enquanto |
 | D7 | Limites de uso | Nenhum por enquanto; no começo o uso é só do Lucas e do pai dele |
-| ~~D8~~ | ~~Onde roda~~ | ~~No navegador (WebContainers)~~. Substituída pela D10: o `pg` do RBC usa TCP, que não funciona no WebContainers |
+| ~~D8~~ | ~~Onde roda~~ | ~~No navegador (WebContainers)~~. Substituída pela D10: o WebContainers não roda qualquer stack (ex.: Postgres via `pg`, que usa TCP) |
 | D9 | Status ao vivo | Todos veem, em tempo real, quando o Claude de alguém está trabalhando e em quê. Exemplo do Lucas: na jam aparece *Claude Code de Lucas está trabalhando em: "breve resumo"*. O status some quando ele termina |
 | D10 | Onde o projeto e o Claude rodam | **No PC de cada um.** Cada pessoa usa o próprio Claude Code, com o projeto rodando na própria máquina. Um conector local liga o Claude Code e a pasta do projeto ao app. Sem máquina na nuvem |
 | D11 | Stack | O sistema se adapta à stack de qualquer projeto, não só de um. Nada no Coodevelopment pode depender da linguagem, framework ou banco do projeto da jam |
@@ -86,7 +88,8 @@ PC Lucas                                PC pai
   reinstalar.
 - **Ações fora dos arquivos:** migração de banco, instalação de pacote e testes
   que escrevem em banco compartilhado acontecem na máquina de quem rodou e
-  podem afetar os outros (no RBC, a suíte roda no banco de produção). Precisa
+  podem afetar os outros (ex.: suíte de testes que escreve num banco
+  compartilhado). Precisa
   aparecer no feed.
 - **Hooks e MCP do Claude Code:** o conector depende da interface de hooks e
   MCP do Claude Code; mudanças nela podem quebrar o conector.

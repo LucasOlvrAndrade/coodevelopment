@@ -28,9 +28,8 @@ trabalho vai sozinho para o GitHub, sem conflito para resolver depois.
 ## Problem Statement
 
 **Como é hoje.** O Lucas e o pai programam com o Claude Code, cada um no seu
-PC. Agora precisam **construir juntos, ao mesmo tempo**, o sistema de backup do
-projeto RBC: o Lucas desenvolveu a plataforma e o pai vai ajudar na
-implementação. Hoje eles não têm como fazer isso:
+PC. Agora querem **construir juntos, ao mesmo tempo**, nos mesmos projetos, de
+qualquer stack. Hoje eles não têm como fazer isso:
 
 - **Ninguém sabe se o Claude do outro está trabalhando agora, nem em quê.** O
   status de uma sessão do Claude Code só aparece no terminal de quem a abriu.
@@ -39,8 +38,8 @@ implementação. Hoje eles não têm como fazer isso:
   problema de jeitos opostos.
 - **As mudanças só aparecem depois do push.** O conflito é descoberto tarde,
   quando já tem trabalho em cima dele.
-- **Para ver o trabalho do outro rodando, é preciso puxar e reiniciar**; no RBC
-  isso inclui banco e variáveis de ambiente.
+- **Para ver o trabalho do outro rodando, é preciso puxar e reiniciar**; em
+  projetos com banco e variáveis de ambiente, isso pesa ainda mais.
 - **A coordenação fica por fora,** em mensagem ou ligação, e o Claude não
   recebe nada disso.
 
@@ -49,8 +48,8 @@ outro espera.
 
 **Impacto.** Ainda não medido, porque eles ainda não começaram. O custo
 esperado é tempo de espera entre turnos, conflitos de merge gerados por dois
-agentes e retrabalho. O MVP deve medir isso no uso real do RBC (ver Goals &
-Success Metrics).
+agentes e retrabalho. O MVP deve medir isso nas primeiras jams reais (ver
+Goals & Success Metrics).
 
 **Por que as soluções atuais não resolvem.**
 
@@ -58,13 +57,12 @@ Success Metrics).
 - **Compartilhar tela:** só um pilota por vez; o outro Claude fica de fora.
 - **Editores colaborativos (ex.: VS Code Live Share):** compartilham código,
   mas não mostram o que cada Claude está fazendo, e nenhum Claude sabe do outro.
-- **Ambientes no navegador (ex.: StackBlitz):** não rodam qualquer stack; o
-  RBC, com Postgres via `pg` (TCP), não funciona lá.
+- **Ambientes no navegador (ex.: StackBlitz):** não rodam qualquer stack; um
+  projeto com Postgres via `pg` (TCP), por exemplo, não funciona lá.
 - **O Claude Code em si:** cada sessão é de uma pessoa só.
 
 **Por que agora.** Os agentes de código já fazem boa parte do trabalho; o
-gargalo de quem programa junto passou a ser coordenar os agentes. E há um
-projeto real esperando por isso.
+gargalo de quem programa junto passou a ser coordenar os agentes.
 
 ## Proposed Solution
 
@@ -120,8 +118,8 @@ acontecendo.
 - **Necessidades e dores:** saber na hora o que o Claude do outro está fazendo;
   evitar que os dois Claudes mexam no mesmo arquivo; ver o trabalho do outro
   rodando sem puxar e reiniciar; não perder nada ao encerrar.
-- **Objetivo:** implementar juntos o sistema de backup do RBC, rápido e sem
-  trabalhar em turnos.
+- **Objetivo:** construir juntos os projetos deles, de qualquer stack, rápido e
+  sem trabalhar em turnos.
 
 ### Secondary User Segment: pequenos grupos de amigos desenvolvedores
 
@@ -133,3 +131,36 @@ acontecendo.
   variedade de stacks e de sistemas operacionais.
 - **Objetivo:** construir algo junto numa sessão combinada (uma "jam"), como um
   hackathon pequeno.
+
+## Goals & Success Metrics
+
+### Business Objectives
+
+- **Primeiro uso real:** o Lucas e o pai fazem a primeira jam de verdade num
+  projeto deles, com os dois Claude Code trabalhando ao mesmo tempo, assim que
+  o MVP estiver no ar.
+- **Trabalhar junto sem turnos:** os projetos que os dois tocam juntos passam
+  a ser feitos majoritariamente dentro de jams.
+- **Qualquer stack (D11):** jams funcionando em pelo menos dois projetos de
+  stacks diferentes sem mudar nada no Coodevelopment.
+
+### User Success Metrics
+
+- Cada um sabe, sem perguntar, se o Claude do outro está trabalhando e em quê.
+- Os Claudes trabalham ao mesmo tempo, em vez de um esperar o outro.
+- Nenhum trabalho se perde ao fechar a jam.
+- Ninguém precisa resolver conflito de merge depois de uma jam.
+
+### Key Performance Indicators (KPIs)
+
+- **Latência do status:** do Claude começar a trabalhar ao *"está trabalhando
+  em: ..."* aparecer para os outros. Meta: até 1 s em 95% dos casos.
+- **Latência da sincronização:** de um arquivo mudar num PC a chegar na pasta
+  dos outros. Meta: até 2 s em 95% dos casos.
+- **Jams salvas:** jams fechadas (manual ou automaticamente) que terminam com
+  commit e push. Meta: 100%.
+- **Conflitos sem aviso:** edições simultâneas do mesmo arquivo sem aviso
+  prévio. Meta: zero.
+- **Simultaneidade:** parte do tempo de jam com dois ou mais Claudes
+  trabalhando ao mesmo tempo. Meta inicial: acima de 50%, revisar depois das
+  primeiras jams.
