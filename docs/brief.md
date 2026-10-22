@@ -291,3 +291,35 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
   participante plantaria, por exemplo, um hook do git no PC do outro); `.env` e
   o que está no `.gitignore` nunca saem do PC; avisos dos outros entram no
   contexto do Claude marcados como informação, não como instrução.
+
+## Constraints & Assumptions
+
+### Constraints
+
+- **Budget:** projeto pessoal, sem receita; tem de caber nos planos que o Lucas
+  já usa (Vercel, Neon) mais o plano gratuito ou mais barato do serviço de
+  tempo real. O Claude não custa nada ao app: cada um usa a própria assinatura
+  (D10).
+- **Timeline:** sem prazo.
+- **Resources:** o Lucas desenvolve com Claude Code e os agentes do AIOX; o pai
+  é o primeiro testador real.
+- **Technical:** conector só Windows no MVP; Node.js obrigatório no PC (D13);
+  dependência dos hooks e do MCP do Claude Code; conta no GitHub para todos;
+  a Vercel não segura conexão aberta (serviço de tempo real externo); cada
+  participante precisa ter o projeto rodando no próprio PC (o Coodevelopment
+  não instala dependências, banco nem `.env`).
+
+### Key Assumptions
+
+- Todo participante tem Claude Code com assinatura própria.
+- O pai tem Node.js instalado; se não tiver, o fluxo da D13 resolve.
+- Os hooks e o MCP do Claude Code permitem o que o MVP precisa: saber quando o
+  Claude começa e termina, injetar contexto a cada prompt e interceptar uma
+  edição antes de ela acontecer.
+- Os projetos das jams cabem numa sincronização ao vivo (repositórios de
+  código; binários grandes ficam no `.gitignore` ou fora da jam).
+- A internet dos participantes aguenta sincronização ao vivo por horas.
+- Os participantes de uma jam confiam uns nos outros (amigos que se
+  aceitaram); o MVP não se protege de participante mal-intencionado além das
+  travas de Technical Considerations.
+- Os mútuos do GitHub são uma boa aproximação de quem a pessoa quer chamar.
