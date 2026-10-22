@@ -29,8 +29,10 @@ ele já foi tirado do brief e das decisões como caso-base.
 AIOX 5.4.1 instalado no projeto (`aiox install --quiet --force --merge --ide
 claude-code`; o assistente interativo trava neste terminal).
 
-Brief em andamento no modo interativo do template oficial
-(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 a 10 aprovadas e
-gravadas (a 6 ganhou a ajuda do Node, D13; D14 a D19 ajustaram 3, 5 e 6);
-seção 10 revista com D17/D20 e aprovada; seção 11 (Appendices) aprovada;
-seção 12 (Next Steps) em revisão. Sem prazo (confirmado em 22/10).
+**Brief 1.0 concluído em 22/10** (`docs/brief.md`, template oficial, modo
+interativo, 12 seções aprovadas). Sem prazo.
+
+**Próximo passo:** verificar a interface de hooks e MCP do Claude Code (saber
+início e fim do Claude, injetar contexto a cada prompt, bloquear edição sem
+aviso) antes do PRD; depois PRD com o @pm. Pendente para o PRD: depois de
+quanto tempo sem commit aparece o lembrete da D20.

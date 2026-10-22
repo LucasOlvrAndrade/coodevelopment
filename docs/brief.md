@@ -1,7 +1,8 @@
 # Project Brief: Coodevelopment
 
-Template `project-brief-tmpl.yaml` v2.0, modo interativo. Base:
-`docs/decisoes.md` (D2, D4 a D7, D9 a D11). Em construção, seção por seção.
+Versão 1.0, concluída em 2026-10-22. Template `project-brief-tmpl.yaml` v2.0,
+modo interativo, seção por seção com o Lucas. Base: `docs/decisoes.md` (D1 a
+D20).
 
 ## Executive Summary
 
@@ -403,3 +404,24 @@ O pai do Lucas, segundo usuário, não foi consultado diretamente.
 - [RapidDev, PostgreSQL no Bolt/WebContainer](https://rapidevelopers.com/bolt-ai-integrations/postgresql)
 - [Neon, escolha do método de conexão](https://neon.com/docs/connect/choose-connection)
 - Template: `.aiox-core/product/templates/project-brief-tmpl.yaml` v2.0
+
+## Next Steps
+
+### Immediate Actions
+
+1. **Verificar a interface de hooks e MCP do Claude Code** (@architect ou
+   @analyst): confirmar que dá para saber quando o Claude começa e termina,
+   injetar contexto a cada prompt e bloquear edição sem aviso. Maior risco do
+   brief; o resultado pode mudar o PRD.
+2. **Mostrar o brief ao pai do Lucas,** principalmente o fluxo de entrar na jam
+   e o da D13 (Node). Opcional, mas barato.
+3. **Criar o PRD com o @pm** a partir deste brief, seção por seção.
+4. **Escolher o serviço de tempo real e o algoritmo de sincronização**
+   (@architect), depois do PRD.
+
+### PM Handoff
+
+Este Project Brief traz o contexto completo do **Coodevelopment**. Comece no
+modo de geração de PRD: revise o brief inteiro e trabalhe com o usuário para
+criar o PRD seção por seção, como o template indica, pedindo os esclarecimentos
+necessários ou sugerindo melhorias.
