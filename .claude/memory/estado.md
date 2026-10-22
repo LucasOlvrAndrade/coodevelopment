@@ -21,5 +21,7 @@ AIOX 5.4.1 instalado no projeto (`aiox install --quiet --force --merge --ide
 claude-code`; o assistente interativo trava neste terminal).
 
 Brief em andamento no modo interativo do template oficial
-(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 e 2 aprovadas e
-gravadas (a 1 corrigida pela D10); seção 4 em revisão.
+(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 a 4 aprovadas e
+gravadas (a 1 corrigida pela D10); seção 5 em revisão. Levar para a seção 10
+(Open Questions): sistema operacional do pai (define se o conector precisa de
+macOS/Linux no MVP), sem resposta em 22/10.

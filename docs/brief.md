@@ -107,3 +107,29 @@ oferece (hooks e MCP), em vez de reimplementar o agente.
 **Visão.** Ser a "sala de trabalho" de quem constrói software junto com
 agentes de IA: o mesmo projeto, vários Claudes, todo mundo sabendo o que está
 acontecendo.
+
+## Target Users
+
+### Primary User Segment: dupla de desenvolvedores que já usa Claude Code (Lucas e o pai)
+
+- **Perfil:** dois desenvolvedores da mesma família, cada um com o próprio PC e
+  o próprio Claude Code. O Lucas trabalha no Windows. Os dois já mantêm
+  projetos rodando localmente, com banco e variáveis de ambiente.
+- **Como trabalham hoje:** cada um sozinho, no próprio projeto, conversando com
+  o próprio Claude. Ainda não trabalharam juntos no mesmo código ao mesmo tempo.
+- **Necessidades e dores:** saber na hora o que o Claude do outro está fazendo;
+  evitar que os dois Claudes mexam no mesmo arquivo; ver o trabalho do outro
+  rodando sem puxar e reiniciar; não perder nada ao encerrar.
+- **Objetivo:** implementar juntos o sistema de backup do RBC, rápido e sem
+  trabalhar em turnos.
+
+### Secondary User Segment: pequenos grupos de amigos desenvolvedores
+
+- **Perfil:** 2 a 3 desenvolvedores (D6) que usam Claude Code e se conhecem;
+  entram por convite de amizade no app.
+- **Como trabalham hoje:** projetos paralelos ou de fim de semana, coordenados
+  por mensagem, cada um no seu branch.
+- **Necessidades e dores:** as mesmas do segmento principal, com mais
+  variedade de stacks e de sistemas operacionais.
+- **Objetivo:** construir algo junto numa sessão combinada (uma "jam"), como um
+  hackathon pequeno.
