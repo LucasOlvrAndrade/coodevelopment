@@ -19,6 +19,7 @@ Nome: **Coodevelopment**, em `coodevelopment.lucas-andrade.dev`.
 | D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Se a jam fechar sozinha (todos saíram, ociosa, navegador fechado), o commit e o push acontecem do mesmo jeito |
 | D6 | Tamanho da jam | No máximo 3 pessoas por enquanto |
 | D7 | Limites de uso | Nenhum por enquanto; no começo o uso é só do Lucas e do pai dele |
+| D9 | Status ao vivo | Todos veem, em tempo real, quando o Claude de alguém está trabalhando e em quê. Exemplo do Lucas: na jam aparece *Claude de Lucas está trabalhando em: "breve resumo"*. O status some quando ele termina |
 | D8 | Onde o projeto e o Claude rodam | **No navegador.** O projeto e o dev server do preview rodam no navegador de cada participante (WebContainers). O Claude é chamado pela API com a chave do Lucas e edita os arquivos por ferramentas do próprio app. Não é o Claude Code (CLI); é o Claude com ferramentas nossas. Sem máquina na nuvem |
 
 ## Arquitetura proposta
