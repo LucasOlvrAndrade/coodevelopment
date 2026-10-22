@@ -14,7 +14,7 @@ claude-code`; o assistente interativo trava neste terminal).
 Brief em andamento no modo interativo do template oficial
 (`project-brief-tmpl.yaml` v2.0), com o @analyst. O `docs/brief.md` atual é o
 rascunho improvisado antes do template e será substituído seção por seção.
-Seção 1 (resumo executivo) aguardando aprovação, precisa ser revista pela D8.
+Seção 1 (Executive Summary) aprovada e gravada; seção 2 em revisão.
 
 **Usuários:** o pai do Lucas programa com o Claude Code do mesmo jeito que ele
 (dois desenvolvedores; confirmado em 2026-10-22).
