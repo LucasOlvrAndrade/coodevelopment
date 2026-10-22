@@ -21,5 +21,5 @@ AIOX 5.4.1 instalado no projeto (`aiox install --quiet --force --merge --ide
 claude-code`; o assistente interativo trava neste terminal).
 
 Brief em andamento no modo interativo do template oficial
-(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seção 1 aprovada e gravada
-(a 1 corrigida pela D10); seção 3 em revisão.
+(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 e 2 aprovadas e
+gravadas (a 1 corrigida pela D10); seção 3 em revisão.
