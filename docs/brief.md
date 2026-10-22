@@ -178,9 +178,13 @@ acontecendo.
   ser chamados para uma jam.
 - **Criar jam:** importar um repositório do criador ou criar um novo (D4),
   chamar até 2 amigos (D6), convite de colaborador aceito automaticamente.
-- **Conector local para Windows:** um comando para entrar na jam com a pasta do
-  projeto (clona o repositório se a pasta não existir) e ligar o Claude Code à
-  jam por hooks e MCP, sem configuração manual.
+- **Conector local para Windows:** um comando `npx` para entrar na jam com a
+  pasta do projeto (clona o repositório se a pasta não existir) e ligar o
+  Claude Code à jam por hooks e MCP, sem configuração manual.
+- **Ajuda para quem não tem Node (D13):** ao entrar na jam, a página avisa que
+  ela precisa do Node.js, oferece um prompt pronto para copiar e mandar ao
+  Claude Code instalar, e um botão "Já instalei" que mostra o comando de
+  entrar e espera o conector conectar.
 - **Status ao vivo (D9):** *"Claude Code de Lucas está trabalhando em: ..."*
   para todos, sumindo quando ele termina.
 - **Aviso antes de mexer (D2):** o Claude anuncia resumo e arquivos antes de
@@ -243,3 +247,47 @@ sabendo o que os outros estão fazendo.
 - **Outros agentes de código:** a mesma coordenação para outras ferramentas
   além do Claude Code (hipótese: depende de elas terem hooks equivalentes).
 - **Uso comercial:** equipes pequenas e empresas, com limites e cobrança.
+
+## Technical Considerations
+
+Ideias iniciais, não decisões; a escolha final é do @architect.
+
+### Platform Requirements
+
+- **Target Platforms:** app web (página da jam, amigos, login) e conector
+  local para **Windows** no MVP (os dois usuários usam Windows).
+- **Browser/OS Support:** navegadores atuais no computador e no celular; a
+  página da jam precisa funcionar bem no celular para acompanhar. O conector
+  exige Node.js (D13).
+- **Performance Requirements:** status em até 1 s e arquivos em até 2 s, em
+  95% dos casos (Goals & Success Metrics). O conector não pode pesar no PC
+  enquanto o projeto e o Claude Code rodam.
+
+### Technology Preferences
+
+- **Frontend:** Next.js na Vercel, em `coodevelopment.lucas-andrade.dev`.
+- **Backend:** rotas do próprio Next.js (login, amigos, jams, commit) mais um
+  **serviço de tempo real** externo (Liveblocks, PartyKit, Ably ou similar),
+  porque a Vercel não segura conexão aberta.
+- **Database:** Postgres (Neon) para usuários, amizades, jams e eventos; o
+  estado dos arquivos da jam no serviço de tempo real ou no banco, a definir.
+- **Hosting/Infrastructure:** Vercel + Neon + serviço de tempo real; conector
+  publicado como pacote `npx` (D13). Sem máquina na nuvem (D10).
+
+### Architecture Considerations
+
+- **Repository Structure:** monorepo com o app web, o conector local e um
+  pacote compartilhado com o protocolo (mensagens de status, aviso e arquivo),
+  para os dois lados nunca divergirem.
+- **Service Architecture:** app na Vercel, serviço de tempo real e Neon; o
+  conector em cada PC liga Claude Code e pasta do projeto ao serviço.
+- **Integration Requirements:** GitHub (OAuth; repositórios, colaboradores e
+  convites; mútuos para sugestões, D12; commit via API ao fechar, com os
+  participantes como coautores). Claude Code (hooks ao enviar prompt, antes e
+  depois de usar ferramenta e ao terminar; servidor MCP com `anunciar`).
+- **Security/Compliance:** token do GitHub só no servidor, cifrado; o conector
+  faz login na conta do usuário, nunca com token colado à mão; o conector
+  **recusa arquivo de fora da pasta do projeto ou dentro de `.git/`** (senão um
+  participante plantaria, por exemplo, um hook do git no PC do outro); `.env` e
+  o que está no `.gitignore` nunca saem do PC; avisos dos outros entram no
+  contexto do Claude marcados como informação, não como instrução.
