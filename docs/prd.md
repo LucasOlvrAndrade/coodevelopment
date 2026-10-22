@@ -598,7 +598,7 @@ so that nada fique esquecido no servidor.
 
 `pm-checklist.md`, modo completo, rodado pelo próprio @pm sobre esta versão.
 
-**Resumo:** PRD cerca de 85% completo; escopo do MVP adequado (cerca de 17
+**Resumo:** PRD cerca de 85% completo; escopo do MVP adequado (19
 stories em 5 épicos, sem prazo); **quase pronto para a arquitetura**. As
 lacunas são de validação com usuário e de definição técnica que cabem ao
 @architect, não de requisito.

@@ -37,5 +37,15 @@ viável. Início/fim, injetar contexto e negar `Edit`/`Write` funcionam; ediçã
 shell só é detectada depois. Conector = plugin do Claude Code (hooks + MCP),
 hooks em `node`, casar `Bash|PowerShell` no Windows. Brief virou 1.1.
 
-**Próximo passo:** PRD com o @pm. Pendente para o PRD: depois de quanto tempo
-sem commit aparece o lembrete da D20.
+**PRD 0.1 e especificação de front-end 0.1 feitos em 22/10 em modo YOLO**
+(o Lucas pediu "manda bala nessa e no proximo" e saiu; revisa em 23/10).
+`docs/prd.md`: 26 FR, 13 NFR, 5 épicos, 19 stories, checklist do PM (NEEDS
+REFINEMENT leve). `docs/front-end-spec.md`: fluxos, telas, componentes, paleta
+com contraste calculado, IBM Plex, WCAG AA, guiado pela skill cara-de-ia.
+
+**Próximo passo (23/10):** o Lucas revisa as [suposições] dos dois documentos:
+PRD FR16 (conflito pede confirmação no terminal), FR24 (lembrete em 24 h),
+login do conector por código de dispositivo, NFR6 (metas de memória/CPU);
+front-end: fonte IBM Plex, paleta, popup da D17 na página da jam, mensagem do
+commit editável, pedido cruzado virando aceite. Depois: arquitetura com o
+@architect (serviço de tempo real, sincronização, permissão do GitHub, plugin).
