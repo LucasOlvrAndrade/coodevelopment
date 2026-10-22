@@ -6,4 +6,6 @@ prompt, chave Anthropic única do Lucas, repo importado ou criado na conta do
 criador, commit ao fechar a jam (inclusive quando fecha sozinha), até 3
 pessoas, sem limite de uso (por enquanto só o Lucas e o pai).
 
-**Próximo passo:** brief (@analyst), depois PRD (@pm).
+Brief 1.0 (rascunho) em `docs/brief.md`, aguardando revisão do Lucas.
+
+**Próximo passo:** Lucas revisa o brief; depois PRD (@pm), começando pelas 3 perguntas da seção 10.
