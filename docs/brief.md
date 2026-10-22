@@ -1,6 +1,6 @@
 # Project Brief: Coodevelopment
 
-Versão 1.0, concluída em 2026-10-22. Template `project-brief-tmpl.yaml` v2.0,
+Versão 1.1, 2026-10-22 (1.0 + verificação dos hooks do Claude Code). Template `project-brief-tmpl.yaml` v2.0,
 modo interativo, seção por seção com o Lucas. Base: `docs/decisoes.md` (D1 a
 D20).
 
@@ -335,9 +335,11 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
 
 ### Key Risks
 
-- **Hooks do Claude Code não bastarem:** sem injetar contexto a cada prompt ou
-  interceptar edição antes de acontecer, a feature principal fica pela metade.
-  Risco que derruba o produto; primeiro a verificar.
+- **Edição por comando de shell escapa do bloqueio:** verificado em 2026-10-22,
+  os hooks permitem saber início e fim do Claude, injetar contexto e bloquear
+  `Edit`/`Write`; mas arquivo alterado por `Bash`/`PowerShell` não passa pelo
+  bloqueio, só é detectado depois (vigia do conector). Ver
+  `docs/research/2026-10-22-hooks-claude-code.md`.
 - **O Claude não chamar `anunciar`:** o modelo pode pular a ferramenta e
   editar direto. Mitigação proposta: o hook antes da edição recusa mexer em
   arquivo sem aviso ativo.
@@ -364,8 +366,6 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
 
 ### Areas Needing Further Research
 
-- Interface atual de hooks e MCP do Claude Code: o que dá para injetar,
-  interceptar e bloquear (**primeiro**).
 - Serviço de tempo real: Liveblocks, PartyKit, Ably e outros em latência,
   preço e armazenamento de estado.
 - Algoritmo de sincronização de arquivos: CRDT ou reserva de arquivo com
@@ -385,6 +385,12 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
   é coerente (TCP para servidores de longa duração; HTTP/WebSocket para
   ambientes sem socket). Sem declaração oficial da StackBlitz. Consequência:
   ambientes no navegador não rodam qualquer stack, o que levou da D8 para a D10.
+- **Hooks e MCP do Claude Code (2026-10-22, documentação oficial):** viável.
+  `UserPromptSubmit` marca o início e injeta contexto (`additionalContext`);
+  `Stop`/`StopFailure` marcam o fim; `PreToolUse` nega `Edit`/`Write` com
+  motivo que volta ao Claude; plugin empacota hooks + MCP. Lacuna: edição por
+  shell só é detectada depois. Detalhe em
+  `docs/research/2026-10-22-hooks-claude-code.md`.
 - **Não foram feitos:** pesquisa de mercado, análise de concorrência ou
   entrevistas além do Lucas.
 
@@ -409,10 +415,9 @@ O pai do Lucas, segundo usuário, não foi consultado diretamente.
 
 ### Immediate Actions
 
-1. **Verificar a interface de hooks e MCP do Claude Code** (@architect ou
-   @analyst): confirmar que dá para saber quando o Claude começa e termina,
-   injetar contexto a cada prompt e bloquear edição sem aviso. Maior risco do
-   brief; o resultado pode mudar o PRD.
+1. ~~Verificar a interface de hooks e MCP do Claude Code~~: **feito em
+   2026-10-22**, viável com a lacuna da edição por shell (ver Research
+   Summary).
 2. **Mostrar o brief ao pai do Lucas,** principalmente o fluxo de entrar na jam
    e o da D13 (Node). Opcional, mas barato.
 3. **Criar o PRD com o @pm** a partir deste brief, seção por seção.

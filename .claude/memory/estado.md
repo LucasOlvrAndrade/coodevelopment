@@ -32,7 +32,10 @@ claude-code`; o assistente interativo trava neste terminal).
 **Brief 1.0 concluído em 22/10** (`docs/brief.md`, template oficial, modo
 interativo, 12 seções aprovadas). Sem prazo.
 
-**Próximo passo:** verificar a interface de hooks e MCP do Claude Code (saber
-início e fim do Claude, injetar contexto a cada prompt, bloquear edição sem
-aviso) antes do PRD; depois PRD com o @pm. Pendente para o PRD: depois de
-quanto tempo sem commit aparece o lembrete da D20.
+**Hooks verificados em 22/10** (`docs/research/2026-10-22-hooks-claude-code.md`):
+viável. Início/fim, injetar contexto e negar `Edit`/`Write` funcionam; edição por
+shell só é detectada depois. Conector = plugin do Claude Code (hooks + MCP),
+hooks em `node`, casar `Bash|PowerShell` no Windows. Brief virou 1.1.
+
+**Próximo passo:** PRD com o @pm. Pendente para o PRD: depois de quanto tempo
+sem commit aparece o lembrete da D20.
