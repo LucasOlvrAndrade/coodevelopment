@@ -22,4 +22,4 @@ claude-code`; o assistente interativo trava neste terminal).
 
 Brief em andamento no modo interativo do template oficial
 (`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 e 2 aprovadas e
-gravadas (a 1 corrigida pela D10); seção 3 em revisão.
+gravadas (a 1 corrigida pela D10); seção 4 em revisão.

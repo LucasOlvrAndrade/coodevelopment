@@ -65,3 +65,45 @@ Success Metrics).
 **Por que agora.** Os agentes de código já fazem boa parte do trabalho; o
 gargalo de quem programa junto passou a ser coordenar os agentes. E há um
 projeto real esperando por isso.
+
+## Proposed Solution
+
+**Conceito.** O Coodevelopment não substitui nada do que os participantes já
+usam: Claude Code, editor, terminal e o jeito de rodar o projeto continuam
+iguais. Ele acrescenta **uma camada de coordenação entre os Claudes**, em três
+partes:
+
+1. **A jam (app web).** Quem cria escolhe o repositório do GitHub (importa um
+   existente ou cria um novo) e chama até dois amigos, que viram colaboradores
+   automaticamente. A página da jam mostra quem está dentro, o **status ao vivo
+   de cada Claude** (*"Claude Code de Lucas está trabalhando em: ..."*) e um
+   feed com avisos, arquivos alterados e ações importantes (instalou pacote,
+   rodou migração).
+2. **O conector local.** Cada participante roda um comando no próprio PC para
+   entrar na jam com a pasta do projeto. A partir daí:
+   - o Claude Code passa a **anunciar** o que vai fazer antes de mexer;
+   - a cada prompt, o Claude **recebe o que os outros Claudes estão fazendo
+     agora**;
+   - antes de editar um arquivo que outro Claude anunciou, ele **é avisado do
+     conflito**;
+   - as mudanças de cada um **chegam ao vivo na pasta dos outros**, e o projeto
+     rodando localmente se atualiza sozinho: esse é o preview.
+3. **O fechamento.** Ao fechar a jam, ou quando ela fecha sozinha, o trabalho
+   de todos vira um commit no repositório, sem merge para resolver depois.
+
+**Diferenciais.**
+
+- **Coordena agentes, não só pessoas.** Editores colaborativos sincronizam
+  texto; o Coodevelopment faz cada Claude saber o que os outros estão fazendo.
+- **Usa o Claude Code de verdade,** com a assinatura, configurações, skills e
+  memória de cada um.
+- **Qualquer stack,** porque cada projeto roda onde já roda hoje.
+- **Sem servidor de projeto para manter:** nenhuma máquina na nuvem ligada.
+
+**Por que vai funcionar.** Mudança mínima de hábito: entrar na jam e continuar
+trabalhando como antes. Apoia-se em pontos de extensão que o Claude Code já
+oferece (hooks e MCP), em vez de reimplementar o agente.
+
+**Visão.** Ser a "sala de trabalho" de quem constrói software junto com
+agentes de IA: o mesmo projeto, vários Claudes, todo mundo sabendo o que está
+acontecendo.
