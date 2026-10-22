@@ -216,3 +216,30 @@ Claude Code trabalhando ao mesmo tempo: durante toda a sessão cada um vê o
 status do outro, nenhum conflito acontece sem aviso, e a jam termina com tudo
 commitado, sem merge manual. O mesmo funciona em um segundo projeto de stack
 diferente.
+
+## Post-MVP Vision
+
+### Phase 2 Features
+
+- **Conector para macOS e Linux,** para os amigos (segmento secundário).
+- **Status dos outros no terminal,** na barra de status do Claude Code.
+- **Linha do tempo da jam:** histórico de quem pediu o quê ao próprio Claude,
+  quais arquivos cada um mexeu e quando, para retomar a jam no dia seguinte.
+- **Mais controle sobre o git:** commits intermediários durante a jam e opção
+  de fechar a jam como pull request em vez de commit direto.
+- **Preview compartilhado opcional:** o dono da jam expõe o projeto rodando no
+  PC dele para os outros verem no navegador.
+
+### Long-term Vision
+
+Ser o lugar onde pequenos grupos constroem software junto com agentes de IA:
+abrir uma jam, chamar quem precisa e trabalhar ao mesmo tempo, com cada agente
+sabendo o que os outros estão fazendo.
+
+### Expansion Opportunities
+
+- **Grupos maiores e papéis:** mais de 3 pessoas, com papéis (quem pilota,
+  quem acompanha).
+- **Outros agentes de código:** a mesma coordenação para outras ferramentas
+  além do Claude Code (hipótese: depende de elas terem hooks equivalentes).
+- **Uso comercial:** equipes pequenas e empresas, com limites e cobrança.
