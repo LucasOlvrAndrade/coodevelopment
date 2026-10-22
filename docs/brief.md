@@ -373,3 +373,33 @@ Ideias iniciais, não decisões; a escolha final é do @architect.
   GitHub App reduz o acesso pedido.
 - Vigia de arquivos no Windows: desempenho em pastas grandes e respeito ao
   `.gitignore`.
+
+## Appendices
+
+### A. Research Summary
+
+- **WebContainers e bancos via TCP (2026-10-22):** um guia de terceiros afirma
+  que o driver `pg` (node-postgres), que usa TCP, não funciona dentro do
+  WebContainers, e indica drivers via HTTP ou WebSocket. A documentação da Neon
+  é coerente (TCP para servidores de longa duração; HTTP/WebSocket para
+  ambientes sem socket). Sem declaração oficial da StackBlitz. Consequência:
+  ambientes no navegador não rodam qualquer stack, o que levou da D8 para a D10.
+- **Não foram feitos:** pesquisa de mercado, análise de concorrência ou
+  entrevistas além do Lucas.
+
+### B. Stakeholder Input
+
+Todas as decisões vieram do Lucas, em 2026-10-22, registradas como D1 a D20 em
+`docs/decisoes.md`. As mais importantes para o brief: a arquitetura mudou duas
+vezes (sandbox D1 → navegador D8 → PC de cada um D10), guiada pela exigência
+de servir para qualquer stack (D11); o RBC foi só um exemplo, o sistema não é
+desenhado para nenhum projeto específico; o status ao vivo (D9) é exigência
+central; a jam nunca fecha sozinha (D14) e nada pode se perder (D5, D17, D20).
+O pai do Lucas, segundo usuário, não foi consultado diretamente.
+
+### C. References
+
+- `docs/decisoes.md`: decisões D1 a D20 e arquitetura proposta.
+- [RapidDev, PostgreSQL no Bolt/WebContainer](https://rapidevelopers.com/bolt-ai-integrations/postgresql)
+- [Neon, escolha do método de conexão](https://neon.com/docs/connect/choose-connection)
+- Template: `.aiox-core/product/templates/project-brief-tmpl.yaml` v2.0

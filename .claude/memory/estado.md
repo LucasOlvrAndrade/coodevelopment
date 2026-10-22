@@ -32,4 +32,5 @@ claude-code`; o assistente interativo trava neste terminal).
 Brief em andamento no modo interativo do template oficial
 (`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 a 10 aprovadas e
 gravadas (a 6 ganhou a ajuda do Node, D13; D14 a D19 ajustaram 3, 5 e 6);
-seção 10 revista com D17/D20 e aprovada; seção 11 (Appendices) em revisão. Sem prazo (confirmado em 22/10).
+seção 10 revista com D17/D20 e aprovada; seção 11 (Appendices) aprovada;
+seção 12 (Next Steps) em revisão. Sem prazo (confirmado em 22/10).
