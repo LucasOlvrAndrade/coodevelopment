@@ -16,5 +16,5 @@ Brief em andamento no modo interativo do template oficial
 rascunho improvisado antes do template e será substituído seção por seção.
 Seção 1 (resumo executivo) aguardando aprovação, precisa ser revista pela D8.
 
-**Pendente com o Lucas:** o pai dele programa ou tem ambiente instalado?
-(muda o público e o tom da interface).
+**Usuários:** o pai do Lucas programa com o Claude Code do mesmo jeito que ele
+(dois desenvolvedores; confirmado em 2026-10-22).
