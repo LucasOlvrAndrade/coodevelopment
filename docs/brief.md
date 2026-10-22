@@ -164,3 +164,55 @@ acontecendo.
 - **Simultaneidade:** parte do tempo de jam com dois ou mais Claudes
   trabalhando ao mesmo tempo. Meta inicial: acima de 50%, revisar depois das
   primeiras jams.
+
+## MVP Scope
+
+### Core Features (Must Have)
+
+- **Login com GitHub:** identidade e permissão para criar repositório e
+  convidar colaborador.
+- **Amigos (D12):** na tela de adicionar amigos, os mútuos do GitHub que já
+  têm conta no Coodevelopment aparecem como sugestões; busca pelo usuário do
+  GitHub para os demais. Adicionar manda pedido de amizade (aceitar ou
+  recusar); ninguém vira amigo automaticamente. Remover amigo. Só amigos podem
+  ser chamados para uma jam.
+- **Criar jam:** importar um repositório do criador ou criar um novo (D4),
+  chamar até 2 amigos (D6), convite de colaborador aceito automaticamente.
+- **Conector local para Windows:** um comando para entrar na jam com a pasta do
+  projeto (clona o repositório se a pasta não existir) e ligar o Claude Code à
+  jam por hooks e MCP, sem configuração manual.
+- **Status ao vivo (D9):** *"Claude Code de Lucas está trabalhando em: ..."*
+  para todos, sumindo quando ele termina.
+- **Aviso antes de mexer (D2):** o Claude anuncia resumo e arquivos antes de
+  editar.
+- **Contexto cruzado:** a cada prompt, o Claude recebe o que os outros Claudes
+  estão fazendo agora.
+- **Alerta de conflito:** antes de editar um arquivo anunciado por outro
+  Claude, o Claude e a pessoa são avisados.
+- **Sincronização ao vivo:** mudanças de arquivo chegam na pasta dos outros,
+  respeitando o `.gitignore`; dependências, build e `.env` nunca vão (D11).
+- **Feed da jam:** avisos, arquivos alterados e ações que afetam os outros
+  (ex.: dependências que mudaram e precisam ser reinstaladas).
+- **Fechar jam com commit (D5):** commit e push ao fechar e quando a jam fecha
+  sozinha (todos saíram ou ociosa).
+- **Reabrir jam:** voltar a trabalhar a partir do último commit.
+- **Página da jam polida e responsiva:** no computador e no celular.
+
+### Out of Scope for MVP
+
+- Conector para macOS e Linux.
+- Limites de uso e cobrança (D7).
+- Mais de 3 pessoas por jam (D6).
+- Preview do projeto embutido na página da jam.
+- Branches, pull requests e commits intermediários pela interface.
+- Editor de código no navegador.
+- Deploy do projeto da jam.
+- Status dos outros dentro do terminal (barra de status do Claude Code).
+
+### MVP Success Criteria
+
+O Lucas e o pai fazem uma jam inteira num projeto real deles, com os dois
+Claude Code trabalhando ao mesmo tempo: durante toda a sessão cada um vê o
+status do outro, nenhum conflito acontece sem aviso, e a jam termina com tudo
+commitado, sem merge manual. O mesmo funciona em um segundo projeto de stack
+diferente.
