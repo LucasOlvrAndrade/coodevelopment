@@ -113,7 +113,7 @@ acontecendo.
 ### Primary User Segment: dupla de desenvolvedores que já usa Claude Code (Lucas e o pai)
 
 - **Perfil:** dois desenvolvedores da mesma família, cada um com o próprio PC e
-  o próprio Claude Code. O Lucas trabalha no Windows. Os dois já mantêm
+  o próprio Claude Code. Os dois trabalham no Windows. Os dois já mantêm
   projetos rodando localmente, com banco e variáveis de ambiente.
 - **Como trabalham hoje:** cada um sozinho, no próprio projeto, conversando com
   o próprio Claude. Ainda não trabalharam juntos no mesmo código ao mesmo tempo.

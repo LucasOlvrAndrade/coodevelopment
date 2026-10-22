@@ -22,6 +22,6 @@ claude-code`; o assistente interativo trava neste terminal).
 
 Brief em andamento no modo interativo do template oficial
 (`project-brief-tmpl.yaml` v2.0), com o @analyst. Seções 1 a 4 aprovadas e
-gravadas (a 1 corrigida pela D10); seção 5 em revisão. Levar para a seção 10
-(Open Questions): sistema operacional do pai (define se o conector precisa de
-macOS/Linux no MVP), sem resposta em 22/10.
+gravadas (a 1 corrigida pela D10); seção 5 em revisão. O pai também usa
+Windows (confirmado em 22/10): o conector do MVP pode ser só Windows; macOS e
+Linux ficam para o segmento secundário (amigos).
