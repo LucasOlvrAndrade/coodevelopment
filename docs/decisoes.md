@@ -1,41 +1,46 @@
 # Coodevelopment: decisões e arquitetura inicial
 
-Sistema para até três pessoas desenvolverem juntas com o Claude, direto no
-navegador. Cada usuário entra com a própria conta, adiciona amigos e cria uma
-jam a partir de um repositório do GitHub. A feature principal é o contexto
-atualizado em tempo real, com preview do projeto ao vivo. O codesenvolvimento
-tem que ser polido e responsivo.
+Sistema para até três pessoas desenvolverem juntas, cada uma com o próprio
+Claude Code no próprio PC, num mesmo projeto. Cada usuário entra com a própria
+conta, adiciona amigos e cria uma jam a partir de um repositório do GitHub. A
+feature principal é o contexto atualizado em tempo real, com preview do
+projeto ao vivo. O codesenvolvimento tem que ser polido e responsivo, e o
+sistema tem que servir para projetos de qualquer stack.
 
 Nome: **Coodevelopment**, em `coodevelopment.lucas-andrade.dev`.
+
+Primeiro uso real: o Lucas e o pai implementando juntos o sistema de backup do
+projeto RBC (Next.js + Postgres via `pg`). O app é para começar a trabalhar
+junto; hoje eles não trabalham no mesmo projeto ao mesmo tempo.
 
 ## Decisões do Lucas (2026-10-22)
 
 | # | Decisão | Escolha |
 |---|---|---|
-| ~~D1~~ | ~~Onde o Claude Code roda~~ | ~~Sandbox na nuvem por jam~~. **Substituída pela D8** no mesmo dia: o Lucas achou que a máquina na nuvem não é necessária |
-| D2 | Sessões | Uma sessão do Claude por pessoa, nos mesmos arquivos. A cada prompt, o Claude avisa que vai trabalhar em mudanças e dá um resumo curto do que é |
-| D3 | Quem paga o Claude | Uma chave só, do Lucas |
+| ~~D1~~ | ~~Onde roda~~ | ~~Sandbox na nuvem por jam~~. Substituída pela D8 |
+| D2 | Sessões | Uma sessão do Claude Code por pessoa, nos mesmos arquivos. A cada prompt, o Claude avisa que vai trabalhar em mudanças e dá um resumo curto do que é |
+| ~~D3~~ | ~~Quem paga o Claude~~ | ~~Uma chave só, do Lucas~~. Deixou de se aplicar com a D10: cada um usa o próprio Claude Code com a própria assinatura |
 | D4 | Repositório | Na conta de quem cria a jam, com duas opções: importar um repo que ele já tem ou criar um novo. Os outros entram como colaboradores |
-| D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Se a jam fechar sozinha (todos saíram, ociosa, navegador fechado), o commit e o push acontecem do mesmo jeito |
+| D5 | Commit | Ao fechar a jam, para não haver risco de perder trabalho. Se a jam fechar sozinha (todos saíram, ociosa, PC desligado), o commit e o push acontecem do mesmo jeito |
 | D6 | Tamanho da jam | No máximo 3 pessoas por enquanto |
 | D7 | Limites de uso | Nenhum por enquanto; no começo o uso é só do Lucas e do pai dele |
-| D9 | Status ao vivo | Todos veem, em tempo real, quando o Claude de alguém está trabalhando e em quê. Exemplo do Lucas: na jam aparece *Claude de Lucas está trabalhando em: "breve resumo"*. O status some quando ele termina |
-| D8 | Onde o projeto e o Claude rodam | **No navegador.** O projeto e o dev server do preview rodam no navegador de cada participante (WebContainers). O Claude é chamado pela API com a chave do Lucas e edita os arquivos por ferramentas do próprio app. Não é o Claude Code (CLI); é o Claude com ferramentas nossas. Sem máquina na nuvem |
+| ~~D8~~ | ~~Onde roda~~ | ~~No navegador (WebContainers)~~. Substituída pela D10: o `pg` do RBC usa TCP, que não funciona no WebContainers |
+| D9 | Status ao vivo | Todos veem, em tempo real, quando o Claude de alguém está trabalhando e em quê. Exemplo do Lucas: na jam aparece *Claude Code de Lucas está trabalhando em: "breve resumo"*. O status some quando ele termina |
+| D10 | Onde o projeto e o Claude rodam | **No PC de cada um.** Cada pessoa usa o próprio Claude Code, com o projeto rodando na própria máquina. Um conector local liga o Claude Code e a pasta do projeto ao app. Sem máquina na nuvem |
+| D11 | Stack | O sistema se adapta à stack de qualquer projeto, não só de um. Nada no Coodevelopment pode depender da linguagem, framework ou banco do projeto da jam |
 
 ## Arquitetura proposta
 
 ```
-                      app Next.js (Vercel)
-                      ├ login GitHub, amigos, jams (Neon)
-                      ├ proxy do Claude (chave do Lucas)
-                      └ commit/push via GitHub API ao fechar
-                               ▲
-Navegador A                    │                    Navegador B
-├ WebContainer: projeto ◄──────┼── serviço de ────► ├ WebContainer: projeto
-│ + dev server → preview       │   tempo real       │ + dev server → preview
-├ chat com o seu Claude        │   (arquivos,       ├ chat com o seu Claude
-└ feed ao vivo                 │   avisos, quem     └ feed ao vivo
-                               │   está online)
+PC Lucas                                PC pai
+├ Claude Code (assinatura dele)         ├ Claude Code (assinatura dele)
+├ projeto rodando local (qualquer stack)├ projeto rodando local
+└ conector ──────────┐        ┌──────── └ conector
+                     ▼        │
+            app Coodevelopment (Vercel)
+            ├ login GitHub, amigos, jams (Neon)
+            ├ tempo real: status, avisos, arquivos, quem está online
+            └ commit/push via GitHub API ao fechar
 ```
 
 - **Login:** GitHub OAuth (Auth.js). Já dá a identidade e o token para criar
@@ -43,53 +48,51 @@ Navegador A                    │                    Navegador B
   do amigo (`PATCH /user/repository_invitations/{id}`).
 - **Amigos:** pedido de amizade por @ do GitHub; só amigos podem ser chamados
   para uma jam.
-- **Projeto no navegador:** ao entrar na jam, o navegador baixa os arquivos,
-  monta o WebContainer, instala as dependências e sobe o dev server. Cada
-  participante tem o seu container, todos com os mesmos arquivos.
-- **Arquivos compartilhados:** a fonte da verdade dos arquivos da jam é um
-  documento compartilhado no serviço de tempo real, guardado no servidor. Toda
-  edição (de qualquer Claude) vai para ele e é aplicada no container de cada
-  participante. Por estar no servidor, o commit não depende de nenhum
-  navegador estar aberto (D5).
-- **Claude:** o laço do agente roda no navegador de quem fez o pedido; cada
-  chamada passa pelo proxy do app, que guarda a chave. Ferramentas do app:
-  `anunciar`, ler arquivo, escrever arquivo, listar, buscar e rodar comando no
-  container de quem pediu.
+- **Conector local:** um programa pequeno que cada participante roda (por
+  exemplo `npx coodevelopment entrar <jam>`). Ele:
+  1. liga o Claude Code à jam por hooks e por um servidor MCP;
+  2. vigia a pasta do projeto e envia as mudanças de arquivo;
+  3. aplica na pasta local as mudanças que chegam dos outros;
+  4. respeita o `.gitignore`: dependências, build e segredos (`.env`) nunca
+     são sincronizados, e é isso que deixa o sistema independente de stack.
+- **Status ao vivo (D9):** os hooks do Claude Code avisam quando ele começa e
+  termina; o resumo vem da ferramenta `anunciar`. Todos veem *Claude Code de
+  Lucas está trabalhando em: "..."*.
 - **Contexto ao vivo (a feature principal):**
   1. Antes de mexer em qualquer arquivo, o Claude chama
-     `anunciar(resumo, arquivos)`; o aviso aparece na tela dos outros.
-  2. O aviso entra também no contexto dos outros Claudes, então cada Claude
-     sabe o que os outros estão fazendo.
+     `anunciar(resumo, arquivos)` (ferramenta do MCP do conector).
+  2. A cada prompt, um hook injeta no contexto do Claude o que os outros
+     Claudes estão fazendo agora.
   3. Cada edição é transmitida (arquivo, autor, diff curto).
-  4. Se o arquivo está reservado pelo aviso de outro Claude, a ferramenta de
-     escrita avisa antes de editar, e a pessoa vê o conflito na tela.
-- **Preview:** o dev server de cada container num iframe; o HMR atualiza
-  sozinho quando os arquivos mudam.
-- **Commit:** feito pelo app via GitHub API a partir dos arquivos guardados no
-  servidor, ao fechar a jam ou quando ela fica sem ninguém.
+  4. Hook antes da edição: se o arquivo está reservado pelo aviso de outro
+     Claude, o Claude é avisado antes de editar, e a pessoa vê o conflito.
+- **Preview:** cada um roda o projeto do jeito que já roda hoje; como os
+  arquivos chegam ao vivo, o preview local (com hot reload, quando a stack
+  tem) mostra as mudanças de todos. O app não precisa saber subir o projeto.
+- **Commit (D5):** o app guarda o estado dos arquivos da jam e faz o commit
+  via GitHub API ao fechar, sem depender de nenhum PC ligado.
 - **Serviço de tempo real:** a Vercel não segura conexão aberta, então precisa
   de um serviço externo (Liveblocks, PartyKit, Ably ou similar). Escolha do
   @architect.
 
 ## Riscos conhecidos
 
-- **Licença do WebContainers:** uso pessoal é permitido; uso comercial em
-  produção exige licença da StackBlitz. Hoje o uso é só pessoal (D7). Confirmar
-  os termos atuais antes de abrir para mais gente.
-- **Navegadores e celular:** WebContainers funciona melhor em Chrome/Edge no
-  computador; Safari e Firefox têm suporte limitado e o celular pode não
-  aguentar rodar o projeto. No celular a jam pode ficar só com chat e feed, sem
-  preview. Confirmar o suporte atual.
-- **Só projetos Node:** o container roda Node, não Python, banco local etc.
-- **Instalação pesada:** cada navegador instala as dependências do projeto; em
-  projetos grandes isso demora e consome memória.
-- **Sessões nos mesmos arquivos:** o aviso e a reserva de arquivo reduzem
-  conflito, mas não eliminam; precisa de teste com uso real.
-- **Custo:** só tokens do Claude e o plano do serviço de tempo real; não há
-  mais máquina ligada.
+- **Sincronizar pastas locais ao vivo:** dois Claudes escrevendo nos mesmos
+  arquivos em máquinas diferentes. O aviso e a reserva reduzem conflito, mas a
+  sincronização precisa resolver escrita simultânea sem perder nada.
+- **Ambientes diferentes:** cada PC precisa ter o projeto rodando (dependências,
+  `.env`, banco). O Coodevelopment não instala nada disso; só avisa quando uma
+  mudança mexe em dependência (por exemplo, `package.json`) para o outro
+  reinstalar.
+- **Ações fora dos arquivos:** migração de banco, instalação de pacote e testes
+  que escrevem em banco compartilhado acontecem na máquina de quem rodou e
+  podem afetar os outros (no RBC, a suíte roda no banco de produção). Precisa
+  aparecer no feed.
+- **Hooks e MCP do Claude Code:** o conector depende da interface de hooks e
+  MCP do Claude Code; mudanças nela podem quebrar o conector.
 
 ## Em aberto
 
 - Serviço de tempo real (para o @architect).
-- Confirmar licença e suporte de navegador do WebContainers (pesquisa do
-  @analyst).
+- Como o conector resolve escrita simultânea no mesmo arquivo (para o
+  @architect).

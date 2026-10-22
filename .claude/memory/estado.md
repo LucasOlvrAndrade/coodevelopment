@@ -1,20 +1,25 @@
 # Estado do Coodevelopment
 
-**2026-10-22:** projeto aberto. Decisões em `docs/decisoes.md`. A D1 (sandbox
-na nuvem) foi substituída pela D8 no mesmo dia: o projeto e o preview rodam
-no navegador de cada um (WebContainers) e o Claude é chamado pela API com a
-chave do Lucas, com ferramentas do app (não é o Claude Code CLI). Valem também:
-uma sessão por pessoa com aviso a cada prompt, repo importado ou criado na
-conta do criador, commit ao fechar a jam (inclusive quando fecha sozinha), até
-3 pessoas, sem limite de uso (por enquanto só o Lucas e o pai).
+**2026-10-22:** projeto aberto. Decisões em `docs/decisoes.md`. A arquitetura
+mudou duas vezes no mesmo dia: sandbox na nuvem (D1) → navegador com
+WebContainers (D8) → **PC de cada um (D10)**, porque o primeiro uso real é o
+RBC (Next.js + `pg` via TCP, que não roda no WebContainers) e porque o
+sistema tem que servir para qualquer stack (D11). Cada um usa o próprio
+Claude Code (a D3, chave única do Lucas, deixou de se aplicar); um conector
+local (hooks + MCP + vigia da pasta) liga Claude Code e projeto ao app.
+
+Valem também: uma sessão por pessoa com aviso a cada prompt (D2), status ao
+vivo "Claude Code de Lucas está trabalhando em: ..." (D9), repo importado ou
+criado na conta do criador (D4), commit ao fechar a jam inclusive quando fecha
+sozinha (D5), até 3 pessoas (D6), sem limite (D7).
+
+**Usuários:** o Lucas e o pai, que programa com o Claude Code do mesmo jeito.
+O app é para começar a trabalhar junto; primeiro uso: implementar juntos o
+sistema de backup do RBC.
 
 AIOX 5.4.1 instalado no projeto (`aiox install --quiet --force --merge --ide
 claude-code`; o assistente interativo trava neste terminal).
 
 Brief em andamento no modo interativo do template oficial
-(`project-brief-tmpl.yaml` v2.0), com o @analyst. O `docs/brief.md` atual é o
-rascunho improvisado antes do template e será substituído seção por seção.
-Seção 1 (Executive Summary) aprovada e gravada; seção 2 em revisão.
-
-**Usuários:** o pai do Lucas programa com o Claude Code do mesmo jeito que ele
-(dois desenvolvedores; confirmado em 2026-10-22).
+(`project-brief-tmpl.yaml` v2.0), com o @analyst. Seção 1 aprovada e gravada
+(corrigida pela D10); seção 2 em revisão.

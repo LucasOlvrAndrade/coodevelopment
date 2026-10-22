@@ -1,14 +1,14 @@
 # Project Brief: Coodevelopment
 
 Template `project-brief-tmpl.yaml` v2.0, modo interativo. Base:
-`docs/decisoes.md` (D2 a D8). Em construção, seção por seção.
+`docs/decisoes.md` (D2, D4 a D7, D9 a D11). Em construção, seção por seção.
 
 ## Executive Summary
 
 **Coodevelopment** é um app web em que até três desenvolvedores trabalham
-juntos no mesmo projeto, cada um com a própria sessão do Claude, dentro de uma
-**jam**: uma sala ligada a um repositório do GitHub, com o projeto rodando
-direto no navegador de cada participante.
+juntos no mesmo projeto, cada um com o próprio Claude Code no próprio PC,
+dentro de uma **jam**: uma sala ligada a um repositório do GitHub que mantém
+os participantes sincronizados ao vivo, em projetos de qualquer stack.
 
 **Problema:** quem já programa com o Claude Code, como o Lucas e o pai dele,
 trabalha em paralelo às cegas. Cada um roda o próprio Claude, que não sabe o
@@ -21,6 +21,6 @@ juntos. De início, o Lucas e o pai dele; depois, amigos e pequenos grupos.
 
 **Proposta de valor:** contexto em tempo real. Antes de mexer em qualquer
 coisa, o Claude de cada pessoa anuncia o que vai mudar, e esse aviso chega na
-hora à tela dos outros e ao contexto dos outros Claudes. Ao lado, um preview
-único do projeto se atualiza com as mudanças de todos. Ao fechar a jam, o
+hora à tela dos outros e ao contexto dos outros Claudes. O projeto rodando na
+máquina de cada um se atualiza com as mudanças de todos. Ao fechar a jam, o
 trabalho vai sozinho para o GitHub, sem conflito para resolver depois.
