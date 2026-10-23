@@ -19,9 +19,9 @@ architecture:
   architectureShardedLocation: docs/architecture
 customTechnicalDocuments: null
 devLoadAlwaysFiles:
-  - docs/framework/coding-standards.md
-  - docs/framework/tech-stack.md
-  - docs/framework/source-tree.md
+  - docs/architecture/coding-standards.md
+  - docs/architecture/tech-stack.md
+  - docs/architecture/unified-project-structure.md
 devLoadAlwaysFilesFallback:
   - docs/pt/framework/coding-standards.md
   - docs/pt/framework/tech-stack.md
