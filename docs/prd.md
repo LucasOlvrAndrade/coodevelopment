@@ -2,7 +2,8 @@
 
 Template `prd-tmpl.yaml` v2.0, gerado em modo YOLO (sem revisão seção por
 seção) a pedido do Lucas, em 2026-10-22, para revisão no dia seguinte. Tudo o
-que não veio do brief nem das decisões está marcado **[suposição]**.
+que não veio do brief nem das decisões foi marcado como suposição; o Lucas
+confirmou todas em 2026-10-23 (versão 0.2), agora marcadas **[confirmado]**.
 
 Base: `docs/brief.md` (1.1), `docs/decisoes.md` (D1 a D20),
 `docs/research/2026-10-22-hooks-claude-code.md`.
@@ -44,6 +45,7 @@ razão de ficar no PC de cada um é servir para qualquer stack (D11).
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-10-22 | 0.1 | Primeira versão, modo YOLO, a partir do brief 1.1 | Morgan (@pm), via Claude |
+| 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Morgan (@pm), via Claude |
 
 ## Requirements
 
@@ -89,7 +91,7 @@ razão de ficar no PC de cada um é servir para qualquer stack (D11).
   reservados), marcado como informação e não como instrução.
 - **FR16:** Antes de o Claude editar um arquivo anunciado por outro Claude,
   ele é avisado do conflito e a pessoa vê o conflito na página da jam e no
-  terminal. **[suposição]** O conflito avisa e pede confirmação; não bloqueia
+  terminal. **[confirmado]** O conflito avisa e pede confirmação; não bloqueia
   de forma definitiva.
 - **FR17:** Cada mudança de arquivo num PC chega à pasta dos outros
   participantes conectados, respeitando o `.gitignore` do projeto;
@@ -110,7 +112,7 @@ razão de ficar no PC de cada um é servir para qualquer stack (D11).
 - **FR23:** A jam nunca fecha sozinha (D14) e continua normalmente se o
   criador sair (D16).
 - **FR24:** A jam mostra um lembrete quando tem trabalho sem commit há mais de
-  **[suposição]** 24 horas (D20).
+  **[confirmado]** 24 horas (D20).
 - **FR25:** Uma jam fechada pode ser reaberta, a partir do último commit.
 - **FR26:** Ao reabrir, se a pasta local de alguém estiver diferente da versão
   da jam, um popup pergunta se ele quer atualizar a pasta ou seguir com a
@@ -131,7 +133,7 @@ razão de ficar no PC de cada um é servir para qualquer stack (D11).
   s no envio de prompt) sem depender da internet: falam só com o processo
   local do conector.
 - **NFR6:** O conector não pode pesar perceptivelmente no PC enquanto o projeto
-  e o Claude Code rodam. **[suposição]** Meta: menos de 150 MB de memória e
+  e o Claude Code rodam. **[confirmado]** Meta: menos de 150 MB de memória e
   CPU ociosa abaixo de 2% com a pasta parada.
 - **NFR7:** O conector normaliza final de linha (CRLF e LF) para que a
   sincronização entre PCs não gere mudanças falsas nem laço.
@@ -184,7 +186,7 @@ de "configuração" e deve ser guiado, um passo por vez.
 
 ### Branding
 
-Sem identidade definida. **[suposição]** Visual sóbrio de ferramenta de
+Sem identidade definida. **[confirmado]** Visual sóbrio de ferramenta de
 desenvolvedor, sem cara de template de IA (sem degradê roxo, sem
 glassmorphism, sem emoji na interface). Definição na especificação de
 front-end.
@@ -249,7 +251,7 @@ Unidade + integração, mais um teste manual guiado:
 - Bloqueio de edição sem aviso só vale para `Edit`/`Write`/`NotebookEdit`;
   edição por terminal é detectada pelo vigia do conector (lacuna verificada).
 - Login do conector por fluxo de dispositivo (código mostrado no terminal e
-  confirmado no navegador) **[suposição]**.
+  confirmado no navegador) **[confirmado]**.
 - Segredos fora do git; `vercel env pull` para trazê-los (regra do Lucas).
 - Commit e push a cada passo que passa nos testes (regra do Lucas).
 - Permissão do GitHub: avaliar OAuth App com escopo `repo` contra GitHub App
@@ -539,7 +541,7 @@ so that a gente não sobrescreva o trabalho um do outro.
 1: Antes de editar arquivo reservado por outro aviso ativo, o Claude é
    avisado de quem reservou e por quê (FR16).
 2: A página da jam e o terminal mostram o conflito para as duas pessoas.
-3: **[suposição]** A edição só segue depois de confirmação no terminal de
+3: **[confirmado]** A edição só segue depois de confirmação no terminal de
    quem pediu.
 4: A reserva acaba quando o Claude que anunciou termina.
 
@@ -590,7 +592,7 @@ so that nada fique esquecido no servidor.
 #### Acceptance Criteria
 
 1: A página da jam mostra um lembrete quando há trabalho sem commit há mais de
-   24 horas **[suposição]** (FR24).
+   24 horas **[confirmado]** (FR24).
 2: O lembrete tem um atalho para fechar a jam.
 3: A jam nunca fecha sozinha (FR23).
 
@@ -608,7 +610,7 @@ lacunas são de validação com usuário e de definição técnica que cabem ao
 | 1. Problem Definition & Context | PARTIAL | Sem pesquisa de mercado nem análise de concorrência; impacto não quantificado (ainda não usam juntos) |
 | 2. MVP Scope Definition | PASS | Sem prazo, o que é decisão e não falha |
 | 3. User Experience Requirements | PARTIAL | Fluxos detalhados ficam para a especificação de front-end |
-| 4. Functional Requirements | PASS | Três suposições a confirmar (FR16, FR24, login do conector) |
+| 4. Functional Requirements | PASS | Suposições FR16, FR24 e login do conector confirmadas em 23/10 |
 | 5. Non-Functional Requirements | PASS | NFR6 com metas sugeridas |
 | 6. Epic & Story Structure | PASS | Epic 1 cobre fundação e publicação |
 | 7. Technical Guidance | PARTIAL | Serviço de tempo real, algoritmo de sincronização e permissão do GitHub em aberto |
@@ -619,8 +621,8 @@ lacunas são de validação com usuário e de definição técnica que cabem ao
 
 **High:**
 
-- Confirmar as suposições FR16 (conflito pede confirmação), FR24 (24 h) e
-  login do conector por código de dispositivo.
+- ~~Confirmar as suposições FR16, FR24 e login do conector~~: confirmadas
+  pelo Lucas em 23/10.
 - @architect: escolher serviço de tempo real e algoritmo de sincronização
   (risco central de NFR2 e NFR3).
 

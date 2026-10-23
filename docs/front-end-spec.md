@@ -2,7 +2,8 @@
 
 Template `front-end-spec-tmpl.yaml` v2.0, gerado em modo YOLO a pedido do
 Lucas em 2026-10-22, para revisão no dia seguinte. Escolhas sem pedido
-explícito estão marcadas **[suposição]**. Base: `docs/prd.md` 0.1,
+explícito foram marcadas como suposição; o Lucas confirmou todas em
+2026-10-23 (versão 0.2), agora marcadas **[confirmado]**. Base: `docs/prd.md` 0.1,
 `docs/brief.md` 1.1. Guia visual: os 20 sinais da skill `cara-de-ia` (o
 produto não pode ter cara de template de IA).
 
@@ -56,6 +57,7 @@ development, ensuring a cohesive and user-centered experience.
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-10-22 | 0.1 | Primeira versão, modo YOLO, a partir do PRD 0.1 | Uma (@ux-design-expert), via Claude |
+| 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Uma (@ux-design-expert), via Claude |
 
 ## Information Architecture (IA)
 
@@ -161,7 +163,7 @@ graph TD
 - Busca por alguém sem conta: "Ninguém com esse usuário usa o Coodevelopment
   ainda."
 - Pedido para quem já mandou pedido para mim: vira aceite direto
-  **[suposição]**.
+  **[confirmado]**.
 
 **Notes:** sugestão não cria amizade (D12).
 
@@ -194,7 +196,7 @@ graph TD
 - Sem amigos: dá para criar a jam sozinho e chamar depois pela página da jam.
 - Nome de repositório já existente: erro no próprio campo.
 - Falha ao adicionar um colaborador: a jam é criada, o amigo fica marcado
-  "não adicionado" com botão de tentar de novo **[suposição]**.
+  "não adicionado" com botão de tentar de novo **[confirmado]**.
 
 **Notes:** o limite de 2 amigos aparece como contador ("1 de 2").
 
@@ -270,7 +272,7 @@ graph TD
   reinstale no seu PC".
 
 **Notes:** a confirmação do conflito acontece no terminal de quem pediu
-**[suposição do PRD, FR16]**.
+**[confirmado, FR16]**.
 
 ### Fechar a jam
 
@@ -301,7 +303,7 @@ graph TD
 - Nada mudou desde o último commit: fecha sem commit e diz isso.
 
 **Notes:** a mensagem do commit é montada dos avisos (D18), editável na
-confirmação **[suposição]**.
+confirmação **[confirmado]**.
 
 ### Reabrir com a pasta diferente
 
@@ -330,13 +332,13 @@ graph TD
 - O popup lista os arquivos diferentes, para a pessoa saber o que muda.
 - Arquivos ignorados pelo `.gitignore` nunca são tocados.
 
-**Notes:** popup na página da jam, não no terminal **[suposição]** (D17 diz
+**Notes:** popup na página da jam, não no terminal **[confirmado]** (D17 diz
 "popup").
 
 ## Wireframes & Mockups
 
 **Primary Design Files:** sem ferramenta de design por enquanto
-**[suposição]**; os leiautes abaixo são a referência, e a primeira versão da
+**[confirmado]**; os leiautes abaixo são a referência, e a primeira versão da
 página da jam serve de protótipo.
 
 ### Key Screen Layouts
@@ -444,7 +446,7 @@ escolhido; amigos são opcionais.
 
 **Design System Approach:** sistema próprio e pequeno, em Tailwind com tokens
 CSS (claro e escuro), sobre primitivos acessíveis sem estilo (Radix) para
-diálogo, menu e seletor **[suposição]**. Nada de biblioteca pronta com
+diálogo, menu e seletor **[confirmado]**. Nada de biblioteca pronta com
 aparência padrão. Ícones: poucos, só onde ajudam a reconhecer (copiar,
 fechar, aviso, arquivo, conectado), traço de 1,5 px, sempre com texto ou
 `aria-label`.
@@ -547,7 +549,7 @@ nunca "OK".
 ### Visual Identity
 
 **Brand Guidelines:** não há marca prévia. Esta seção define a base
-**[suposição]**: ferramenta de desenvolvedor sóbria, fundo cor de papel no
+**[confirmado]**: ferramenta de desenvolvedor sóbria, fundo cor de papel no
 claro, quase preto quente no escuro, e a cor dos participantes como único
 elemento colorido forte. Checagem contra os 20 sinais de cara de IA: sem
 degradê (1, 2, 20), sem emoji (3), fonte com personalidade (4, 19), sem
@@ -575,7 +577,7 @@ textos passam de 4,5:1 e os controles de 3:1.
 
 #### Font Families
 
-- **Primary:** IBM Plex Sans **[suposição]** (tem cara de ferramenta técnica
+- **Primary:** IBM Plex Sans **[confirmado]** (tem cara de ferramenta técnica
   sem ser a Inter de todo template; boa em português)
 - **Secondary:** a mesma, em pesos diferentes (sem par de fontes)
 - **Monospace:** IBM Plex Mono (comandos, prompts, caminhos de arquivo)
@@ -596,7 +598,7 @@ corrido da página da jam.
 ### Iconography
 
 **Icon Library:** subconjunto pequeno do Lucide (cerca de 10 ícones),
-traço 1,5 px, ajustados ao tamanho do texto **[suposição]**.
+traço 1,5 px, ajustados ao tamanho do texto **[confirmado]**.
 
 **Usage Guidelines:** ícone só onde ajuda a reconhecer uma ação ou um tipo de
 item do feed; nunca decorativo; sempre com texto ao lado ou `aria-label`.
@@ -719,9 +721,9 @@ usuário) e desligado ou reduzido a troca simples com
 
 ### Immediate Actions
 
-1. Lucas revisa este documento junto com o PRD, em especial as
-   **[suposições]**: fonte IBM Plex, paleta, popup da D17 na página da jam,
-   mensagem do commit editável, pedido cruzado virando aceite.
+1. ~~Lucas revisa as suposições~~: todas confirmadas em 23/10 (fonte IBM
+   Plex, paleta, popup da D17 na página da jam, mensagem do commit editável,
+   pedido cruzado virando aceite).
 2. @architect cria a arquitetura (PRD > Next Steps > Architect Prompt),
    considerando este documento para a parte web.
 3. A primeira tela construída (página da jam da Story 2.4) serve de protótipo;
