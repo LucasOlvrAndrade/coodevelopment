@@ -1,0 +1,14 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  testes:
+    runs-on: windows-latest # o conector roda no Windows (NFR4)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
