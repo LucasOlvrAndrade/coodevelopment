@@ -56,6 +56,18 @@ por código, plugin instalado com `--scope local`. Sete pontos marcados
 na 4.1, aceite do convite com token do GitHub App na 2.3). Nome
 `coodevelopment` livre no npm em 23/10.
 
-**Próximo passo:** o Lucas revisa a arquitetura; depois validação do @po
-(`po-master-checklist`), fragmentar os documentos e criar as stories,
-começando pela 1.1.
+**Validação do @po em 23/10: APPROVED** (`docs/po-validacao.md`). Achou e
+corrigiu um erro crítico: a sala não pode ficar em
+`sala.coodevelopment.lucas-andrade.dev`, porque o DNS de `lucas-andrade.dev`
+está na Vercel; ficou em `coodevelopment-sala.<conta>.workers.dev`
+(arquitetura 0.2). PRD e front-end spec 0.3. O PRD ganhou a lista "Ações do
+Lucas" (npm login, Neon, GitHub App, `wrangler login`); nesta máquina `npm`
+e `wrangler` estão sem login.
+
+**Documentos fragmentados** com `md-tree` (via `npx`) em `docs/prd/`,
+`docs/architecture/`, `docs/front-end-spec/`; épicos com nome em inglês
+(`epic-1-foundation-login-friends.md`...). `core-config.yaml` aponta
+`devLoadAlwaysFiles` para `docs/architecture/`.
+
+**Próximo passo:** @sm cria a Story 1.1 (`create-next-story`), depois @po
+valida e @dev implementa.
