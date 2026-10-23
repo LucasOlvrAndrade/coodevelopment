@@ -29,6 +29,7 @@ Lucas (D11: o sistema não é desenhado para nenhum projeto específico).
 | Date | Version | Description | Author |
 |---|---|---|---|
 | 2026-10-23 | 0.1 | Primeira versão, modo YOLO, a partir do PRD 0.2 | Aria (@architect), via Claude |
+| 2026-10-23 | 0.2 | Validação do @po: sala no endereço `workers.dev`, porque o DNS de `lucas-andrade.dev` está na Vercel | Pax (@po), via Claude |
 
 ## High Level Architecture
 
@@ -445,7 +446,7 @@ paths:
                 type: object
                 properties:
                   token: { type: string }
-                  salaUrl: { type: string, example: "wss://sala.coodevelopment.lucas-andrade.dev/parties/jam/k7m2-rbq9" }
+                  salaUrl: { type: string, example: "wss://coodevelopment-sala.CONTA.workers.dev/parties/jam/k7m2-rbq9" }
                   expiraEm: { type: string, format: date-time }
         "403": { description: Não é participante }
   /api/jams/{jamId}/conector:
@@ -1313,7 +1314,7 @@ Para testar a jam a dois numa máquina só: `pnpm --filter conector dev entrar
 
 ```bash
 # Frontend (.env.local) - nada público além disso
-NEXT_PUBLIC_SALA_HOST=sala.coodevelopment.lucas-andrade.dev
+NEXT_PUBLIC_SALA_HOST=coodevelopment-sala.CONTA.workers.dev   # CONTA: subdomínio workers.dev da conta Cloudflare
 
 # Backend (.env.local da web, vindo de vercel env pull)
 DATABASE_URL=
@@ -1347,9 +1348,13 @@ COODEV_URL=
 - **CDN/Edge:** CDN da Vercel para estáticos; páginas dinâmicas
 
 **Backend Deployment:**
-- **Platform:** Vercel Functions (rotas) e Cloudflare Workers (sala) em
-  `sala.coodevelopment.lucas-andrade.dev` (registro DNS apontando para o
-  Worker)
+- **Platform:** Vercel Functions (rotas) e Cloudflare Workers (sala) no
+  endereço `coodevelopment-sala.<subdominio-da-conta>.workers.dev`. O DNS de
+  `lucas-andrade.dev` está na Vercel (`ns1.vercel-dns.com`, conferido em
+  23/10/2026), e a Cloudflare só liga domínio próprio a um Worker quando a
+  zona DNS está nela; mover a zona inteira não vale a pena só para isso. O
+  endereço da sala fica numa variável (`SALA_HOST`), então trocar depois é
+  configuração, não código.
 - **Build Command:** `pnpm --filter sala deploy` (`wrangler deploy`)
 - **Deployment Method:** Vercel pela integração Git na `main`; sala e
   conector por GitHub Actions na `main`
@@ -1389,7 +1394,7 @@ jobs:
 |---|---|---|---|
 | Development | http://localhost:3000 | ws://localhost:1999 | Desenvolvimento local |
 | Staging | URL de preview da Vercel por PR | sala de preview (`wrangler deploy --env preview`) | Testar antes da `main` |
-| Production | https://coodevelopment.lucas-andrade.dev | wss://sala.coodevelopment.lucas-andrade.dev | Uso real |
+| Production | https://coodevelopment.lucas-andrade.dev | wss://coodevelopment-sala.CONTA.workers.dev | Uso real |
 
 ## Security and Performance
 
@@ -1397,7 +1402,7 @@ jobs:
 
 **Frontend Security:**
 - CSP Headers: `default-src 'self'`; `connect-src 'self'
-  wss://sala.coodevelopment.lucas-andrade.dev`; `img-src 'self'
+  wss://coodevelopment-sala.CONTA.workers.dev`; `img-src 'self'
   avatars.githubusercontent.com`; scripts com nonce do Next.js
 - XSS Prevention: React escapa por padrão; resumos de aviso e nomes de
   arquivo são sempre texto, nunca HTML; nada de `dangerouslySetInnerHTML`

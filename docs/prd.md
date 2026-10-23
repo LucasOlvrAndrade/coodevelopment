@@ -46,6 +46,7 @@ razão de ficar no PC de cada um é servir para qualquer stack (D11).
 |---|---|---|---|
 | 2026-10-22 | 0.1 | Primeira versão, modo YOLO, a partir do brief 1.1 | Morgan (@pm), via Claude |
 | 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Morgan (@pm), via Claude |
+| 2026-10-23 | 0.3 | Ajustes da validação do @po: decisões da arquitetura, partes novas na 1.1, GitHub App na 1.2, sala na 2.4, Git no prompt da 3.2, aprovação do MCP na 4.1, ações do Lucas | Pax (@po), via Claude |
 
 ## Requirements
 
@@ -214,10 +215,10 @@ Serverless dentro de um monorepo:
   conector.
 - **Banco:** Postgres (Neon) para usuários, amizades, jams, participantes e
   eventos do feed.
-- **Tempo real:** serviço externo (Liveblocks, PartyKit, Ably ou similar),
-  porque a Vercel não segura conexão aberta. Escolha do @architect, com os
-  critérios: latência (NFR1, NFR2), preço (NFR11) e capacidade de guardar o
-  estado dos arquivos da jam (FR21).
+- **Tempo real:** serviço externo, porque a Vercel não segura conexão
+  aberta. Decidido pelo @architect (A1): Cloudflare Durable Objects com
+  PartyServer, uma sala por jam, que guarda também o estado dos arquivos
+  (FR21). Ver `docs/architecture.md`.
 - **Conector:** processo Node que roda no PC enquanto a jam está aberta; vigia
   a pasta, fala com o serviço de tempo real e atende os hooks do Claude Code
   localmente. Distribuído como plugin do Claude Code (hooks + servidor MCP)
@@ -254,8 +255,8 @@ Unidade + integração, mais um teste manual guiado:
   confirmado no navegador) **[confirmado]**.
 - Segredos fora do git; `vercel env pull` para trazê-los (regra do Lucas).
 - Commit e push a cada passo que passa nos testes (regra do Lucas).
-- Permissão do GitHub: avaliar OAuth App com escopo `repo` contra GitHub App
-  com permissão por repositório (NFR9).
+- Permissão do GitHub: GitHub App com token de usuário (A4, NFR9). Login
+  com Better Auth (A5).
 
 ## Epic List
 
@@ -291,13 +292,15 @@ so that toda funcionalidade seguinte já nasça no lugar certo e no ar.
 
 #### Acceptance Criteria
 
-1: O repositório tem o app web, o pacote do conector e o pacote do protocolo,
-   cada um com o próprio comando de teste, e um comando que roda tudo.
+1: O repositório tem o app web, a sala, o conector, o plugin e o protocolo
+   (estrutura de `docs/architecture.md`), cada um com o próprio comando de
+   teste, e um comando que roda tudo. O CI roda os testes no Windows.
 2: O app responde em `coodevelopment.lucas-andrade.dev` com uma página inicial
    que explica o produto em uma frase e um botão de entrar.
 3: Uma rota de saúde responde que o app e o banco estão acessíveis.
 4: Push na `main` publica na Vercel; segredos ficam fora do git.
-5: O conector já roda por `npx` (localmente) e responde `--version`.
+5: O conector já roda por `npx` (localmente) e responde `--version`; uma
+   versão inicial é publicada no npm para reservar o nome `coodevelopment`.
 
 ### Story 1.2 Entrar com o GitHub
 
@@ -311,7 +314,10 @@ so that eu não precise de outra senha e o app possa agir no meu GitHub.
 2: O primeiro login cria o usuário com nome, usuário e foto do GitHub (FR1).
 3: O token do GitHub fica só no servidor, cifrado (NFR8).
 4: O usuário sai pelo menu; páginas internas exigem login.
-5: A permissão pedida ao GitHub é a definida pelo @architect (NFR9).
+5: O login usa o GitHub App com as permissões da arquitetura (NFR9); a
+   instalação do app na conta acontece no mesmo passo do login.
+6: A renovação do token do GitHub (validade de 8 h) acontece sozinha antes
+   de cada chamada.
 
 ### Story 1.3 Amigos por busca e pedido
 
@@ -401,6 +407,8 @@ so that eu saiba com quem estou trabalhando agora.
 2: A presença se atualiza sozinha, sem recarregar.
 3: Só participantes acessam a página da jam.
 4: A página funciona no celular (NFR10).
+5: A sala da jam (Cloudflare) está publicada pelo CI e só aceita quem tem o
+   token emitido pelo app para aquela jam.
 
 ## Epic 3 Conector e sincronização ao vivo
 
@@ -437,7 +445,8 @@ so that eu entre na jam sem procurar instrução em outro lugar.
 1: Enquanto o conector não conectou, a página mostra o aviso de que a jam
    precisa do Node.js (FR9).
 2: Há um prompt pronto, com botão de copiar, para mandar ao Claude Code
-   instalar o Node no Windows e confirmar a versão.
+   instalar o Node e o Git no Windows e confirmar as versões (o conector usa
+   o Git para clonar e para respeitar o `.gitignore`).
 3: O botão "Já instalei" mostra o comando de entrar, com botão de copiar.
 4: Quando o conector conecta, o passo some sozinho.
 
@@ -491,6 +500,8 @@ so that eu não precise perguntar.
 
 1: Ao entrar na jam, o conector instala ou atualiza o plugin do Claude Code
    (hooks e servidor MCP) para aquela pasta, sem configuração manual (FR11).
+   A única interação é aprovar o servidor MCP na primeira vez, e o terminal
+   e o passo de conexão avisam disso.
 2: Quando o Claude de alguém recebe um prompt, todos veem *"Claude Code de
    {nome} está trabalhando em: ..."* em até 1 s (FR12, NFR1).
 3: Quando ele termina, ou para por erro, o status some.
@@ -641,6 +652,21 @@ lacunas são de validação com usuário e de definição técnica que cabem ao
 para a arquitetura em paralelo, com as suposições confirmadas pelo Lucas.
 
 ## Next Steps
+
+### Ações do Lucas
+
+Só uma pessoa pode fazer estas, porque envolvem conta, login no navegador ou
+credencial. O @dev prepara tudo e pede cada uma na story indicada; nenhuma
+bloqueia antes disso. Em 23/10/2026 nesta máquina: `npm` sem login e
+`wrangler` sem login.
+
+| Story | Ação | Como |
+|---|---|---|
+| 1.1 | Entrar no npm (conta existente ou nova) para publicar o conector | `! npm login` |
+| 1.1 | Criar o banco no Neon pela Vercel e ligar ao projeto | Painel da Vercel, Storage > Neon (ou o @dev pelo CLI, se o login da Vercel já estiver ativo) |
+| 1.2 | Criar o GitHub App "Coodevelopment" com as permissões da arquitetura | O @dev gera o manifesto; o Lucas confirma a criação no navegador do GitHub |
+| 2.4 | Criar conta na Cloudflare (gratuita) e entrar no `wrangler` | `! npx wrangler login` |
+| 3.1 | Ter Node e Git no PC do pai | O próprio passo de conexão guia |
 
 ### UX Expert Prompt
 

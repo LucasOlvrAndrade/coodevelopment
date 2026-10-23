@@ -58,6 +58,7 @@ development, ensuring a cohesive and user-centered experience.
 |---|---|---|---|
 | 2026-10-22 | 0.1 | Primeira versão, modo YOLO, a partir do PRD 0.1 | Uma (@ux-design-expert), via Claude |
 | 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Uma (@ux-design-expert), via Claude |
+| 2026-10-23 | 0.3 | Ajustes da validação do @po: instalação do GitHub App no login, tela de confirmar o código do conector, Git no prompt, aviso de aprovar o MCP | Pax (@po), via Claude |
 
 ## Information Architecture (IA)
 
@@ -78,6 +79,7 @@ graph TD
     E --> E4[Fechar jam: confirmação]
     E --> E5[Popup de pasta diferente]
     E --> E6[Participantes: chamar mais amigos]
+    A --> H[Confirmar código do conector]
     C --> F[Amigos]
     F --> F1[Amigos]
     F --> F2[Pedidos recebidos e enviados]
@@ -117,7 +119,8 @@ na jam que tentou abrir).
 ```mermaid
 graph TD
     A[Página inicial ou link de jam] --> B[Entrar com GitHub]
-    B --> C{Autorizou no GitHub?}
+    B --> B1[GitHub: instalar o app na conta e autorizar, em uma tela]
+    B1 --> C{Autorizou no GitHub?}
     C -- Sim --> D{Veio de um link de jam?}
     C -- Não --> E[Volta à página inicial com aviso]
     D -- Sim --> F[Página da jam]
@@ -128,6 +131,12 @@ graph TD
 
 - Recusou a permissão no GitHub: mensagem dizendo o que o app precisa e por
   quê, com botão para tentar de novo.
+- Na tela do GitHub, a opção de repositórios deve ser "All repositories";
+  antes de mandar ao GitHub, a página diz em uma linha por quê (a jam pode
+  criar repositório novo, e ele precisa já estar coberto). Se a pessoa
+  escolher "Only select repositories", a tela de nova jam avisa quando o
+  repositório não está coberto e leva de volta à configuração do app no
+  GitHub.
 - Link de jam da qual a pessoa não participa: página "Você não está nesta
   jam", com o nome de quem a criou.
 
@@ -233,9 +242,46 @@ graph TD
 - Conector cai: a faixa da pessoa passa a "desconectado" depois de alguns
   segundos e o passo de conexão volta, só para ela.
 
+- Na primeira vez, o Claude Code pede para aprovar o servidor MCP
+  "coodevelopment": o passo 2 avisa disso em uma linha ("quando o Claude Code
+  perguntar, aprove o coodevelopment"), e o terminal do conector repete.
+
 **Notes:** texto do prompt para o Claude Code (com botão copiar): *"Instale o
-Node.js LTS neste computador Windows (por exemplo com `winget install
-OpenJS.NodeJS.LTS`), depois rode `node -v` e `npx -v` e me diga as versões."*
+Node.js LTS e o Git neste computador Windows, se ainda não estiverem
+instalados (por exemplo com `winget install OpenJS.NodeJS.LTS` e `winget
+install Git.Git`), depois rode `node -v`, `npx -v` e `git --version` e me diga
+as versões."*
+
+### Confirmar o código do conector
+
+**User Goal:** autorizar o conector do próprio PC sem colar token.
+
+**Entry Points:** o conector abre o navegador em `/dispositivo` (ou a pessoa
+digita o endereço mostrado no terminal).
+
+**Success Criteria:** o terminal diz "conectado como {nome}" e a página
+confirma.
+
+#### Flow Diagram
+
+```mermaid
+graph TD
+    A[Terminal mostra o código, ex. WDJB-MJHT] --> B[Página /dispositivo, logado]
+    B --> C{Código bate com o do terminal?}
+    C -- Sim --> D[Botão 'Autorizar este PC']
+    D --> E[Página: 'Pronto, pode voltar ao terminal']
+    C -- Não --> F[Botão 'Não fui eu': recusa o pedido]
+```
+
+#### Edge Cases & Error Handling:
+
+- Código vencido (10 minutos): a página diz isso e manda rodar o comando de
+  novo.
+- Não logado: login com GitHub e volta para a mesma tela com o código
+  preenchido.
+
+**Notes:** a página mostra o código em fonte mono grande e pede para conferir
+com o terminal antes de autorizar; nada é autorizado só por abrir o link.
 
 ### Trabalhar junto (o fluxo principal)
 
