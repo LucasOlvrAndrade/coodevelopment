@@ -103,8 +103,21 @@ PC Lucas                                PC pai
 - **Hooks e MCP do Claude Code:** o conector depende da interface de hooks e
   MCP do Claude Code; mudanças nela podem quebrar o conector.
 
+## Decisões de arquitetura (2026-10-23)
+
+Detalhes em `docs/architecture.md`; pesquisa em
+`docs/research/2026-10-23-tempo-real-github-plugin.md`.
+
+| # | Decisão | Escolha |
+|---|---|---|
+| A1 | Serviço de tempo real | Cloudflare Durable Objects com PartyServer, uma sala por jam, estado no SQLite da sala |
+| A2 | Escrita simultânea | Versão por arquivo; merge de três vias na sala; se os trechos se cruzam, fica a primeira e a outra é guardada no histórico, com aviso |
+| A3 | Estado no servidor | Commit de partida mais os arquivos mudados desde ele; fechar é um commit direto |
+| A4 | Permissão do GitHub | GitHub App com token de usuário (não OAuth App com `repo`) |
+| A5 | Login | Better Auth (Auth.js está em manutenção), com login por código para o conector |
+| A6 | Plugin | Instalado pelo conector com `claude plugin install --scope local`, fora do git do projeto |
+
 ## Em aberto
 
-- Serviço de tempo real (para o @architect).
-- Como o conector resolve escrita simultânea no mesmo arquivo (para o
-  @architect).
+- Nada para o @architect. Sete pontos a provar nas stories estão marcados
+  **[verificar]** na arquitetura.

@@ -43,9 +43,19 @@ hooks em `node`, casar `Bash|PowerShell` no Windows. Brief virou 1.1.
 REFINEMENT leve). `docs/front-end-spec.md`: fluxos, telas, componentes, paleta
 com contraste calculado, IBM Plex, WCAG AA, guiado pela skill cara-de-ia.
 
-**Próximo passo (23/10):** o Lucas revisa as [suposições] dos dois documentos:
-PRD FR16 (conflito pede confirmação no terminal), FR24 (lembrete em 24 h),
-login do conector por código de dispositivo, NFR6 (metas de memória/CPU);
-front-end: fonte IBM Plex, paleta, popup da D17 na página da jam, mensagem do
-commit editável, pedido cruzado virando aceite. Depois: arquitetura com o
-@architect (serviço de tempo real, sincronização, permissão do GitHub, plugin).
+**23/10:** o Lucas confirmou todas as suposições ("ok pode mandar bala");
+PRD e front-end spec viraram 0.2 com as marcas **[confirmado]**.
+
+**Arquitetura 0.1 feita em 23/10 em modo YOLO** (`docs/architecture.md`,
+template `fullstack-architecture-tmpl.yaml`, checklist do arquiteto com
+prontidão alta para o Epic 1). Decisões A1 a A6 em `docs/decisoes.md`:
+Cloudflare Durable Objects + PartyServer (sala por jam, estado no SQLite),
+merge de três vias, base + sobreposição, GitHub App, Better Auth com login
+por código, plugin instalado com `--scope local`. Sete pontos marcados
+**[verificar]** na story onde são provados (os maiores: plugin pelo conector
+na 4.1, aceite do convite com token do GitHub App na 2.3). Nome
+`coodevelopment` livre no npm em 23/10.
+
+**Próximo passo:** o Lucas revisa a arquitetura; depois validação do @po
+(`po-master-checklist`), fragmentar os documentos e criar as stories,
+começando pela 1.1.
