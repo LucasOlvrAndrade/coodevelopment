@@ -61,8 +61,8 @@ corrigiu um erro crítico: a sala não pode ficar em
 `sala.coodevelopment.lucas-andrade.dev`, porque o DNS de `lucas-andrade.dev`
 está na Vercel; ficou em `coodevelopment-sala.<conta>.workers.dev`
 (arquitetura 0.2). PRD e front-end spec 0.3. O PRD ganhou a lista "Ações do
-Lucas" (npm login, Neon, GitHub App, `wrangler login`); nesta máquina `npm`
-e `wrangler` estão sem login.
+Lucas" (npm login, Neon, GitHub App, `wrangler login`); `npm` logado como
+`lucasolvrandrade` em 23/10; `wrangler` ainda sem login.
 
 **Documentos fragmentados** com `md-tree` (via `npx`) em `docs/prd/`,
 `docs/architecture/`, `docs/front-end-spec/`; épicos com nome em inglês
