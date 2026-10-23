@@ -1,0 +1,36 @@
+/* Tokens da front-end spec (Branding & Style Guide). Não usar cor fora daqui. */
+:root {
+  --fundo: #f7f5f0;
+  --superficie: #ffffff;
+  --texto: #1c1b19;
+  --texto-suave: #68645c;
+  --divisoria: #d6d1c6;
+  --borda-controle: #8a8579;
+  --primaria: #1f6b57;
+  --sobre-primaria: #ffffff;
+  --sucesso: #2d7a4b;
+  --alerta: #9a6410;
+  --erro: #b3362a;
+  --participante-1: #ad4719;
+  --participante-2: #24708f;
+  --participante-3: #7c600f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #141413;
+    --superficie: #1e1d1b;
+    --texto: #f2efe8;
+    --texto-suave: #a8a397;
+    --divisoria: #3a3833;
+    --borda-controle: #7a766c;
+    --primaria: #5fc1a3;
+    --sobre-primaria: #141413;
+    --sucesso: #6cc891;
+    --alerta: #e3a74a;
+    --erro: #f07c6e;
+    --participante-1: #f08a5b;
+    --participante-2: #6bb8d6;
+    --participante-3: #d9b44a;
+  }
+}

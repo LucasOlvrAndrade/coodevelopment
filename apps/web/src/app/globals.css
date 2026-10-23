@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@import "../estilos/tokens.css";
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-divisoria: var(--divisoria);
+  --color-borda-controle: var(--borda-controle);
+  --color-primaria: var(--primaria);
+  --color-sobre-primaria: var(--sobre-primaria);
+  --color-sucesso: var(--sucesso);
+  --color-alerta: var(--alerta);
+  --color-erro: var(--erro);
+  --color-participante-1: var(--participante-1);
+  --color-participante-2: var(--participante-2);
+  --color-participante-3: var(--participante-3);
+
+  --font-sans: var(--fonte-plex-sans);
+  --font-mono: var(--fonte-plex-mono);
+
+  /* Escala de tipo da front-end spec */
+  --text-h1: 28px;
+  --text-h1--line-height: 1.2;
+  --text-h2: 22px;
+  --text-h2--line-height: 1.25;
+  --text-h3: 18px;
+  --text-h3--line-height: 1.3;
+  --text-corpo: 15px;
+  --text-corpo--line-height: 1.5;
+  --text-pequeno: 13px;
+  --text-pequeno--line-height: 1.4;
+
+  --radius-controle: 6px;
+  --radius-dialogo: 10px;
+}
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte-plex-sans), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: 2px;
+}
