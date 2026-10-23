@@ -1,0 +1,25 @@
+{
+  "name": "sala",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 1999",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "wrangler types && tsc --noEmit"
+  },
+  "dependencies": {
+    "@coodevelopment/protocolo": "workspace:*",
+    "partyserver": "0.5.10"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.7",
+    "eslint": "9.39.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "4.1.12",
+    "wrangler": "4.152.0"
+  }
+}
