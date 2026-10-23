@@ -27,3 +27,13 @@ Thumbs.db
 .aiox-core/local/
 .claude/settings.local.json
 .aiox/install-log.txt
+
+# Coodevelopment
+.env*
+!.env.example
+.next/
+.vercel/
+.wrangler/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
