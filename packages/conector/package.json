@@ -1,0 +1,33 @@
+{
+  "name": "coodevelopment",
+  "version": "0.0.1",
+  "description": "Conector do Coodevelopment: liga o Claude Code e a pasta do projeto a uma jam.",
+  "license": "MIT",
+  "author": "Lucas de Oliveira Andrade",
+  "homepage": "https://coodevelopment.lucas-andrade.dev",
+  "type": "module",
+  "bin": {
+    "coodevelopment": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@coodevelopment/protocolo": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "4.1.12"
+  }
+}
