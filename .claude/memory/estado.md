@@ -69,5 +69,9 @@ Lucas" (npm login, Neon, GitHub App, `wrangler login`); `npm` logado como
 (`epic-1-foundation-login-friends.md`...). `core-config.yaml` aponta
 `devLoadAlwaysFiles` para `docs/architecture/`.
 
-**Próximo passo:** @sm cria a Story 1.1 (`create-next-story`), depois @po
-valida e @dev implementa.
+**Story 1.1 criada e validada em 23/10** (`docs/stories/1.1.story.md`,
+Ready, GO 9/10). CodeRabbit está ligado no config, mas o WSL não está
+instalado nesta máquina: gates viram revisão manual com `code-review`.
+
+**Próximo passo:** @dev implementa a 1.1. Ação do Lucas no meio: criar o
+banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
