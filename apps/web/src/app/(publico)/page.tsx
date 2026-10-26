@@ -6,7 +6,7 @@ export default function PaginaInicial() {
       </header>
 
       <main className="flex flex-1 flex-col justify-center gap-6 py-12">
-        <h1 className="max-w-[24ch] text-h1 font-semibold md:text-[36px] md:leading-[1.15]">
+        <h1 className="max-w-[24ch] text-h1 font-semibold">
           Programe junto com seus amigos, cada um com o seu Claude Code, vendo ao vivo o que cada
           Claude está fazendo.
         </h1>
