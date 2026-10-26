@@ -19,17 +19,29 @@ export function camposDoPerfil(perfil: PerfilGithub) {
   return { githubId, login: perfil.login };
 }
 
+export const ROTAS_DESLIGADAS = [
+  "/update-user",
+  "/sign-up/email",
+  "/get-access-token",
+  "/refresh-token",
+  "/account-info",
+  "/link-social",
+  "/unlink-account",
+] as const;
+
 function criarAuth() {
   const e = env();
   return betterAuth({
     baseURL: e.BETTER_AUTH_URL,
     secret: e.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db(), { provider: "pg", schema }),
-    // Os campos extras precisam aceitar entrada, porque o Better Auth descarta
-    // os campos `input: false` vindos do perfil do GitHub. Para ninguém trocar
-    // a própria identidade pelo navegador, as rotas que gravam dados do
-    // usuário ficam desligadas: nome, foto e login vêm sempre do GitHub.
-    disabledPaths: ["/update-user", "/sign-up/email"],
+    // Rotas HTTP desligadas (as chamadas internas `auth().api` continuam):
+    // - gravar dados do usuário: os campos extras precisam aceitar entrada,
+    //   porque o Better Auth descarta os `input: false` vindos do perfil do
+    //   GitHub; sem estas rotas, ninguém troca a própria identidade pelo
+    //   navegador. Nome, foto e login vêm sempre do GitHub.
+    // - devolver ou mexer no token do GitHub: ele nunca sai do servidor (NFR8).
+    disabledPaths: [...ROTAS_DESLIGADAS],
     user: {
       additionalFields: {
         githubId: { type: "number", required: true },
