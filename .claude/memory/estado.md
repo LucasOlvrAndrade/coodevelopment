@@ -76,4 +76,4 @@ instalado nesta máquina: gates viram revisão manual com `code-review`.
 **Próximo passo:** @dev implementa a 1.1. Ação do Lucas no meio: criar o
 banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 
-**26/10:** tasks 1 a 7 e 10 da Story 1.1 feitas (CI verde no Windows; versões e licenças fixadas na Tech Stack, PartyServer é ISC). Task 8 feita no mesmo dia: Neon `coodevelopment` em sa-east-1, `/api/saude` com banco ok em produção. Falta a Task 9 (publicar o conector 0.0.1 no npm, pede o código 2FA do Lucas).
+**26/10:** tasks 1 a 7 e 10 da Story 1.1 feitas (CI verde no Windows; versões e licenças fixadas na Tech Stack, PartyServer é ISC). Task 8 feita no mesmo dia: Neon `coodevelopment` em sa-east-1, `/api/saude` com banco ok em produção. Task 9 feita também: `coodevelopment@0.0.1` no npm. A conta do npm tem 2FA só por passkey, e assim o `npm publish` pelo login web dá 403; o caminho foi token granular de 7 dias com bypass (o Lucas configura no terminal dele, removido depois). Para as próximas versões: trusted publishing pelo GitHub Actions. **Story 1.1 em InReview**; próximo: gate do @architect (revisão manual com `code-review`, sem WSL).
