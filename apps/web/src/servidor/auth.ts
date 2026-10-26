@@ -25,10 +25,15 @@ function criarAuth() {
     baseURL: e.BETTER_AUTH_URL,
     secret: e.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db(), { provider: "pg", schema }),
+    // Os campos extras precisam aceitar entrada, porque o Better Auth descarta
+    // os campos `input: false` vindos do perfil do GitHub. Para ninguém trocar
+    // a própria identidade pelo navegador, as rotas que gravam dados do
+    // usuário ficam desligadas: nome, foto e login vêm sempre do GitHub.
+    disabledPaths: ["/update-user", "/sign-up/email"],
     user: {
       additionalFields: {
-        githubId: { type: "number", required: true, input: false },
-        login: { type: "string", required: true, input: false },
+        githubId: { type: "number", required: true },
+        login: { type: "string", required: true },
       },
     },
     account: {
