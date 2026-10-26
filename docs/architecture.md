@@ -175,7 +175,7 @@ outubro e entram nas Stories 1.2 e 4.x.
 |---|---|---|---|---|
 | Frontend Language | TypeScript | 6.0.3 (Apache-2.0) | Tudo, nas quatro partes | Um idioma só; tipos do protocolo compartilhados |
 | Frontend Framework | Next.js (App Router) | 16.4.3 (MIT) | App web | Decisão do brief; Vercel; Server Components |
-| UI Component Library | Radix UI Primitives (pacote `radix-ui`) | fixar ao instalar; 1.8.1 em 26/10/2026 (MIT) | Diálogo, menu, seletor acessíveis | Front-end spec: primitivos sem estilo, visual próprio |
+| UI Component Library | Radix UI Primitives (pacote `radix-ui`) | 1.8.1 (MIT) | Diálogo, menu, seletor acessíveis | Front-end spec: primitivos sem estilo, visual próprio |
 | State Management | React (estado local) + `useSyncExternalStore` sobre a conexão da sala | React 19.3.0 (MIT) | Estado ao vivo da página da jam | Só uma página tem estado ao vivo; biblioteca de estado não se paga |
 | Backend Language | TypeScript em Node.js | Node 22 LTS ou mais novo | Rotas, conector, plugin | `WebSocket` nativo no Node 22; o conector exige Node (D13) |
 | Backend Framework | Next.js Route Handlers e Server Actions; PartyServer na sala | Next.js 16.4.3; PartyServer 0.5.10 (ISC) | API do app e lógica da sala | Sem servidor próprio para manter |
@@ -184,9 +184,10 @@ outubro e entram nas Stories 1.2 e 4.x.
 | Cache | Nenhum | n/a | n/a | Escala de 2 ou 3 pessoas |
 | File Storage | SQLite do Durable Object | n/a | Estado dos arquivos da jam, histórico e feed | Mora junto da conexão; limite de 5 GB no plano gratuito |
 | Authentication | Better Auth com GitHub (via GitHub App) e plugin de device authorization | 1.7.13 (MIT) | Login web e login do conector por código | Auth.js está em manutenção desde 09/2025 e o time recomenda Better Auth; device flow (RFC 8628) pronto |
+| GitHub API | `@octokit/rest` | 22.0.1 (MIT) | Chamadas ao GitHub em nome do usuário | Hook antes de cada chamada busca o token pelo Better Auth, que renova o vencido (Story 1.2) |
 | Frontend Testing | Vitest + Testing Library | Vitest 4.1.12, `@testing-library/react` 16.3.3 (MIT) | Componentes e lógica de UI | Rápido, TypeScript nativo |
 | Backend Testing | Vitest; `@cloudflare/vitest-plugin` na sala (o antigo `vitest-pool-workers`, renomeado) | Vitest 4.1.12, `@cloudflare/vitest-plugin` 1.4.7 (MIT) | Protocolo, sincronização, rotas, sala | Testa o Durable Object no runtime real |
-| E2E Testing | Playwright (`@playwright/test`) | fixar ao instalar (Story 1.2); 1.64.1 em 26/10/2026 (Apache-2.0) | Login simulado, criar jam, página da jam ao vivo | Padrão do mercado; roda no Windows |
+| E2E Testing | Playwright (`@playwright/test`) | `@playwright/test` 1.64.1 (Apache-2.0); `@axe-core/playwright` 4.14.0 (MPL-2.0, só nos testes, não vai para o app) | Login simulado, criar jam, página da jam ao vivo | Padrão do mercado; roda no Windows |
 | Build Tool | pnpm workspaces | pnpm 10.34.7 (MIT) | Monorepo | Já usado pelo Lucas |
 | Bundler | Turbopack (web), Wrangler/esbuild (sala), tsup (conector) | Turbopack do Next.js 16.4.3; Wrangler 4.152.0 (MIT ou Apache-2.0); tsup 8.5.1 (MIT) | Build de cada parte | O padrão de cada plataforma |
 | IaC Tool | `wrangler.jsonc` + configuração da Vercel por CLI | Wrangler 4.152.0; Vercel CLI pelo `npx` (65.2.0 em 26/10/2026) | Sala e app | Infra pequena; sem Terraform |

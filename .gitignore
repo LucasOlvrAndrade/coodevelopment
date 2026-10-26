@@ -38,3 +38,5 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 apps/sala/worker-configuration.d.ts
+test-results/
+playwright-report/
