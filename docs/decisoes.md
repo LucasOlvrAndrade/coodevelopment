@@ -117,6 +117,7 @@ Detalhes em `docs/architecture.md`; pesquisa em
 | A5 | Login | Better Auth (Auth.js está em manutenção), com login por código para o conector |
 | A6 | Plugin | Instalado pelo conector com `claude plugin install --scope local`, fora do git do projeto |
 | A7 | Instalação do GitHub App no login (Story 1.2) | O login sempre começa pelo Better Auth (autorizar o app); na volta, sem instalação na conta (`GET /user/installations`), o app manda direto para `github.com/apps/coodevelopment/installations/new`, e a Setup URL volta para `/inicio`. "Request user authorization during installation" fica desligado: com ele, o GitHub devolve o código sem o `state` que o Better Auth confere e deixa a Setup URL indisponível. Para a pessoa são duas telas do GitHub em sequência, sem tela do app no meio |
+| A8 | Cifra dos tokens do GitHub (Story 1.2) | `account.encryptOAuthTokens` do Better Auth: XChaCha20-Poly1305 (cifra autenticada) com chave derivada do `BETTER_AUTH_SECRET`, conferido no código da 1.7.13. Substitui o AES-256-GCM com `CHAVE_CIFRA_TOKENS` previsto na arquitetura 0.2: mesma garantia (NFR8), uma variável a menos. Custo aceito: trocar o `BETTER_AUTH_SECRET` exige a rotação de chaves do Better Auth (`secrets`), senão os tokens guardados param de abrir e cada pessoa entra de novo |
 
 ## Em aberto
 

@@ -58,7 +58,7 @@ GITHUB_APP_ID=
 GITHUB_APP_CLIENT_ID=
 GITHUB_APP_CLIENT_SECRET=
 GITHUB_APP_PRIVATE_KEY=        # token de instalação para o clone
-CHAVE_CIFRA_TOKENS=            # AES-256-GCM dos tokens do GitHub
+GITHUB_APP_SLUG=               # página de instalação: github.com/apps/<slug>/installations/new
 SEGREDO_SALA=                  # assina o JWT da sala
 SEGREDO_SERVICO_SALA=          # chamadas internas web <-> sala
 

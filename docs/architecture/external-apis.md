@@ -30,6 +30,7 @@ Permissões do GitHub App:
 | Workflows | write | Só se a jam mexer em `.github/workflows` |
 | Metadata | read | Listar repositórios (2.1) |
 | Followers (conta) | read | Mútuos (1.4) |
+| Email addresses (conta) | read | Exigida pelo Better Auth no login com GitHub App; o app não mostra nem usa o e-mail (Story 1.2) |
 
 **Key Endpoints Used:**
 - `GET /user`, `GET /user/following`, `GET /user/followers` (paginados) - perfil e mútuos
@@ -46,8 +47,10 @@ Permissões do GitHub App:
 
 **Integration Notes:** Octokit com renovação automática do token antes de
 cada chamada. Os tokens ficam na tabela `account` do Better Auth, cifrados
-(AES-256-GCM com chave em variável de ambiente) **[verificar na Story 1.2 se
-o Better Auth cifra tokens nativamente; se não, cifrar no hook de banco]**.
+pelo próprio Better Auth (`account.encryptOAuthTokens`): XChaCha20-Poly1305 com
+nonce aleatório e chave derivada do `BETTER_AUTH_SECRET` (SHA-256), com
+suporte a rotação de chave. Verificado no código da 1.7.13 na Story 1.2
+(decisão A8); não há `CHAVE_CIFRA_TOKENS`.
 
 ## Cloudflare (deploy)
 

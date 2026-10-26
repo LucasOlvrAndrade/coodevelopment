@@ -183,7 +183,7 @@ outubro e entram nas Stories 1.2 e 4.x.
 | Database | Neon Postgres + Drizzle ORM | Postgres 17; `drizzle-orm` 0.45.4 (Apache-2.0), `drizzle-kit` 0.31.11 (MIT), `@neondatabase/serverless` 1.2.0 (MIT) | Usuários, amizades, jams, participantes, fechamentos | Já usado pelo Lucas; SQL tipado |
 | Cache | Nenhum | n/a | n/a | Escala de 2 ou 3 pessoas |
 | File Storage | SQLite do Durable Object | n/a | Estado dos arquivos da jam, histórico e feed | Mora junto da conexão; limite de 5 GB no plano gratuito |
-| Authentication | Better Auth com GitHub (via GitHub App) e plugin de device authorization | 1.7.x (1.7.12 em 20/10/2026) | Login web e login do conector por código | Auth.js está em manutenção desde 09/2025 e o time recomenda Better Auth; device flow (RFC 8628) pronto |
+| Authentication | Better Auth com GitHub (via GitHub App) e plugin de device authorization | 1.7.13 (MIT) | Login web e login do conector por código | Auth.js está em manutenção desde 09/2025 e o time recomenda Better Auth; device flow (RFC 8628) pronto |
 | Frontend Testing | Vitest + Testing Library | Vitest 4.1.12, `@testing-library/react` 16.3.3 (MIT) | Componentes e lógica de UI | Rápido, TypeScript nativo |
 | Backend Testing | Vitest; `@cloudflare/vitest-plugin` na sala (o antigo `vitest-pool-workers`, renomeado) | Vitest 4.1.12, `@cloudflare/vitest-plugin` 1.4.7 (MIT) | Protocolo, sincronização, rotas, sala | Testa o Durable Object no runtime real |
 | E2E Testing | Playwright (`@playwright/test`) | fixar ao instalar (Story 1.2); 1.64.1 em 26/10/2026 (Apache-2.0) | Login simulado, criar jam, página da jam ao vivo | Padrão do mercado; roda no Windows |
@@ -679,6 +679,7 @@ Permissões do GitHub App:
 | Workflows | write | Só se a jam mexer em `.github/workflows` |
 | Metadata | read | Listar repositórios (2.1) |
 | Followers (conta) | read | Mútuos (1.4) |
+| Email addresses (conta) | read | Exigida pelo Better Auth no login com GitHub App; o app não mostra nem usa o e-mail (Story 1.2) |
 
 **Key Endpoints Used:**
 - `GET /user`, `GET /user/following`, `GET /user/followers` (paginados) - perfil e mútuos
@@ -695,8 +696,10 @@ Permissões do GitHub App:
 
 **Integration Notes:** Octokit com renovação automática do token antes de
 cada chamada. Os tokens ficam na tabela `account` do Better Auth, cifrados
-(AES-256-GCM com chave em variável de ambiente) **[verificar na Story 1.2 se
-o Better Auth cifra tokens nativamente; se não, cifrar no hook de banco]**.
+pelo próprio Better Auth (`account.encryptOAuthTokens`): XChaCha20-Poly1305 com
+nonce aleatório e chave derivada do `BETTER_AUTH_SECRET` (SHA-256), com
+suporte a rotação de chave. Verificado no código da 1.7.13 na Story 1.2
+(decisão A8); não há `CHAVE_CIFRA_TOKENS`.
 
 ### Cloudflare (deploy)
 
@@ -1328,7 +1331,7 @@ GITHUB_APP_ID=
 GITHUB_APP_CLIENT_ID=
 GITHUB_APP_CLIENT_SECRET=
 GITHUB_APP_PRIVATE_KEY=        # token de instalação para o clone
-CHAVE_CIFRA_TOKENS=            # AES-256-GCM dos tokens do GitHub
+GITHUB_APP_SLUG=               # página de instalação: github.com/apps/<slug>/installations/new
 SEGREDO_SALA=                  # assina o JWT da sala
 SEGREDO_SERVICO_SALA=          # chamadas internas web <-> sala
 
