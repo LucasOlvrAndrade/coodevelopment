@@ -1,6 +1,22 @@
-export default function PaginaInicial() {
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { AvisoErroLogin } from "@/componentes/conta/AvisoErroLogin";
+import { BotaoEntrar } from "@/componentes/conta/BotaoEntrar";
+import { obterSessao } from "@/servidor/auth";
+
+// Logado, a página inicial leva ao Início. Lê cookies, por isso fica no Suspense.
+async function RedirecionarSeLogado() {
+  if (await obterSessao()) redirect("/inicio");
+  return null;
+}
+
+export default function PaginaInicial({ searchParams }: PageProps<"/">) {
   return (
     <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col px-4 md:px-8">
+      <Suspense>
+        <RedirecionarSeLogado />
+      </Suspense>
+
       <header className="py-4">
         <span className="font-mono text-corpo font-medium">coodevelopment</span>
       </header>
@@ -11,17 +27,15 @@ export default function PaginaInicial() {
           Claude está fazendo.
         </h1>
 
+        <Suspense>
+          <AvisoErroLogin busca={searchParams} />
+        </Suspense>
+
         <div className="flex flex-col items-start gap-2">
-          <button
-            type="button"
-            disabled
-            aria-describedby="aviso-login"
-            className="rounded-controle bg-primaria px-4 py-3 text-corpo font-medium text-sobre-primaria disabled:opacity-60"
-          >
-            Entrar com GitHub
-          </button>
-          <p id="aviso-login" className="text-pequeno text-texto-suave">
-            O login com GitHub chega na próxima versão.
+          <BotaoEntrar />
+          <p id="aviso-login" className="max-w-[60ch] text-pequeno text-texto-suave">
+            No GitHub, escolha &quot;All repositories&quot; ao instalar o app: uma jam pode criar um
+            repositório novo, e ele já precisa estar coberto.
           </p>
         </div>
       </main>
