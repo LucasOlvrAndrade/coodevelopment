@@ -1,4 +1,5 @@
-import { bigint, boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { bigint, boolean, check, index, pgTable, primaryKey, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Tabelas do Better Auth 1.7 (campos de get-tables do @better-auth/core),
 // com nomes de coluna em snake_case. As chaves em camelCase são as que o
@@ -19,12 +20,13 @@ export const user = pgTable("user", {
   image: text("image"),
   // Campos do Coodevelopment: id numérico do GitHub (estável, único) e usuário
   // (busca, FR2). O login não é único: no GitHub, um nome trocado fica livre
-  // para outra pessoa antes de o dono antigo voltar e atualizar o dele.
+  // para outra pessoa antes de o dono antigo voltar e atualizar o dele. A busca
+  // é exata e sem diferença de maiúscula (A10), daí o índice em lower(login).
   githubId: bigint("github_id", { mode: "number" }).notNull().unique(),
   login: text("login").notNull(),
   createdAt: criadoEm(),
   updatedAt: atualizadoEm(),
-}, (t) => [index("user_login").on(t.login)]);
+}, (t) => [index("user_login_lower").on(sql`lower(${t.login})`)]);
 
 export const session = pgTable(
   "session",
@@ -82,4 +84,46 @@ export const verification = pgTable(
     updatedAt: atualizadoEm(),
   },
   (t) => [index("verification_identifier").on(t.identifier)],
+);
+
+// Amigos (Story 1.3, database-schema.md). Pedido aceito vira amizade e some;
+// recusado fica guardado e volta a pendente se a pessoa pedir de novo (A10).
+export const pedidoAmizade = pgTable(
+  "pedido_amizade",
+  {
+    id: text("id").primaryKey(),
+    de: text("de")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    para: text("para")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["pendente", "recusado"] }).notNull().default("pendente"),
+    criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("pedido_amizade_de_para").on(t.de, t.para),
+    index("pedido_amizade_para").on(t.para),
+    check("pedido_amizade_status", sql`${t.status} in ('pendente', 'recusado')`),
+    check("pedido_amizade_outra_pessoa", sql`${t.de} <> ${t.para}`),
+  ],
+);
+
+// O par fica em ordem (usuario_a < usuario_b) para a mesma amizade não entrar duas vezes.
+export const amizade = pgTable(
+  "amizade",
+  {
+    usuarioA: text("usuario_a")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    usuarioB: text("usuario_b")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    criadaEm: timestamp("criada_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "amizade_par", columns: [t.usuarioA, t.usuarioB] }),
+    index("amizade_usuario_b").on(t.usuarioB),
+    check("amizade_par_em_ordem", sql`${t.usuarioA} < ${t.usuarioB}`),
+  ],
 );
