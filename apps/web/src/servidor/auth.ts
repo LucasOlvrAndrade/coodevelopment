@@ -51,6 +51,10 @@ function criarAuth() {
     account: {
       // XChaCha20-Poly1305 com chave derivada do BETTER_AUTH_SECRET (NFR8, Story 1.2 Task 3).
       encryptOAuthTokens: true,
+      // Sem vinculação por e-mail: uma conta nova do GitHub com o e-mail
+      // verificado de um usuário existente entraria como ele. Com um provedor
+      // só, a identidade é o githubId e nada mais (gate da 1.2, SEC-001).
+      accountLinking: { enabled: false },
     },
     socialProviders: {
       github: {

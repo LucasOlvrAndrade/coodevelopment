@@ -19,14 +19,26 @@ describe("camposDoPerfil", () => {
   });
 });
 
+function envDeTeste() {
+  vi.stubEnv("DATABASE_URL", "postgres://u:s@localhost/db");
+  vi.stubEnv("BETTER_AUTH_SECRET", "x".repeat(32));
+  vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+  vi.stubEnv("GITHUB_APP_CLIENT_ID", "id");
+  vi.stubEnv("GITHUB_APP_CLIENT_SECRET", "segredo");
+  vi.stubEnv("GITHUB_APP_SLUG", "coodevelopment");
+}
+
+describe("vinculação de contas", () => {
+  it("está desligada: e-mail igual não junta duas contas do GitHub", async () => {
+    envDeTeste();
+    const { auth } = await import("@/servidor/auth");
+    expect(auth().options.account?.accountLinking?.enabled).toBe(false);
+  });
+});
+
 describe("rotas HTTP do Better Auth desligadas", () => {
   it("as que gravam o usuário ou devolvem o token do GitHub respondem 404", async () => {
-    vi.stubEnv("DATABASE_URL", "postgres://u:s@localhost/db");
-    vi.stubEnv("BETTER_AUTH_SECRET", "x".repeat(32));
-    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
-    vi.stubEnv("GITHUB_APP_CLIENT_ID", "id");
-    vi.stubEnv("GITHUB_APP_CLIENT_SECRET", "segredo");
-    vi.stubEnv("GITHUB_APP_SLUG", "coodevelopment");
+    envDeTeste();
     const { auth, ROTAS_DESLIGADAS } = await import("@/servidor/auth");
     expect(ROTAS_DESLIGADAS).toEqual(expect.arrayContaining(["/update-user", "/get-access-token", "/refresh-token"]));
     for (const caminho of ROTAS_DESLIGADAS) {
