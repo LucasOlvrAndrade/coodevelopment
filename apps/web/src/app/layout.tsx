@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
   variable: "--fonte-plex-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+});
+
+// Só nos títulos da página inicial.
+const instrumentSerif = Instrument_Serif({
+  variable: "--fonte-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -22,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
+    <html lang="pt-BR" className={`${plexSans.variable} ${plexMono.variable} ${instrumentSerif.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

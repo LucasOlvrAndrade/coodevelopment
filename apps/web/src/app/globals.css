@@ -10,6 +10,7 @@
   --color-borda-controle: var(--borda-controle);
   --color-primaria: var(--primaria);
   --color-sobre-primaria: var(--sobre-primaria);
+  --color-destaque: var(--destaque);
   --color-sucesso: var(--sucesso);
   --color-alerta: var(--alerta);
   --color-erro: var(--erro);
@@ -19,6 +20,7 @@
 
   --font-sans: var(--fonte-plex-sans);
   --font-mono: var(--fonte-plex-mono);
+  --font-titulo: var(--fonte-instrument-serif), Georgia, serif;
 
   /* Escala de tipo da front-end spec */
   --text-h1: 28px;
@@ -47,4 +49,52 @@ body {
 :focus-visible {
   outline: 2px solid var(--primaria);
   outline-offset: 2px;
+}
+
+/* Faixa da página inicial: quase preto com o verde do Grupo RAM vindo de cima
+   e uma grade discreta, no lugar da foto do componente original. */
+.hero-fundo {
+  background-color: #09090b;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -5%, rgb(15 116 51 / 0.55), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 100%, rgb(15 116 51 / 0.25), transparent 70%),
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in-1,
+.animate-fade-slide-in-2,
+.animate-fade-slide-in-3,
+.animate-fade-slide-in-4 {
+  animation: fade-slide-in 0.7s ease-out both;
+}
+.animate-fade-slide-in-2 {
+  animation-delay: 0.1s;
+}
+.animate-fade-slide-in-3 {
+  animation-delay: 0.2s;
+}
+.animate-fade-slide-in-4 {
+  animation-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-slide-in-1,
+  .animate-fade-slide-in-2,
+  .animate-fade-slide-in-3,
+  .animate-fade-slide-in-4 {
+    animation: none;
+  }
 }
