@@ -1,0 +1,57 @@
+schema: 1
+story: '2.1'
+story_title: 'Criar jam importando um repositório'
+gate: CONCERNS
+status_reason: 'Os 3 ACs estão cobertos e a autorização está certa: o dono é conferido pelo id que vem do GitHub, os nomes gravados são os do GitHub e o Início só traz jams de que a pessoa participa. A CTE e a detecção de unique pelo neon-http estão certas (conferido no código do Drizzle 0.45.4 e do neon 1.2.0). Mas a regra de uma jam aberta por repositório (A11) olha só os nomes, que mudam, e há achados baixos de validação, tela e testes.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente'
+reviewed_revision: 'commit:32a45b9'
+updated: '2026-10-27T00:00:00Z'
+
+top_issues:
+  - id: 'REL-001'
+    severity: medium
+    finding: 'O índice da A11 usa owner e nome. Renomear o repositório (ou a conta) e importar de novo cria uma segunda jam aberta no mesmo repositório; e um repositório novo com o nome antigo recebe jam_ja_existe.'
+    suggested_action: 'Gravar o id numérico do repositório (repo_id) e pôr o índice parcial nele.'
+  - id: 'UX-001'
+    severity: medium
+    finding: 'A escolha escondida pelo filtro continua valendo: marcar site e filtrar por "proj" deixa "Criar jam" habilitado, criando a jam em site sem nada marcado na tela.'
+    suggested_action: 'Mostrar o repositório escolhido no botão.'
+  - id: 'REL-002'
+    severity: low
+    finding: 'Intl.DateTimeFormat sem fuso: o servidor formata em UTC e o navegador em Brasília; um push entre 21h e 24h dá datas diferentes e erro de hidratação.'
+    suggested_action: 'timeZone America/Sao_Paulo.'
+  - id: 'SEC-001'
+    severity: low
+    finding: 'repos.get responde 200 para repositório público fora da instalação; com "Only select repositories", uma chamada direta à ação cria uma jam que o app não alcança (o convite e o commit falham depois).'
+    suggested_action: 'Exigir a instalação com "All repositories", como na 2.2.'
+  - id: 'SEC-002'
+    severity: low
+    finding: 'O zod aceita "." e "..": o fetch resolve os pontos da URL, e owner=".." com repo="user" vira GET /user (TypeError registrado como inesperado; o dono não dá para forjar).'
+    suggested_action: 'Owner com a regra do login do GitHub e repo com nomeDeRepositorioValido.'
+  - id: 'TEST-001'
+    severity: low
+    finding: 'O teste da corrida só conta linhas (um erro cru também passaria) e falta o teste da colisão de id (o ramo jam_pkey nunca roda). O revisor provou os dois por fora, contra o PGlite.'
+    suggested_action: 'Conferir jam_ja_existe no perdedor e forçar id repetido.'
+  - id: 'A11Y-001'
+    severity: low
+    finding: 'aria-controls aponta para uma lista que some quando a busca não acha nada; nada anuncia a contagem nem "Nenhum repositório com esse nome". Ação que lança (rede, deploy novo) escapa do useTransition e cai no erro padrão do Next (não há error.tsx); mesmo padrão nas telas de amigos.'
+    suggested_action: 'Lista sempre presente e role="status"; chamadas de ação que não quebram a tela; error.tsx em (app).'
+
+evidence:
+  tests_reviewed: 26
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok; code-review à mão, com revisor independente (sonda contra o PGlite para a corrida e a colisão)'
+  production: 'migração 0003 no Neon; /jams/nova sem sessão volta para /; telas com axe sem violações (usuários e jam de teste temporários)'
+  trace:
+    ac_covered: [1, 2, 3]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'SEC-001 e SEC-002 (baixos). Dono pelo id do GitHub; Início só com as jams da pessoa.'
+  reliability:
+    status: CONCERNS
+    notes: 'REL-001 e REL-002.'
+  maintainability:
+    status: PASS
+    notes: 'Regras com GitHub por interface, testadas contra Postgres de verdade.'
