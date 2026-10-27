@@ -17,6 +17,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => caminho }));
 const { BuscaAmigo } = await import("@/componentes/amigos/BuscaAmigo");
 const { PedidosRecebidos } = await import("@/componentes/amigos/PedidosRecebidos");
 const { ListaAmigos } = await import("@/componentes/amigos/ListaAmigos");
+const { Sugestoes } = await import("@/componentes/amigos/Sugestoes");
 const { NavegacaoApp } = await import("@/componentes/conta/NavegacaoApp");
 
 const PAI = { id: "pai", login: "pai-dev", nome: "Pai", foto: null };
@@ -176,6 +177,24 @@ describe("lista de amigos (AC 4)", () => {
     const dialogo = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialogo).getByRole("button", { name: "Desfazer amizade" }));
     expect(await within(dialogo).findByRole("alert")).toHaveTextContent("Vocês já não são amigos.");
+  });
+});
+
+describe("sugestões de mútuos (Story 1.4)", () => {
+  it("cada sugestão manda o pedido e o botão vira Pedido enviado", async () => {
+    acoes.pedirAmizade.mockResolvedValueOnce({ ok: true, dados: "pedido_enviado" });
+    render(<Sugestoes sugestoes={[PAI]} />);
+    const lista = screen.getByRole("list", { name: "Sugestões do GitHub" });
+    fireEvent.click(within(lista).getByRole("button", { name: "Pedir amizade a Pai" }));
+    expect(screen.getByRole("button", { name: "Pedido enviado" })).toBeDisabled();
+    await waitFor(() => expect(acoes.pedirAmizade).toHaveBeenCalledWith("pai"));
+    expect(await screen.findByRole("status")).toHaveTextContent("Pedido enviado para Pai.");
+  });
+
+  it("sem mútuos no app, explica e manda para a busca", () => {
+    render(<Sugestoes sugestoes={[]} />);
+    expect(screen.getByText("Nenhum dos seus mútuos do GitHub usa o Coodevelopment ainda. Busque pelo usuário abaixo.")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).toBeNull();
   });
 });
 

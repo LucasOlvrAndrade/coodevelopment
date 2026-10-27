@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { aceitarPedido, buscarAmigo, pedirAmizade } from "@/servidor/acoes/amizade";
+import { buscarAmigo } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
-import { botaoPrincipal, botaoSecundario } from "./estilos";
+import { AcaoPessoa } from "./AcaoPessoa";
+import { botaoPrincipal } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
 
 type Achado = Pessoa & { relacao: Relacao };
@@ -75,82 +76,12 @@ export function BuscaAmigo() {
           {achados.map((achado) => (
             <li key={`${achado.id}-${achado.relacao.tipo}`}>
               <LinhaPessoa nome={achado.nome} login={achado.login} foto={achado.foto}>
-                <AcaoDoAchado achado={achado} anunciar={setAviso} />
+                <AcaoPessoa pessoa={achado} relacaoInicial={achado.relacao} anunciar={setAviso} />
               </LinhaPessoa>
             </li>
           ))}
         </ul>
       )}
     </div>
-  );
-}
-
-function AcaoDoAchado({ achado, anunciar }: { achado: Achado; anunciar: (texto: string) => void }) {
-  const [relacao, setRelacao] = useState<Relacao>(achado.relacao);
-  const [erro, setErro] = useState<string | null>(null);
-  const [indo, iniciar] = useTransition();
-
-  function pedir() {
-    setErro(null);
-    setRelacao({ tipo: "pedido_enviado" });
-    iniciar(async () => {
-      const resultado = await pedirAmizade(achado.id);
-      if (!resultado.ok) {
-        setRelacao(achado.relacao);
-        setErro(resultado.erro.mensagem);
-      } else if (resultado.dados === "amigos") {
-        // Ela já tinha pedido: o pedido cruzado vira amizade (front-end spec).
-        setRelacao({ tipo: "amigo" });
-        anunciar(`${achado.nome} já tinha pedido amizade a você. Agora vocês são amigos.`);
-      } else {
-        anunciar(`Pedido enviado para ${achado.nome}.`);
-      }
-    });
-  }
-
-  function aceitar(pedidoId: string) {
-    setErro(null);
-    iniciar(async () => {
-      const resultado = await aceitarPedido(pedidoId);
-      if (resultado.ok) {
-        setRelacao({ tipo: "amigo" });
-        anunciar(`Agora você e ${achado.nome} são amigos.`);
-      } else {
-        setErro(resultado.erro.mensagem);
-      }
-    });
-  }
-
-  return (
-    <>
-      {relacao.tipo === "eu" && <span className="text-pequeno text-texto-suave">É você</span>}
-      {relacao.tipo === "amigo" && <span className="text-pequeno text-sucesso">Amigo</span>}
-      {relacao.tipo === "pedido_enviado" && (
-        <button type="button" disabled className={botaoSecundario}>
-          Pedido enviado
-        </button>
-      )}
-      {relacao.tipo === "pedido_recebido" && (
-        <button
-          type="button"
-          disabled={indo}
-          onClick={() => aceitar(relacao.pedidoId)}
-          aria-label={`Aceitar o pedido de ${achado.nome}`}
-          className={botaoPrincipal}
-        >
-          Aceitar pedido
-        </button>
-      )}
-      {relacao.tipo === "nenhuma" && (
-        <button type="button" disabled={indo} onClick={pedir} aria-label={`Pedir amizade a ${achado.nome}`} className={botaoPrincipal}>
-          Pedir amizade
-        </button>
-      )}
-      {erro && (
-        <p role="alert" className="w-full text-pequeno text-erro">
-          {erro}
-        </p>
-      )}
-    </>
   );
 }
