@@ -1,10 +1,10 @@
 schema: 1
 story: '1.2'
 story_title: 'Entrar com o GitHub'
-gate: FAIL
-status_reason: 'A vinculação implícita por e-mail do Better Auth permite tomar a conta de outra pessoa, e a renovação do token falha calada (AC 6). As duas correções são pequenas.'
+gate: PASS
+status_reason: 'Reavaliação de 27/10: todos os achados corrigidos (detalhe na story). Gate original: a vinculação implícita por e-mail do Better Auth permite tomar a conta de outra pessoa, e a renovação do token falha calada (AC 6). As duas correções são pequenas.'
 reviewer: 'Aria (@architect), via Claude, com revisor independente'
-reviewed_revision: 'commit:f561087'
+reviewed_revision: 'commit:6bd4303 (gate original em f561087)'
 updated: '2026-10-27T00:00:00Z'
 
 top_issues:
