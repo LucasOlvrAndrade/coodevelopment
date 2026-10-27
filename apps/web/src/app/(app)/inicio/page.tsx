@@ -34,7 +34,7 @@ export async function JamsDoUsuario({ busca }: { busca: Promise<{ nova?: string 
   }
   return (
     <>
-      <ListaJams jams={jams} nova={typeof nova === "string" ? nova : undefined} />
+      <ListaJams jams={jams} eu={eu.id} nova={typeof nova === "string" ? nova : undefined} />
       <Link href="/jams/nova" className={`${botaoPrincipal} px-4 py-3`}>
         Criar jam
       </Link>

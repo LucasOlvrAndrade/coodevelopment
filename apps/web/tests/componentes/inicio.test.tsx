@@ -8,6 +8,7 @@ const listarJams = vi.fn(async (): Promise<JamDoInicio[]> => []);
 vi.mock("@/servidor/auth", () => ({ obterSessao, exigirSessao }));
 vi.mock("@/servidor/db", () => ({ db: () => ({}) }));
 vi.mock("@/servidor/dominio/jam", () => ({ listarJams }));
+vi.mock("@/servidor/acoes/jam", () => ({ tentarDeNovo: vi.fn() }));
 
 const { JamsDoUsuario, Saudacao } = await import("@/app/(app)/inicio/page");
 
@@ -17,9 +18,10 @@ const jam = (id: string, repoNome: string, estado: JamDoInicio["estado"]): JamDo
   repoOwner: "LucasOlvrAndrade",
   repoNome,
   estado,
+  criadorId: "lucas",
   participantes: [
-    { id: "lucas", login: "lucas", nome: "Lucas Andrade", foto: null, papel: "criador" },
-    { id: "pai", login: "pai-dev", nome: "Pai", foto: null, papel: "convidado" },
+    { id: "lucas", login: "lucas", nome: "Lucas Andrade", foto: null, papel: "criador", colaborador: "ok" },
+    { id: "pai", login: "pai-dev", nome: "Pai", foto: null, papel: "convidado", colaborador: "ok" },
   ],
 });
 

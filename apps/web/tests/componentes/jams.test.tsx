@@ -4,13 +4,17 @@ import type { Repositorio } from "@/servidor/dominio/jam";
 
 const criarJamImportando = vi.fn();
 const criarJamComRepositorio = vi.fn();
-vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando, criarJamComRepositorio }));
+const chamarAmigos = vi.fn(async () => ({ ok: true, dados: [] }));
+const tentarDeNovo = vi.fn(async () => ({ ok: true, dados: "ok" }));
+vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando, criarJamComRepositorio, chamarAmigos, tentarDeNovo }));
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const { EscolherRepositorio } = await import("@/componentes/jams/EscolherRepositorio");
 const { CriarRepositorio } = await import("@/componentes/jams/CriarRepositorio");
 const { AlternarNovaJam } = await import("@/componentes/jams/AlternarNovaJam");
+const { AmigosDaJam, EscolherAmigos } = await import("@/componentes/jams/AmigosDaJam");
+const { ListaJams } = await import("@/componentes/jams/ListaJams");
 
 const repo = (nome: string, extra: Partial<Repositorio> = {}): Repositorio => ({
   owner: "LucasOlvrAndrade",
@@ -152,5 +156,95 @@ describe("criar repositório (Story 2.2)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar repositório e jam" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("settings/installations/77");
     expect(screen.getByRole("textbox", { name: "Nome do repositório" })).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+describe("chamar amigos (Story 2.3)", () => {
+  const amigo = (id: string, nome: string) => ({ id, login: id, nome, foto: null });
+  const AMIGOS = [amigo("pai", "Pai"), amigo("ana", "Ana"), amigo("beto", "Beto")];
+
+  it("só amigos, no máximo 2, com o contador (AC 1)", () => {
+    render(
+      <AmigosDaJam>
+        <EscolherAmigos amigos={AMIGOS} />
+      </AmigosDaJam>,
+    );
+    expect(screen.getByText("(opcional, 0 de 2)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pai/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Ana/ }));
+    expect(screen.getByText("(opcional, 2 de 2)")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Beto/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Ana/ }));
+    expect(screen.getByRole("checkbox", { name: /Beto/ })).toBeEnabled();
+  });
+
+  it("sem amigos, explica que dá para chamar depois", () => {
+    render(<EscolherAmigos amigos={[]} />);
+    expect(screen.getByText(/Dá para criar a jam sozinho e chamar depois/)).toBeInTheDocument();
+  });
+
+  it("depois de criar a jam, chama os escolhidos e só então vai ao Início", async () => {
+    criarJamImportando.mockResolvedValueOnce({ ok: true, dados: { id: "k7m2-rbq9" } });
+    render(
+      <AmigosDaJam>
+        <EscolherAmigos amigos={AMIGOS} />
+        <EscolherRepositorio repositorios={[repo("projeto")]} />
+      </AmigosDaJam>,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pai/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/inicio?nova=k7m2-rbq9"));
+    expect(chamarAmigos).toHaveBeenCalledWith("k7m2-rbq9", ["pai"]);
+  });
+
+  it("sem ninguém escolhido, não chama", async () => {
+    criarJamImportando.mockResolvedValueOnce({ ok: true, dados: { id: "k7m2-rbq9" } });
+    render(
+      <AmigosDaJam>
+        <EscolherRepositorio repositorios={[repo("projeto")]} />
+      </AmigosDaJam>,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
+    await waitFor(() => expect(push).toHaveBeenCalled());
+    expect(chamarAmigos).not.toHaveBeenCalled();
+  });
+});
+
+describe("estado do convidado no Início (AC 3 e 4)", () => {
+  const jam = (colaborador: "ok" | "pendente" | "falhou") => ({
+    id: "k7m2-rbq9",
+    nome: "projeto",
+    repoOwner: "lucas",
+    repoNome: "projeto",
+    estado: "aberta" as const,
+    criadorId: "lucas",
+    participantes: [
+      { id: "lucas", login: "lucas", nome: "Lucas", foto: null, papel: "criador" as const, colaborador: "ok" as const },
+      { id: "pai", login: "pai-dev", nome: "Pai", foto: null, papel: "convidado" as const, colaborador },
+    ],
+  });
+
+  it("o criador vê quem não entrou no repositório e pode tentar de novo", async () => {
+    render(<ListaJams jams={[jam("falhou")]} eu="lucas" />);
+    expect(screen.getByText("Pai não foi adicionado ao repositório.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
+    await waitFor(() => expect(tentarDeNovo).toHaveBeenCalledWith("k7m2-rbq9", "pai"));
+  });
+
+  it("o amigo com convite pendente vê o link do convite do GitHub", () => {
+    render(<ListaJams jams={[jam("pendente")]} eu="pai" />);
+    expect(screen.getByRole("link", { name: "Aceite o convite do repositório no GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/lucas/projeto/invitations",
+    );
+    expect(screen.queryByRole("button", { name: /Tentar de novo/ })).toBeNull();
+  });
+
+  it("com todos no repositório, nenhum aviso", () => {
+    render(<ListaJams jams={[jam("ok")]} eu="lucas" />);
+    expect(screen.queryByText(/repositório\./)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Tentar de novo/ })).toBeNull();
   });
 });
