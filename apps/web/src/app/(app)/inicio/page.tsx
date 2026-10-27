@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { obterSessao } from "@/servidor/auth";
 
-async function Saudacao() {
+export async function Saudacao() {
   const sessao = await obterSessao();
   const primeiroNome = sessao?.user.name.split(" ")[0] ?? "";
   return <h1 className="text-h1 font-semibold">Olá, {primeiroNome}</h1>;

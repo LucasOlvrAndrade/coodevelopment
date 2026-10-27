@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/servidor/auth", () => ({ obterSessao: vi.fn(async () => null) }));
+const obterSessao = vi.fn(async (): Promise<{ user: { name: string } } | null> => null);
+vi.mock("@/servidor/auth", () => ({ obterSessao }));
 
-const { default: Inicio } = await import("@/app/(app)/inicio/page");
+const { default: Inicio, Saudacao } = await import("@/app/(app)/inicio/page");
 
 describe("Início vazio", () => {
   it("diz que não há jams e oferece Criar jam e Adicionar amigos", () => {
@@ -16,5 +17,11 @@ describe("Início vazio", () => {
   it("não usa travessão no texto", () => {
     const { container } = render(<Inicio />);
     expect(container.textContent).not.toContain("—");
+  });
+
+  it("cumprimenta pelo primeiro nome do GitHub", async () => {
+    obterSessao.mockResolvedValueOnce({ user: { name: "Lucas de Oliveira Andrade" } });
+    render(await Saudacao());
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Olá, Lucas");
   });
 });

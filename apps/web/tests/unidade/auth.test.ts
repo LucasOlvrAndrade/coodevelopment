@@ -4,6 +4,7 @@ vi.mock("@/servidor/db", () => ({ db: () => ({}) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 const { camposDoPerfil } = await import("@/servidor/auth");
+const { decryptOAuthToken, setTokenUtil } = await import("better-auth/oauth2");
 
 describe("camposDoPerfil", () => {
   it("guarda o id numérico e o usuário do GitHub", () => {
@@ -53,11 +54,13 @@ describe("rotas HTTP do Better Auth desligadas", () => {
     expect(ROTAS_DESLIGADAS).toEqual(expect.arrayContaining(["/update-user", "/get-access-token", "/refresh-token"]));
     for (const caminho of ROTAS_DESLIGADAS) {
       const resposta = await auth().handler(
-        new Request(`http://localhost:3000/api/auth${caminho}`, {
-          method: "POST",
-          headers: { "content-type": "application/json", origin: "http://localhost:3000" },
-          body: JSON.stringify({ githubId: 1, login: "outro" }),
-        }),
+        caminho === "/account-info"
+          ? new Request(`http://localhost:3000/api/auth${caminho}`, { headers: { origin: "http://localhost:3000" } })
+          : new Request(`http://localhost:3000/api/auth${caminho}`, {
+              method: "POST",
+              headers: { "content-type": "application/json", origin: "http://localhost:3000" },
+              body: JSON.stringify({ githubId: 1, login: "outro" }),
+            }),
       );
       expect(resposta.status).toBe(404);
     }
@@ -116,5 +119,18 @@ describe("renovação do token do GitHub", () => {
     const github = auth().options.socialProviders?.github;
     await expect(github?.refreshAccessToken?.("ghr_usado")).rejects.toThrow(/bad_refresh_token/);
     fetchFalso.mockRestore();
+  });
+});
+
+describe("token do GitHub no banco", () => {
+  it("é gravado cifrado, sem o token em texto puro, e volta inteiro ao decifrar", async () => {
+    envDeTeste();
+    const { auth } = await import("@/servidor/auth");
+    // O tipo do contexto com as nossas opções não bate com o genérico; o objeto é o mesmo.
+    const contexto = (await auth().$context) as unknown as Parameters<typeof setTokenUtil>[1];
+    const gravado = await setTokenUtil("ghu_segredoDeTeste123", contexto);
+    expect(gravado).not.toContain("ghu_");
+    expect(gravado).not.toContain("segredoDeTeste");
+    expect(await decryptOAuthToken(gravado!, contexto)).toBe("ghu_segredoDeTeste123");
   });
 });
