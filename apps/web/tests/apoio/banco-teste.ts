@@ -22,8 +22,7 @@ type Banco = Awaited<ReturnType<typeof criarBancoDeTeste>>["banco"];
 
 let proximoGithubId = 1;
 
-export async function criarUsuario(banco: Banco, id: string, login: string, nome = login) {
-  const githubId = proximoGithubId++;
+export async function criarUsuario(banco: Banco, id: string, login: string, nome = login, githubId = proximoGithubId++) {
   await banco.insert(schema.user).values({ id, name: nome, email: `${githubId}@exemplo.test`, githubId, login });
   return id;
 }

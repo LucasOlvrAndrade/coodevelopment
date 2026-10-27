@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { account } from "@/servidor/db/schema";
+import { POR_PAGINA, type GithubMutuos } from "@/servidor/dominio/sugestoes";
 import { ErroApp } from "@/servidor/erros";
 
 // Uma busca de token por usuário de cada vez nesta instância: duas chamadas
@@ -54,4 +55,34 @@ export function githubDoUsuario(usuarioId: string): Octokit {
 export async function appInstaladoNaConta(usuarioId: string, githubId: number): Promise<boolean> {
   const { data } = await githubDoUsuario(usuarioId).rest.apps.listInstallationsForAuthenticatedUser({ per_page: 100 });
   return data.installations.some((i) => i.account?.id === githubId);
+}
+
+// Seguidores e seguidos de quem está logado, para as sugestões de mútuos
+// (Story 1.4). A conferência um a um responde 204 (sim) ou 404 (não).
+export function githubMutuos(octokit: Octokit): GithubMutuos {
+  async function sim(chamada: Promise<unknown>) {
+    try {
+      await chamada;
+      return true;
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) return false;
+      throw e;
+    }
+  }
+  return {
+    async contagens() {
+      const { data } = await octokit.rest.users.getAuthenticated();
+      return { login: data.login, seguidores: data.followers, seguindo: data.following };
+    },
+    async listar(lista, pagina) {
+      const opcoes = { per_page: POR_PAGINA, page: pagina };
+      const { data } =
+        lista === "seguindo"
+          ? await octokit.rest.users.listFollowedByAuthenticatedUser(opcoes)
+          : await octokit.rest.users.listFollowersForAuthenticatedUser(opcoes);
+      return data.map((u) => ({ id: u.id, login: u.login }));
+    },
+    sigo: (login) => sim(octokit.rest.users.checkPersonIsFollowedByAuthenticated({ username: login })),
+    meSegue: (login, meuLogin) => sim(octokit.rest.users.checkFollowingForUser({ username: login, target_user: meuLogin })),
+  };
 }

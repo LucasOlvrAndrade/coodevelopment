@@ -9,7 +9,7 @@ vi.mock("@/servidor/db", () => {
   return { db: () => ({ select: () => consulta }) };
 });
 
-const { githubDoUsuario, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
+const { githubDoUsuario, githubMutuos, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
 
 beforeEach(() => {
   getAccessToken.mockReset();
@@ -86,5 +86,43 @@ describe("appInstaladoNaConta", () => {
     expect(await appInstaladoNaConta("u1", 777)).toBe(true);
     expect(await appInstaladoNaConta("u1", 123)).toBe(false);
     fetchFalso.mockRestore();
+  });
+});
+
+describe("githubMutuos", () => {
+  function comRespostas(responder: (url: URL) => Response) {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_x" });
+    const urls: string[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const u = new URL(String(url));
+      urls.push(u.pathname + u.search);
+      return responder(u);
+    });
+    return { github: githubMutuos(githubDoUsuario("u1")), urls, fetchFalso };
+  }
+
+  it("lê as contagens e pagina de 100 em 100", async () => {
+    const { github, urls, fetchFalso } = comRespostas((u) =>
+      u.pathname === "/user" ? Response.json({ login: "lucas", followers: 3, following: 250 }) : Response.json([{ id: 7, login: "pai", extra: 1 }]),
+    );
+    expect(await github.contagens()).toEqual({ login: "lucas", seguidores: 3, seguindo: 250 });
+    expect(await github.listar("seguindo", 3)).toEqual([{ id: 7, login: "pai" }]);
+    await github.listar("seguidores", 1);
+    fetchFalso.mockRestore();
+    expect(urls).toEqual(["/user", "/user/following?per_page=100&page=3", "/user/followers?per_page=100&page=1"]);
+  });
+
+  it("204 é sim, 404 é não, e outro erro sobe", async () => {
+    const { github, urls, fetchFalso } = comRespostas((u) => {
+      if (u.pathname.endsWith("/pai") || u.pathname.endsWith("/following/lucas")) return new Response(null, { status: 204 });
+      if (u.pathname.endsWith("/quebrado")) return Response.json({ message: "Server Error" }, { status: 500 });
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    });
+    expect(await github.sigo("pai")).toBe(true);
+    expect(await github.sigo("estranho")).toBe(false);
+    expect(await github.meSegue("ana", "lucas")).toBe(true);
+    await expect(github.sigo("quebrado")).rejects.toMatchObject({ status: 500 });
+    fetchFalso.mockRestore();
+    expect(urls.slice(0, 3)).toEqual(["/user/following/pai", "/user/following/estranho", "/users/ana/following/lucas"]);
   });
 });
