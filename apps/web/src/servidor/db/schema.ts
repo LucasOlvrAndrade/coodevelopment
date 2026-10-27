@@ -129,12 +129,14 @@ export const amizade = pgTable(
 );
 
 // Jams (Story 2.1, database-schema.md). Uma jam não fechada por repositório
-// (A11); o nome do repositório no GitHub não diferencia maiúscula.
+// (A11), pelo id numérico do repositório no GitHub: dono e nome mudam quando
+// alguém renomeia, o id não (gate da 2.1, REL-001).
 export const jam = pgTable(
   "jam",
   {
     id: text("id").primaryKey(),
     nome: text("nome").notNull(),
+    repoId: bigint("repo_id", { mode: "number" }).notNull(),
     repoOwner: text("repo_owner").notNull(),
     repoNome: text("repo_nome").notNull(),
     branch: text("branch").notNull(),
@@ -151,7 +153,7 @@ export const jam = pgTable(
   (t) => [
     index("jam_repo").on(t.repoOwner, t.repoNome),
     uniqueIndex("jam_repo_aberta")
-      .on(sql`lower(${t.repoOwner})`, sql`lower(${t.repoNome})`)
+      .on(t.repoId)
       .where(sql`${t.estado} <> 'fechada'`),
     check("jam_estado", sql`${t.estado} in ('aberta', 'fechando', 'fechada')`),
   ],

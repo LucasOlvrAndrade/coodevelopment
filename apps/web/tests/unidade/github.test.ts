@@ -153,10 +153,10 @@ describe("githubRepositorios", () => {
   it("buscar devolve o dono com o id numérico e a branch padrão; 404 vira null", async () => {
     const { github, fetchFalso } = comRespostas((u) =>
       u.pathname === "/repos/lucas/projeto"
-        ? Response.json({ owner: { login: "lucas", id: 1000 }, name: "projeto", default_branch: "main" })
+        ? Response.json({ id: 500, owner: { login: "lucas", id: 1000 }, name: "projeto", default_branch: "main" })
         : Response.json({ message: "Not Found" }, { status: 404 }),
     );
-    expect(await github.buscar("lucas", "projeto")).toEqual({ owner: "lucas", ownerId: 1000, nome: "projeto", branchPadrao: "main" });
+    expect(await github.buscar("lucas", "projeto")).toEqual({ id: 500, owner: "lucas", ownerId: 1000, nome: "projeto", branchPadrao: "main" });
     expect(await github.buscar("lucas", "nada")).toBeNull();
     fetchFalso.mockRestore();
   });
@@ -191,9 +191,9 @@ describe("githubRepositorios: criar e instalação (Story 2.2)", () => {
 
   it("cria com auto_init e a visibilidade escolhida", async () => {
     const { github, corpos, fetchFalso } = comResposta(() =>
-      Response.json({ owner: { login: "lucas", id: 1000 }, name: "novo", default_branch: "main" }, { status: 201 }),
+      Response.json({ id: 9001, owner: { login: "lucas", id: 1000 }, name: "novo", default_branch: "main" }, { status: 201 }),
     );
-    expect(await github.criar("novo", true)).toEqual({ owner: "lucas", ownerId: 1000, nome: "novo", branchPadrao: "main" });
+    expect(await github.criar("novo", true)).toEqual({ id: 9001, owner: "lucas", ownerId: 1000, nome: "novo", branchPadrao: "main" });
     fetchFalso.mockRestore();
     expect(corpos).toEqual([{ name: "novo", private: true, auto_init: true }]);
   });

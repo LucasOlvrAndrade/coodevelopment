@@ -11,7 +11,11 @@ const criarJamComRepositorioNovo = vi.fn(async () => ({ id: "abcd-efgh" }));
 
 vi.mock("@/servidor/auth", () => ({ exigirSessao }));
 vi.mock("@/servidor/db", () => ({ db: () => banco }));
-vi.mock("@/servidor/dominio/jam", () => ({ criarJam, criarJamComRepositorioNovo }));
+vi.mock("@/servidor/dominio/jam", async (original) => ({
+  ...(await original<typeof import("@/servidor/dominio/jam")>()),
+  criarJam,
+  criarJamComRepositorioNovo,
+}));
 vi.mock("@/servidor/github", () => ({ githubDoUsuario: (id: string) => ({ id }), githubRepositorios: () => github }));
 
 const { criarJamComRepositorio, criarJamImportando } = await import("@/servidor/acoes/jam");
@@ -33,7 +37,8 @@ describe("criarJamImportando", () => {
   });
 
   it("nome que não pode ser do GitHub é entrada inválida", async () => {
-    for (const [owner, repo] of [["lucas", "../x"], ["", "projeto"], ["lucas", "a b"], ["lucas/x", "projeto"]]) {
+    // "." e ".." fariam o fetch trocar o endpoint do GitHub (SEC-002).
+    for (const [owner, repo] of [["lucas", "../x"], ["", "projeto"], ["lucas", "a b"], ["lucas/x", "projeto"], ["..", "user"], ["lucas", ".."], ["lucas", "."], ["-x", "projeto"], ["a--b", "projeto"]]) {
       expect(await criarJamImportando(owner!, repo!)).toMatchObject({ ok: false, erro: { codigo: "entrada_invalida" } });
     }
     expect(criarJam).not.toHaveBeenCalled();

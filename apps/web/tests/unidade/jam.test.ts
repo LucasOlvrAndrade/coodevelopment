@@ -20,7 +20,7 @@ const banco = () => teste.banco;
 const LUCAS = { id: "lucas", githubId: 1000 };
 const PAI = { id: "pai", githubId: 1001 };
 
-type RepoFalso = { owner: string; ownerId: number; nome: string; branchPadrao: string; sha: string | null };
+type RepoFalso = { id: number; owner: string; ownerId: number; nome: string; branchPadrao: string; sha: string | null };
 
 // GitHub de mentira com os repositórios dados (nomes sem diferença de maiúscula, como no GitHub).
 function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][], selecao: "all" | "selected" | null = "all") {
@@ -30,9 +30,9 @@ function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][], selecao: "al
     criar: async (nome, privado) => {
       if (repos.some((r) => r.nome.toLowerCase() === nome.toLowerCase())) throw new ErroApp("repositorio_ja_existe", 422);
       criados.push(`${nome}:${privado ? "privado" : "público"}`);
-      const novo = { owner: "LucasOlvrAndrade", ownerId: 1000, nome, branchPadrao: "main", sha: "inicial1" };
+      const novo = { id: 9000 + repos.length, owner: "LucasOlvrAndrade", ownerId: 1000, nome, branchPadrao: "main", sha: "inicial1" };
       repos.push(novo);
-      return { owner: novo.owner, ownerId: novo.ownerId, nome, branchPadrao: "main" };
+      return { id: novo.id, owner: novo.owner, ownerId: novo.ownerId, nome, branchPadrao: "main" };
     },
     instalacao: async () => ({ id: selecao ? 77 : null, selecao }),
     listar: async (pagina) => {
@@ -41,14 +41,14 @@ function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][], selecao: "al
     },
     buscar: async (owner, nome) => {
       const r = repos.find((x) => x.owner.toLowerCase() === owner.toLowerCase() && x.nome.toLowerCase() === nome.toLowerCase());
-      return r ? { owner: r.owner, ownerId: r.ownerId, nome: r.nome, branchPadrao: r.branchPadrao } : null;
+      return r ? { id: r.id, owner: r.owner, ownerId: r.ownerId, nome: r.nome, branchPadrao: r.branchPadrao } : null;
     },
     shaDaBranch: async (owner, nome) => repos.find((x) => x.owner === owner && x.nome === nome)?.sha ?? null,
   };
   return { github, pedidas, criados };
 }
 
-const projeto: RepoFalso = { owner: "LucasOlvrAndrade", ownerId: 1000, nome: "projeto", branchPadrao: "main", sha: "abc123" };
+const projeto: RepoFalso = { id: 500, owner: "LucasOlvrAndrade", ownerId: 1000, nome: "projeto", branchPadrao: "main", sha: "abc123" };
 
 beforeAll(async () => {
   teste = await criarBancoDeTeste();
@@ -145,15 +145,59 @@ describe("criar jam (AC 2)", () => {
     expect(await banco().select().from(jam)).toHaveLength(1);
   });
 
-  it("o índice segura duas criações ao mesmo tempo no mesmo repositório", async () => {
+  it("o índice segura duas criações ao mesmo tempo no mesmo repositório, e o perdedor recebe jam_ja_existe", async () => {
     const { github } = githubFalso([projeto]);
     const resultados = await Promise.allSettled([
       criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" }),
       criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" }),
     ]);
     expect(resultados.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const perdedor = resultados.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(perdedor.reason).toMatchObject({ codigo: "jam_ja_existe", status: 409 });
     expect(await banco().select().from(jam)).toHaveLength(1);
     expect(await banco().select().from(participante)).toHaveLength(1);
+  });
+
+  it("a jam aberta vale pelo id do repositório: renomear não abre outra, e um repositório novo com o nome antigo pode (REL-001)", async () => {
+    const { github } = githubFalso([projeto]);
+    await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
+    // Renomeado no GitHub: mesmo id, nome novo.
+    const renomeado = githubFalso([{ ...projeto, nome: "app" }]);
+    expect(await erroDe(criarJam(banco(), LUCAS, renomeado.github, { owner: "LucasOlvrAndrade", repo: "app" }))).toEqual({
+      codigo: "jam_ja_existe",
+      status: 409,
+    });
+    // Outro repositório com o nome antigo: id diferente.
+    const novoComNomeAntigo = githubFalso([{ ...projeto, id: 777 }]);
+    await criarJam(banco(), LUCAS, novoComNomeAntigo.github, { owner: "LucasOlvrAndrade", repo: "projeto" });
+    expect(await banco().select().from(jam)).toHaveLength(2);
+  });
+
+  it("importar também exige a instalação com All repositories (SEC-001)", async () => {
+    const { github } = githubFalso([projeto], undefined, "selected");
+    expect(await erroDe(criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" }))).toEqual({
+      codigo: "instalacao_parcial",
+      status: 409,
+    });
+    expect(await banco().select().from(jam)).toEqual([]);
+  });
+
+  it("id repetido tenta outro e grava (TEST-001)", async () => {
+    const { github } = githubFalso([projeto, { ...projeto, id: 501, nome: "outro" }]);
+    const real = crypto.getRandomValues.bind(crypto);
+    // Os primeiros bytes saem zerados: o id "2222-2222" se repete na segunda jam.
+    let zerados = 1;
+    const sorteio = vi.spyOn(crypto, "getRandomValues").mockImplementation(((arr: Uint8Array) => {
+      if (zerados-- > 0) return arr.fill(0);
+      return real(arr);
+    }) as unknown as typeof crypto.getRandomValues);
+    const primeira = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
+    zerados = 1;
+    const segunda = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "outro" });
+    sorteio.mockRestore();
+    expect(primeira.id).toBe("2222-2222");
+    expect(segunda.id).not.toBe("2222-2222");
+    expect(await banco().select().from(jam)).toHaveLength(2);
   });
 
   it("com a jam anterior fechada, o repositório aceita outra", async () => {
@@ -167,7 +211,7 @@ describe("criar jam (AC 2)", () => {
 
 describe("Início (AC 3)", () => {
   it("lista as jams de que a pessoa participa, abertas primeiro, com os participantes", async () => {
-    const outro: RepoFalso = { ...projeto, nome: "outro", sha: "def456" };
+    const outro: RepoFalso = { ...projeto, id: 501, nome: "outro", sha: "def456" };
     const { github } = githubFalso([projeto, outro]);
     const primeira = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
     const segunda = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "outro" });

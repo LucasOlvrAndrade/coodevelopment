@@ -18,7 +18,7 @@ export interface GithubRepositorios {
   // Só os repositórios cujo dono é a conta (D4), do push mais recente ao mais antigo.
   listar(pagina: number): Promise<Repositorio[]>;
   // null quando o repositório não existe ou o app não alcança.
-  buscar(owner: string, nome: string): Promise<{ owner: string; ownerId: number; nome: string; branchPadrao: string } | null>;
+  buscar(owner: string, nome: string): Promise<RepositorioDoGithub | null>;
   // null quando o repositório está vazio (sem commit na branch).
   shaDaBranch(owner: string, nome: string, branch: string): Promise<string | null>;
   // Repositório novo na conta, com commit inicial (Story 2.2). Nome repetido
@@ -28,7 +28,8 @@ export interface GithubRepositorios {
   instalacao(githubId: number): Promise<{ id: number | null; selecao: "all" | "selected" | null }>;
 }
 
-type RepositorioDoGithub = { owner: string; ownerId: number; nome: string; branchPadrao: string };
+// id é o número do repositório no GitHub: não muda quando dono ou nome mudam.
+type RepositorioDoGithub = { id: number; owner: string; ownerId: number; nome: string; branchPadrao: string };
 
 export type JamDoInicio = {
   id: string;
@@ -69,6 +70,21 @@ function violacaoUnica(e: unknown): string | null {
   return null;
 }
 
+// O app precisa da instalação com "All repositories": com "Only select
+// repositories", um repositório fora da seleção ou criado depois ficaria fora
+// do alcance (o convite e o commit falhariam). Gates da 1.2 e da 2.1 (SEC-001).
+async function exigirInstalacaoCompleta(github: GithubRepositorios, githubId: number) {
+  const instalacao = await github.instalacao(githubId);
+  if (instalacao.selecao === null) throw new ErroApp("instalacao_ausente", 409);
+  if (instalacao.selecao !== "all") {
+    throw new ErroApp(
+      "instalacao_parcial",
+      409,
+      `No GitHub, o Coodevelopment está liberado só para alguns repositórios, e a jam precisa dele em todos. Mude para "All repositories" em https://github.com/settings/installations/${instalacao.id} e tente de novo.`,
+    );
+  }
+}
+
 export async function criarJam(
   banco: Banco,
   eu: { id: string; githubId: number },
@@ -80,17 +96,12 @@ export async function criarJam(
   const repositorio = await github.buscar(escolha.owner, escolha.repo);
   if (!repositorio) throw new ErroApp("repositorio_nao_encontrado", 404);
   if (repositorio.ownerId !== eu.githubId) throw new ErroApp("repositorio_de_outra_conta", 403);
+  await exigirInstalacaoCompleta(github, eu.githubId);
 
   const [aberta] = await banco
     .select({ id: jam.id })
     .from(jam)
-    .where(
-      and(
-        sql`lower(${jam.repoOwner}) = lower(${repositorio.owner})`,
-        sql`lower(${jam.repoNome}) = lower(${repositorio.nome})`,
-        sql`${jam.estado} <> 'fechada'`,
-      ),
-    )
+    .where(and(eq(jam.repoId, repositorio.id), sql`${jam.estado} <> 'fechada'`))
     .limit(1);
   if (aberta) throw new ErroApp("jam_ja_existe", 409);
 
@@ -108,8 +119,8 @@ async function gravarJam(banco: Banco, eu: { id: string }, repositorio: Reposito
     try {
       await banco.execute(sql`
         with nova as (
-          insert into ${jam} (id, nome, repo_owner, repo_nome, branch, criador_id, base_sha)
-          values (${id}, ${repositorio.nome}, ${repositorio.owner}, ${repositorio.nome}, ${repositorio.branchPadrao}, ${eu.id}, ${baseSha})
+          insert into ${jam} (id, nome, repo_id, repo_owner, repo_nome, branch, criador_id, base_sha)
+          values (${id}, ${repositorio.nome}, ${repositorio.id}, ${repositorio.owner}, ${repositorio.nome}, ${repositorio.branchPadrao}, ${eu.id}, ${baseSha})
           returning id
         )
         insert into ${participante} (jam_id, usuario_id, papel, colaborador)
@@ -168,15 +179,7 @@ export async function criarJamComRepositorioNovo(
 
   // Com "Only select repositories", o repositório novo ficaria fora do alcance
   // do app (pendência 2 da Story 1.2): confere antes de criar qualquer coisa.
-  const instalacao = await github.instalacao(eu.githubId);
-  if (instalacao.selecao === null) throw new ErroApp("instalacao_ausente", 409);
-  if (instalacao.selecao !== "all") {
-    throw new ErroApp(
-      "instalacao_parcial",
-      409,
-      `No GitHub, o Coodevelopment está liberado só para alguns repositórios, e um repositório novo ficaria de fora. Mude para "All repositories" em https://github.com/settings/installations/${instalacao.id} e tente de novo.`,
-    );
-  }
+  await exigirInstalacaoCompleta(github, eu.githubId);
 
   const repositorio = await github.criar(novo.nome, novo.privado);
 

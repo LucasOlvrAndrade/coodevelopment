@@ -120,7 +120,7 @@ export function githubRepositorios(octokit: Octokit): GithubRepositorios {
       const resposta = await ouNulo(octokit.rest.repos.get({ owner, repo: nome }), [404]);
       if (!resposta) return null;
       const { data } = resposta;
-      return { owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch };
+      return { id: data.id, owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch };
     },
     async shaDaBranch(owner, nome, branch) {
       // Repositório vazio responde 409; branch que não existe, 404.
@@ -130,7 +130,7 @@ export function githubRepositorios(octokit: Octokit): GithubRepositorios {
     async criar(nome, privado) {
       try {
         const { data } = await octokit.rest.repos.createForAuthenticatedUser({ name: nome, private: privado, auto_init: true });
-        return { owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch ?? "main" };
+        return { id: data.id, owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch ?? "main" };
       } catch (e) {
         const erro = e as { status?: number; response?: { data?: { errors?: { message?: string }[] } } };
         if (erro.status === 422) {
