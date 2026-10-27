@@ -17,7 +17,9 @@ export function Avatar({ nome, foto, tamanho = 32 }: Props) {
     <span
       aria-hidden="true"
       style={{ width: tamanho, height: tamanho }}
-      className="inline-flex items-center justify-center rounded-full bg-participante-1 text-pequeno font-medium text-sobre-primaria"
+      // Iniciais na cor do fundo: 5,2:1 sobre a cor do participante no claro e
+      // 7,4:1 no escuro (o branco da primária não serve no escuro).
+      className="inline-flex items-center justify-center rounded-full bg-participante-1 text-pequeno font-medium text-fundo"
     >
       {iniciais(nome)}
     </span>
