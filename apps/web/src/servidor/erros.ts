@@ -4,6 +4,14 @@ import { unstable_rethrow } from "next/navigation";
 const MENSAGENS: Record<string, string> = {
   inesperado: "Algo deu errado. Tente de novo.",
   reautenticar: "Sua conexão com o GitHub venceu. Entre de novo.",
+  sem_sessao: "Sua sessão terminou. Entre de novo.",
+  entrada_invalida: "Não deu para entender o pedido. Recarregue a página e tente de novo.",
+  // Amigos (Story 1.3)
+  login_invalido: "Isso não parece um usuário do GitHub: use letras, números e hífen.",
+  amizade_consigo: "Você não pode pedir amizade a si mesmo.",
+  usuario_nao_encontrado: "Essa pessoa não usa mais o Coodevelopment.",
+  pedido_nao_encontrado: "Esse pedido não está mais pendente.",
+  nao_sao_amigos: "Vocês já não são amigos.",
 };
 
 export class ErroApp extends Error {
@@ -13,6 +21,21 @@ export class ErroApp extends Error {
     mensagem = MENSAGENS[codigo] ?? codigo,
   ) {
     super(mensagem);
+  }
+}
+
+// Resultado das Server Actions (error-handling-strategy.md): não lançam para a
+// página; o erro chega com a mensagem pronta para mostrar.
+export type Resultado<T> = { ok: true; dados: T } | { ok: false; erro: { codigo: string; mensagem: string } };
+
+export async function executar<T>(f: () => Promise<T>): Promise<Resultado<T>> {
+  try {
+    return { ok: true, dados: await f() };
+  } catch (e) {
+    unstable_rethrow(e);
+    if (!(e instanceof ErroApp)) console.error(JSON.stringify({ nivel: "erro", erro: String(e) }));
+    const erro = e instanceof ErroApp ? e : new ErroApp("inesperado", 500);
+    return { ok: false, erro: { codigo: erro.codigo, mensagem: erro.message } };
   }
 }
 

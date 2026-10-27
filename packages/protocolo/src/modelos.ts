@@ -8,3 +8,19 @@ export interface Usuario {
   avatarUrl: string;
   criadoEm: string; // ISO 8601
 }
+
+// Par em ordem (usuarioA < usuarioB, na collation do banco) para não duplicar.
+export interface Amizade {
+  usuarioA: string;
+  usuarioB: string;
+  criadaEm: string;
+}
+
+// Aceito vira Amizade e some; recusado volta a pendente se pedido de novo (A10).
+export interface PedidoAmizade {
+  id: string;
+  de: string;
+  para: string;
+  status: "pendente" | "recusado";
+  criadoEm: string;
+}
