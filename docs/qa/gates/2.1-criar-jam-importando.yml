@@ -1,10 +1,10 @@
 schema: 1
 story: '2.1'
 story_title: 'Criar jam importando um repositório'
-gate: CONCERNS
-status_reason: 'Os 3 ACs estão cobertos e a autorização está certa: o dono é conferido pelo id que vem do GitHub, os nomes gravados são os do GitHub e o Início só traz jams de que a pessoa participa. A CTE e a detecção de unique pelo neon-http estão certas (conferido no código do Drizzle 0.45.4 e do neon 1.2.0). Mas a regra de uma jam aberta por repositório (A11) olha só os nomes, que mudam, e há achados baixos de validação, tela e testes.'
+gate: PASS
+status_reason: 'Reavaliação de 27/10: os sete achados corrigidos, cada um com teste (repo_id com o índice da A11, instalação completa ao importar, nomes validados como no GitHub, botão com o repositório escolhido, data no fuso de Brasília, avisos de busca, ação que não derruba a tela e error.tsx, corrida e colisão de id cobertas). Os E2E e o axe da última rodada ficaram para depois: o servidor de desenvolvimento foi encerrado por falta de memória na máquina. Gate original: os 3 ACs estão cobertos e a autorização está certa: o dono é conferido pelo id que vem do GitHub, os nomes gravados são os do GitHub e o Início só traz jams de que a pessoa participa. A CTE e a detecção de unique pelo neon-http estão certas (conferido no código do Drizzle 0.45.4 e do neon 1.2.0). Mas a regra de uma jam aberta por repositório (A11) olha só os nomes, que mudam, e há achados baixos de validação, tela e testes.'
 reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:32a45b9'
+reviewed_revision: 'commit:47bdb1a (gate original em 32a45b9)'
 updated: '2026-10-27T00:00:00Z'
 
 top_issues:

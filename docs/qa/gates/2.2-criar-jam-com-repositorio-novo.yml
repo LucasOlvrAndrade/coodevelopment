@@ -1,0 +1,33 @@
+schema: 1
+story: '2.2'
+story_title: 'Criar jam com repositório novo'
+gate: PASS
+status_reason: 'Os 4 ACs cobertos: nome validado como no GitHub antes de qualquer chamada, instalação com All repositories conferida antes de criar (fecha a pendência 2 da 1.2), auto_init com novas tentativas até o commit inicial aparecer, jam gravada pelo mesmo trecho da 2.1 (A9, A11 pelo repo_id) e nome repetido com erro no próprio campo, sem nada criado. Repositório criado e jam com falha vira mensagem que manda importar, sem apagar nada no GitHub.'
+reviewer: 'Quinn (@qa), via Claude'
+reviewed_revision: 'commit:2408a7d'
+updated: '2026-10-27T00:00:00Z'
+
+top_issues: []
+
+evidence:
+  tests_reviewed: 18
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (174 no app); code-review à mão'
+  production: 'axe sem violações no painel de criar, com o erro do nome aberto, nos dois temas e em 360 px (antes das correções da 2.1). A criação real no GitHub só dá para conferir com a conta do Lucas.'
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Repositório sempre na conta de quem está logado (POST /user/repos com o token dele); nome validado no servidor.'
+  reliability:
+    status: PASS
+    notes: 'Nada pela metade sem explicação; erro do GitHub traduzido.'
+  maintainability:
+    status: PASS
+    notes: 'Mesmo trecho de gravação da 2.1; GitHub por interface.'
+
+recommendations:
+  future:
+    - 'Conferir em produção com a conta do Lucas: criar um repositório novo pela jam.'
