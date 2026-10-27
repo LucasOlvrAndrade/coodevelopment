@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { obterSessao } from "@/servidor/auth";
 import { env } from "@/servidor/env";
+import { rota } from "@/servidor/erros";
 import { appInstaladoNaConta } from "@/servidor/github";
 
 // Volta do login (decisão A7): sem o app instalado na conta, segue direto para
 // a instalação no GitHub, e a Setup URL traz de volta ao Início.
-export async function GET() {
+export const GET = rota(async () => {
   const sessao = await obterSessao();
   if (!sessao) redirect("/");
 
@@ -20,4 +21,4 @@ export async function GET() {
 
   if (!instalado) redirect(`https://github.com/apps/${env().GITHUB_APP_SLUG}/installations/new`);
   redirect("/inicio");
-}
+});

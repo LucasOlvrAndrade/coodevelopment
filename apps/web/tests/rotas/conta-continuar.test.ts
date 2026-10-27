@@ -12,7 +12,7 @@ const { GET } = await import("@/app/api/conta/continuar/route");
 // redirect() do Next lança um erro com o destino no digest.
 async function destino(): Promise<string> {
   try {
-    await GET();
+    await GET(new Request("http://localhost:3000/api/conta/continuar"), {});
   } catch (e) {
     const digest = String((e as { digest?: string }).digest ?? "");
     if (digest.startsWith("NEXT_REDIRECT")) return digest.split(";")[2];
@@ -46,6 +46,13 @@ describe("GET /api/conta/continuar (decisão A7)", () => {
     obterSessao.mockResolvedValue(sessao);
     appInstaladoNaConta.mockResolvedValue(false);
     expect(await destino()).toBe("https://github.com/apps/coodevelopment/installations/new");
+  });
+
+  it("erro inesperado (banco fora do ar) vira a resposta de erro padrão", async () => {
+    obterSessao.mockRejectedValue(new Error("banco fora do ar"));
+    const resposta = await GET(new Request("http://localhost:3000/api/conta/continuar"), {});
+    expect(resposta.status).toBe(500);
+    expect(await resposta.json()).toMatchObject({ error: { code: "inesperado" } });
   });
 
   it("se o GitHub não responder, entra mesmo assim", async () => {
