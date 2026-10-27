@@ -2,9 +2,9 @@
 
 import { AlertDialog } from "radix-ui";
 import { useRef, useState, useTransition } from "react";
+import { botaoSecundario } from "@/componentes/ui/botoes";
 import { desfazerAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
-import { botaoSecundario } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
 import { useFocarQuandoSair } from "./use-focar-quando-sair";
 

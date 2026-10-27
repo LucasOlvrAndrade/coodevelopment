@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
 import { aceitarPedido, recusarPedido } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
-import { botaoPrincipal, botaoSecundario } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
 import { useFocarQuandoSair } from "./use-focar-quando-sair";
 

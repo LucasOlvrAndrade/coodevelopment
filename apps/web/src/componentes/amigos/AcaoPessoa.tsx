@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
 import { aceitarPedido, pedirAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
-import { botaoPrincipal, botaoSecundario } from "./estilos";
 
 type Props = { pessoa: Pessoa; relacaoInicial: Relacao; anunciar: (texto: string, pessoaId: string) => void };
 

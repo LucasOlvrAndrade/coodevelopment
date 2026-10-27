@@ -12,6 +12,11 @@ const MENSAGENS: Record<string, string> = {
   usuario_nao_encontrado: "Essa pessoa não usa mais o Coodevelopment.",
   pedido_nao_encontrado: "Esse pedido não está mais pendente.",
   nao_sao_amigos: "Vocês já não são amigos.",
+  // Jams (Story 2.1)
+  repositorio_nao_encontrado: "Não achei esse repositório no seu GitHub. Recarregue a lista e tente de novo.",
+  repositorio_de_outra_conta: "Só dá para criar uma jam com um repositório da sua conta.",
+  repositorio_vazio: "Esse repositório ainda não tem nenhum commit. Faça um commit nele ou crie um repositório novo pela jam.",
+  jam_ja_existe: "Já existe uma jam aberta para esse repositório. Ela está no seu Início.",
 };
 
 export class ErroApp extends Error {

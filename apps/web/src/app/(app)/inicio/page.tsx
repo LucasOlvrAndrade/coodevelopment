@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { obterSessao } from "@/servidor/auth";
+import { ListaJams } from "@/componentes/jams/ListaJams";
+import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
+import { exigirSessao, obterSessao } from "@/servidor/auth";
+import { db } from "@/servidor/db";
+import { listarJams } from "@/servidor/dominio/jam";
 
 export async function Saudacao() {
   const sessao = await obterSessao();
@@ -8,11 +12,39 @@ export async function Saudacao() {
   return <h1 className="text-h1 font-semibold">Olá, {primeiroNome}</h1>;
 }
 
-// Início vazio: ainda não há jams. Criar jam ganha ação na Story 2.1; Adicionar
-// amigos leva à tela de Amigos (1.3).
-export default function Inicio() {
+// Jams de que a pessoa participa (FR7), com a recém-criada em destaque. Vazio:
+// "Criar jam" e "Adicionar amigos" (front-end spec, Início).
+export async function JamsDoUsuario({ busca }: { busca: Promise<{ nova?: string | string[] }> }) {
+  const eu = await exigirSessao();
+  const [{ nova }, jams] = await Promise.all([busca, listarJams(db(), eu.id)]);
+  if (jams.length === 0) {
+    return (
+      <>
+        <p className="text-texto-suave">Você ainda não tem nenhuma jam.</p>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/jams/nova" className={`${botaoPrincipal} px-4 py-3`}>
+            Criar jam
+          </Link>
+          <Link href="/amigos" className={`${botaoSecundario} px-4 py-3`}>
+            Adicionar amigos
+          </Link>
+        </div>
+      </>
+    );
+  }
   return (
-    <div className="flex flex-col gap-6">
+    <>
+      <ListaJams jams={jams} nova={typeof nova === "string" ? nova : undefined} />
+      <Link href="/jams/nova" className={`${botaoPrincipal} px-4 py-3`}>
+        Criar jam
+      </Link>
+    </>
+  );
+}
+
+export default function Inicio({ searchParams }: PageProps<"/inicio">) {
+  return (
+    <div className="flex max-w-2xl flex-col gap-6">
       <Suspense fallback={<h1 className="text-h1 font-semibold">Olá</h1>}>
         <Saudacao />
       </Suspense>
@@ -20,26 +52,9 @@ export default function Inicio() {
         <h2 id="titulo-jams" className="text-h2 font-semibold">
           Suas jams
         </h2>
-        <p className="text-texto-suave">Você ainda não tem nenhuma jam.</p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled
-            aria-describedby="aviso-em-breve"
-            className="rounded-controle bg-primaria px-4 py-3 text-corpo font-medium text-sobre-primaria disabled:opacity-60"
-          >
-            Criar jam
-          </button>
-          <Link
-            href="/amigos"
-            className="rounded-controle border border-borda-controle px-4 py-3 text-corpo font-medium transition-colors hover:bg-superficie"
-          >
-            Adicionar amigos
-          </Link>
-        </div>
-        <p id="aviso-em-breve" className="text-pequeno text-texto-suave">
-          Criar jam chega na próxima versão.
-        </p>
+        <Suspense fallback={<p className="text-texto-suave">Carregando suas jams...</p>}>
+          <JamsDoUsuario busca={searchParams} />
+        </Suspense>
       </section>
     </div>
   );

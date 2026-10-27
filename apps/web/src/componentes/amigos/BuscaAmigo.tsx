@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { botaoPrincipal } from "@/componentes/ui/botoes";
 import { buscarAmigo } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
 import { AcaoPessoa } from "./AcaoPessoa";
-import { botaoPrincipal } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
 
 type Achado = Pessoa & { relacao: Relacao };
