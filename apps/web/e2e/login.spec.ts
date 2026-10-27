@@ -22,7 +22,10 @@ test.describe("página inicial", () => {
 
   test("o aviso de recusa no GitHub passa no axe", async ({ page }) => {
     await page.goto("/?erro=github");
-    await expect(page.getByRole("alert")).toContainText("precisa da sua autorização no GitHub");
+    // Filtra pelo texto: o Next também põe um role="alert" vazio (o anunciador de rotas).
+    await expect(page.getByRole("alert").filter({ hasText: "Não deu para entrar" })).toContainText(
+      "precisa da sua autorização no GitHub",
+    );
     const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
     expect(violations.map((v) => v.id)).toEqual([]);
   });
