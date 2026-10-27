@@ -1,10 +1,10 @@
 schema: 1
 story: '1.4'
 story_title: 'Sugestões de mútuos do GitHub'
-gate: CONCERNS
-status_reason: 'Os 4 ACs estão cobertos: a conferência um a um vai na direção certa, o casamento é pelo github_id, ficam fora quem não tem conta, amigos e pedidos, e o token não sai do servidor. Falta aguentar o custo: cada ação na tela refaz as chamadas ao GitHub e segura a página até ele responder.'
+gate: PASS
+status_reason: 'Reavaliação de 27/10: PERF-001 (mútuos do GitHub guardados 5 minutos por pessoa, filtro de amigos e pedidos sempre na hora), REL-001 (conferências em lotes de 5 com allSettled), PROD-001 (desfazer conta como recusa, A10) e TEST-001 (SugestoesMutuos com teste dos três ramos) corrigidos. Falta só a conferência com uma conta de verdade do GitHub (ação do Lucas). Gate original: os 4 ACs estão cobertos: a conferência um a um vai na direção certa, o casamento é pelo github_id, ficam fora quem não tem conta, amigos e pedidos, e o token não sai do servidor. Falta aguentar o custo: cada ação na tela refaz as chamadas ao GitHub e segura a página até ele responder.'
 reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:25d0e87'
+reviewed_revision: 'commit:0f89c15 (gate original em 25d0e87)'
 updated: '2026-10-27T00:00:00Z'
 
 top_issues:

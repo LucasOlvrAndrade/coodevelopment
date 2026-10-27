@@ -1,10 +1,10 @@
 schema: 1
 story: '1.3'
 story_title: 'Amigos por busca e pedido'
-gate: CONCERNS
-status_reason: 'Os 5 ACs estão cobertos e a autorização está certa: quem age vem da sessão, aceitar e recusar filtram para = eu, desfazer só acha par com eu. Sem achado alto. Ficam sete achados médios e baixos, quase todos na interface (relação velha na busca, foco perdido, nome acessível) e dois testes que prometem mais do que conferem.'
+gate: PASS
+status_reason: 'Reavaliação de 27/10 (duas rodadas): os sete achados corrigidos, cada um com teste. A segunda rodada do revisor independente achou quatro ressalvas nas correções (janela entre o sucesso e a linha sair, foco roubado de quem já estava em outro lugar, duas contagens por navegação na fila das Server Actions, pedido que sobrou voltando depois de desfazer), também corrigidas. Gate original: os 5 ACs estão cobertos e a autorização está certa: quem age vem da sessão, aceitar e recusar filtram para = eu, desfazer só acha par com eu. Sem achado alto. Ficam sete achados médios e baixos, quase todos na interface (relação velha na busca, foco perdido, nome acessível) e dois testes que prometem mais do que conferem.'
 reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:cd6769f'
+reviewed_revision: 'commit:fe27a65 (gate original em cd6769f)'
 updated: '2026-10-27T00:00:00Z'
 
 top_issues:
