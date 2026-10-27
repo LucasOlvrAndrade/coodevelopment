@@ -164,10 +164,37 @@ export async function recusarPedido(banco: Banco, eu: string, pedidoId: string):
   if (recusados.length === 0) throw new ErroApp("pedido_nao_encontrado", 404);
 }
 
-// Qualquer um dos dois desfaz (AC 4).
+// Qualquer um dos dois desfaz (AC 4). Desfazer conta como recusa de quem desfez
+// (A10): fica um pedido do outro para mim como recusado, então o outro não
+// volta como sugestão (gate da 1.4, PROD-001) mas pode pedir de novo. Um
+// pedido meu que sobrou de uma corrida sai junto, para não reabrir a amizade
+// sozinho (gate da 1.3, REL-004). Tudo numa instrução (A9).
 export async function desfazerAmizade(banco: Banco, eu: string, outro: string): Promise<void> {
-  const apagadas = await banco.delete(amizade).where(doPar(eu, outro)).returning({ desde: amizade.criadaEm });
-  if (apagadas.length === 0) throw new ErroApp("nao_sao_amigos", 404);
+  const [resultado] = await linhas<{ desfeitas: number }>(
+    banco,
+    sql`
+      with
+        desfeita as (
+          delete from ${amizade}
+          where usuario_a = least(${eu}, ${outro}) and usuario_b = greatest(${eu}, ${outro})
+          returning 1
+        ),
+        sobra as (
+          delete from ${pedidoAmizade}
+          where de = ${eu} and para = ${outro} and exists (select 1 from desfeita)
+          returning 1
+        ),
+        recusa as (
+          insert into ${pedidoAmizade} (id, de, para, status)
+          select ${crypto.randomUUID()}, ${outro}, ${eu}, 'recusado'
+          where exists (select 1 from desfeita)
+          on conflict (de, para) do update set status = 'recusado'
+          returning 1
+        )
+      select count(*)::int as desfeitas from desfeita
+    `,
+  );
+  if (!resultado?.desfeitas) throw new ErroApp("nao_sao_amigos", 404);
 }
 
 export async function listarAmigos(banco: Banco, eu: string): Promise<(Pessoa & { desde: Date })[]> {

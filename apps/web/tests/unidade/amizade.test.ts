@@ -230,6 +230,32 @@ describe("desfazer amizade (AC 4)", () => {
     expect(await erroDe(desfazerAmizade(banco(), LUCAS, PAI))).toEqual({ codigo: "nao_sao_amigos", status: 404 });
   });
 
+  it("desfazer conta como recusa de quem desfez: nenhum pedido aparece, e o outro ainda pode pedir (PROD-001)", async () => {
+    await amigos(LUCAS, PAI);
+    await desfazerAmizade(banco(), LUCAS, PAI);
+    expect(await listarPedidos(banco(), PAI)).toEqual({ recebidos: [], enviados: [] });
+    expect(await listarPedidos(banco(), LUCAS)).toEqual({ recebidos: [], enviados: [] });
+    expect(await banco().select({ de: pedidoAmizade.de, para: pedidoAmizade.para, status: pedidoAmizade.status }).from(pedidoAmizade)).toEqual([
+      { de: PAI, para: LUCAS, status: "recusado" },
+    ]);
+    expect((await buscarPorLogin(banco(), PAI, "lucasolvrandrade"))[0]?.relacao).toEqual({ tipo: "nenhuma" });
+    expect(await pedirAmizade(banco(), PAI, LUCAS)).toBe("pedido_enviado");
+    expect((await listarPedidos(banco(), LUCAS)).recebidos.map((p) => p.id)).toEqual([PAI]);
+  });
+
+  it("o pedido que sobrou de uma corrida não reabre a amizade depois de desfeita (REL-004)", async () => {
+    await amigos(LUCAS, PAI);
+    await banco().insert(pedidoAmizade).values({ id: "sobra", de: LUCAS, para: PAI });
+    await desfazerAmizade(banco(), LUCAS, PAI);
+    expect(await listarPedidos(banco(), PAI)).toEqual({ recebidos: [], enviados: [] });
+
+    await amigos(LUCAS, PAI);
+    await banco().insert(pedidoAmizade).values({ id: "sobra2", de: LUCAS, para: PAI });
+    await desfazerAmizade(banco(), PAI, LUCAS);
+    expect(await listarPedidos(banco(), PAI)).toEqual({ recebidos: [], enviados: [] });
+    expect(await contarPedidosRecebidos(banco(), PAI)).toBe(0);
+  });
+
   it("depois de desfeita, os dois podem pedir de novo", async () => {
     await amigos(LUCAS, PAI);
     await desfazerAmizade(banco(), LUCAS, PAI);
