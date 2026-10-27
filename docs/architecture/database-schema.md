@@ -27,6 +27,7 @@ create table amizade (
 create table jam (
   id text primary key,
   nome text not null,
+  repo_id bigint not null, -- id do repositório no GitHub (A11, Story 2.1)
   repo_owner text not null,
   repo_nome text not null,
   branch text not null,
@@ -38,6 +39,8 @@ create table jam (
   criada_em timestamptz not null default now()
 );
 create index jam_repo on jam (repo_owner, repo_nome);
+-- Uma jam não fechada por repositório (A11)
+create unique index jam_repo_aberta on jam (repo_id) where estado <> 'fechada';
 
 create table participante (
   jam_id text not null references jam(id) on delete cascade,
