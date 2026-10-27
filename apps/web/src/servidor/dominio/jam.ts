@@ -37,7 +37,8 @@ export type JamDoInicio = {
   repoOwner: string;
   repoNome: string;
   estado: "aberta" | "fechando" | "fechada";
-  participantes: (Pessoa & { papel: "criador" | "convidado" })[];
+  criadorId: string;
+  participantes: (Pessoa & { papel: "criador" | "convidado"; colaborador: "ok" | "pendente" | "falhou" })[];
 };
 
 const POR_PAGINA = 100;
@@ -123,8 +124,8 @@ async function gravarJam(banco: Banco, eu: { id: string }, repositorio: Reposito
           values (${id}, ${repositorio.nome}, ${repositorio.id}, ${repositorio.owner}, ${repositorio.nome}, ${repositorio.branchPadrao}, ${eu.id}, ${baseSha})
           returning id
         )
-        insert into ${participante} (jam_id, usuario_id, papel, colaborador)
-        select id, ${eu.id}, 'criador', 'ok' from nova
+        insert into ${participante} (jam_id, usuario_id, papel, colaborador, vaga)
+        select id, ${eu.id}, 'criador', 'ok', 1 from nova
       `);
       return { id };
     } catch (e) {
@@ -139,14 +140,22 @@ async function gravarJam(banco: Banco, eu: { id: string }, repositorio: Reposito
 // Jams de que a pessoa participa (FR7): abertas primeiro, depois as fechadas.
 export async function listarJams(banco: Banco, eu: string): Promise<JamDoInicio[]> {
   const minhas = await banco
-    .select({ id: jam.id, nome: jam.nome, repoOwner: jam.repoOwner, repoNome: jam.repoNome, estado: jam.estado })
+    .select({ id: jam.id, nome: jam.nome, repoOwner: jam.repoOwner, repoNome: jam.repoNome, estado: jam.estado, criadorId: jam.criadorId })
     .from(jam)
     .innerJoin(participante, and(eq(participante.jamId, jam.id), eq(participante.usuarioId, eu)))
     .orderBy(sql`case when ${jam.estado} = 'fechada' then 1 else 0 end`, desc(jam.criadaEm));
   if (minhas.length === 0) return [];
 
   const pessoas = await banco
-    .select({ jamId: participante.jamId, papel: participante.papel, id: user.id, login: user.login, nome: user.name, foto: user.image })
+    .select({
+      jamId: participante.jamId,
+      papel: participante.papel,
+      colaborador: participante.colaborador,
+      id: user.id,
+      login: user.login,
+      nome: user.name,
+      foto: user.image,
+    })
     .from(participante)
     .innerJoin(user, eq(user.id, participante.usuarioId))
     .where(inArray(participante.jamId, minhas.map((j) => j.id)))
@@ -155,7 +164,7 @@ export async function listarJams(banco: Banco, eu: string): Promise<JamDoInicio[
     ...j,
     participantes: pessoas
       .filter((p) => p.jamId === j.id)
-      .map(({ papel, id, login, nome, foto }) => ({ papel, id, login, nome, foto })),
+      .map(({ papel, colaborador, id, login, nome, foto }) => ({ papel, colaborador, id, login, nome, foto })),
   }));
 }
 

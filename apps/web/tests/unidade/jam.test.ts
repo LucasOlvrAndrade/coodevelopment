@@ -216,7 +216,7 @@ describe("Início (AC 3)", () => {
     const primeira = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
     const segunda = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "outro" });
     await banco().update(jam).set({ estado: "fechada" }).where((await import("drizzle-orm")).eq(jam.id, segunda.id));
-    await banco().insert(participante).values({ jamId: primeira.id, usuarioId: "pai", papel: "convidado", colaborador: "ok" });
+    await banco().insert(participante).values({ jamId: primeira.id, usuarioId: "pai", papel: "convidado", colaborador: "ok", vaga: 2 });
 
     const doLucas = await listarJams(banco(), "lucas");
     expect(doLucas.map((j) => [j.repoNome, j.estado])).toEqual([

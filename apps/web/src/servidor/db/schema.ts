@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, index, pgTable, primaryKey, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, index, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Tabelas do Better Auth 1.7 (campos de get-tables do @better-auth/core),
 // com nomes de coluna em snake_case. As chaves em camelCase são as que o
@@ -171,12 +171,17 @@ export const participante = pgTable(
     papel: text("papel", { enum: ["criador", "convidado"] }).notNull(),
     // Convite de colaborador no GitHub (Story 2.3); o criador é o dono, já "ok".
     colaborador: text("colaborador", { enum: ["ok", "pendente", "falhou"] }).notNull().default("pendente"),
+    // Vaga de 1 a 3, única por jam (A12): o limite de 3 pessoas (D6) vale pelo
+    // banco mesmo com dois chamados ao mesmo tempo, sem transação. Criador = 1.
+    vaga: smallint("vaga").notNull(),
     entrouEm: timestamp("entrou_em", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ name: "participante_jam_usuario", columns: [t.jamId, t.usuarioId] }),
     index("participante_usuario").on(t.usuarioId),
+    uniqueIndex("participante_jam_vaga").on(t.jamId, t.vaga),
     check("participante_papel", sql`${t.papel} in ('criador', 'convidado')`),
     check("participante_colaborador", sql`${t.colaborador} in ('ok', 'pendente', 'falhou')`),
+    check("participante_vaga", sql`${t.vaga} between 1 and 3`),
   ],
 );
