@@ -30,12 +30,13 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
     setRespondendo((atual) => new Set(atual).add(pedido.pedidoId));
     iniciar(async () => {
       const resultado = aceitar ? await aceitarPedido(pedido.pedidoId) : await recusarPedido(pedido.pedidoId);
-      setRespondendo((atual) => {
-        const proximo = new Set(atual);
-        proximo.delete(pedido.pedidoId);
-        return proximo;
-      });
       if (!resultado.ok) {
+        // Só no erro os botões voltam; no sucesso ficam travados até a linha sair.
+        setRespondendo((atual) => {
+          const proximo = new Set(atual);
+          proximo.delete(pedido.pedidoId);
+          return proximo;
+        });
         setErro(resultado.erro.mensagem);
         return;
       }

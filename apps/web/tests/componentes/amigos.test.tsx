@@ -8,7 +8,6 @@ const acoes = {
   aceitarPedido: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
   recusarPedido: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
   desfazerAmizade: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
-  contarMeusPedidos: vi.fn(async (): Promise<Resultado<number>> => ({ ok: true, dados: 0 })),
 };
 vi.mock("@/servidor/acoes/amizade", () => acoes);
 
@@ -174,6 +173,32 @@ describe("pedidos recebidos (AC 3)", () => {
     primeiro.resolver({ ok: true, dados: undefined });
   });
 
+  it("no sucesso, os botões do pedido ficam travados até a linha sair (REL-002)", async () => {
+    render(<PedidosRecebidos pedidos={[{ ...PAI, pedidoId: "p1" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar o pedido de Pai" }));
+    await screen.findByText("Agora você e Pai são amigos.");
+    expect(screen.getByRole("button", { name: "Recusar o pedido de Pai" })).toBeDisabled();
+  });
+
+  it("não tira o foco de quem já foi para outro lugar", async () => {
+    const { rerender } = render(
+      <>
+        <input aria-label="outro campo" />
+        <PedidosRecebidos pedidos={[{ ...PAI, pedidoId: "p1" }]} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Recusar o pedido de Pai" }));
+    await screen.findByText("Pedido de Pai recusado.");
+    screen.getByRole("textbox", { name: "outro campo" }).focus();
+    rerender(
+      <>
+        <input aria-label="outro campo" />
+        <PedidosRecebidos pedidos={[]} />
+      </>,
+    );
+    expect(screen.getByRole("textbox", { name: "outro campo" })).toHaveFocus();
+  });
+
   it("quando o pedido respondido sai da lista, o foco vai para o aviso (A11Y-002)", async () => {
     const { rerender } = render(<PedidosRecebidos pedidos={[{ ...PAI, pedidoId: "p1" }]} />);
     fireEvent.click(screen.getByRole("button", { name: "Recusar o pedido de Pai" }));
@@ -185,15 +210,15 @@ describe("pedidos recebidos (AC 3)", () => {
   const pedidos = [{ ...PAI, pedidoId: "p1" }];
 
   it("aceitar e recusar chamam a ação com o id do pedido", async () => {
-    render(<PedidosRecebidos pedidos={pedidos} />);
+    render(<PedidosRecebidos pedidos={[...pedidos, { id: "ana", login: "ana", nome: "Ana", foto: null, pedidoId: "p2" }]} />);
     expect(screen.getByRole("heading", { name: "Pedidos recebidos" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Aceitar o pedido de Pai" }));
     await waitFor(() => expect(acoes.aceitarPedido).toHaveBeenCalledWith("p1"));
     expect(await screen.findByRole("status")).toHaveTextContent("Agora você e Pai são amigos.");
 
-    fireEvent.click(screen.getByRole("button", { name: "Recusar o pedido de Pai" }));
-    await waitFor(() => expect(acoes.recusarPedido).toHaveBeenCalledWith("p1"));
-    expect(await screen.findByText("Pedido de Pai recusado.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recusar o pedido de Ana" }));
+    await waitFor(() => expect(acoes.recusarPedido).toHaveBeenCalledWith("p2"));
+    expect(await screen.findByText("Pedido de Ana recusado.")).toBeInTheDocument();
   });
 
   it("erro aparece como alerta", async () => {
@@ -232,6 +257,14 @@ describe("lista de amigos (AC 4)", () => {
     await waitFor(() => expect(acoes.desfazerAmizade).toHaveBeenCalledWith("pai"));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(screen.getByRole("status")).toHaveTextContent("Você e Pai não são mais amigos.");
+  });
+
+  it("depois de desfeita, o botão fica travado até a linha sair", async () => {
+    render(<ListaAmigos amigos={[PAI]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer amizade com Pai" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desfazer amizade" }));
+    await screen.findByText("Você e Pai não são mais amigos.");
+    expect(screen.getByRole("button", { name: "Desfazer amizade com Pai" })).toBeDisabled();
   });
 
   it("quando o amigo sai da lista, o foco vai para o aviso (A11Y-002)", async () => {
@@ -281,14 +314,27 @@ describe("navegação principal", () => {
     expect(screen.getByRole("link", { name: "Jams" })).not.toHaveAttribute("aria-current");
   });
 
-  it("ao trocar de página, pede a contagem de novo (REL-003)", async () => {
+  it("ao trocar de página, pede a contagem pela rota, uma vez para as duas barras (REL-003)", async () => {
     caminho = "/inicio";
-    acoes.contarMeusPedidos.mockResolvedValueOnce({ ok: true, dados: 3 });
-    const { rerender } = render(<NavegacaoApp pedidosRecebidos={0} posicao="topo" />);
-    expect(acoes.contarMeusPedidos).not.toHaveBeenCalled();
+    const busca = vi.spyOn(globalThis, "fetch").mockImplementation(async () => Response.json({ total: 3 }));
+    const { rerender } = render(
+      <>
+        <NavegacaoApp pedidosRecebidos={0} posicao="topo" />
+        <NavegacaoApp pedidosRecebidos={0} posicao="baixo" />
+      </>,
+    );
+    expect(busca).not.toHaveBeenCalled();
     caminho = "/amigos";
-    rerender(<NavegacaoApp pedidosRecebidos={0} posicao="topo" />);
-    expect(await screen.findByRole("link", { name: "Amigos, 3 pedidos recebidos" })).toBeInTheDocument();
+    rerender(
+      <>
+        <NavegacaoApp pedidosRecebidos={0} posicao="topo" />
+        <NavegacaoApp pedidosRecebidos={0} posicao="baixo" />
+      </>,
+    );
+    expect(await screen.findAllByRole("link", { name: "Amigos, 3 pedidos recebidos" })).toHaveLength(2);
+    expect(busca).toHaveBeenCalledTimes(1);
+    expect(String(busca.mock.calls[0]?.[0])).toBe("/api/amigos/pedidos-recebidos");
+    busca.mockRestore();
   });
 
   it("sem pedidos, sem contador", () => {

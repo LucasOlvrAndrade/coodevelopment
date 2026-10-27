@@ -48,6 +48,9 @@ export function ListaAmigos({ amigos }: { amigos: Pessoa[] }) {
 
 function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () => void }) {
   const [aberto, setAberto] = useState(false);
+  // Desfeita, a linha some quando a página volta do servidor; até lá o botão
+  // fica travado, para não reabrir o diálogo de uma amizade que já acabou.
+  const [desfeita, setDesfeita] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [indo, iniciar] = useTransition();
 
@@ -56,6 +59,7 @@ function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () 
     iniciar(async () => {
       const resultado = await desfazerAmizade(amigo.id);
       if (resultado.ok) {
+        setDesfeita(true);
         setAberto(false);
         aoDesfazer();
       } else {
@@ -66,7 +70,11 @@ function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () 
 
   return (
     <AlertDialog.Root open={aberto} onOpenChange={setAberto}>
-      <AlertDialog.Trigger className={`${botaoSecundario} text-erro`} aria-label={`Desfazer amizade com ${amigo.nome}`}>
+      <AlertDialog.Trigger
+        disabled={desfeita}
+        className={`${botaoSecundario} text-erro`}
+        aria-label={`Desfazer amizade com ${amigo.nome}`}
+      >
         Desfazer amizade
       </AlertDialog.Trigger>
       <AlertDialog.Portal>

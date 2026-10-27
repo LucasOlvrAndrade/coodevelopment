@@ -59,12 +59,3 @@ export async function desfazerAmizade(amigoId: string) {
     refresh();
   });
 }
-
-// Contador de pedidos da barra: o layout não é renderizado de novo na navegação
-// sem recarregar, então a barra pede a contagem quando a página muda (REL-003).
-export async function contarMeusPedidos() {
-  return executar(async () => {
-    const eu = await exigirSessao();
-    return regras.contarPedidosRecebidos(db(), eu.id);
-  });
-}

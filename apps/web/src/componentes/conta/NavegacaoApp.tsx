@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { contarMeusPedidos } from "@/servidor/acoes/amizade";
 
 const ITENS = [
   { href: "/inicio", rotulo: "Jams" },
@@ -11,6 +10,23 @@ const ITENS = [
 ] as const;
 
 type Props = { pedidosRecebidos: number; posicao: "topo" | "baixo" };
+
+// Uma contagem por troca de página, dividida entre a barra de cima e a de baixo
+// (as duas ficam montadas; o CSS mostra uma). Falha de rede deixa o número que já estava.
+let ultimaContagem: { caminho: string; total: Promise<number | null> } | null = null;
+
+function contagemPara(caminho: string): Promise<number | null> {
+  if (ultimaContagem?.caminho !== caminho) {
+    ultimaContagem = {
+      caminho,
+      total: fetch("/api/amigos/pedidos-recebidos", { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ total?: unknown }>) : null))
+        .then((dados) => (typeof dados?.total === "number" ? dados.total : null))
+        .catch(() => null),
+    };
+  }
+  return ultimaContagem.total;
+}
 
 // Navegação principal (front-end spec): no computador fica na barra de cima;
 // no celular, "Jams" e "Amigos" viram uma barra inferior. "Amigos" mostra
@@ -33,8 +49,8 @@ export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
     if (caminhoAnterior.current === caminho) return;
     caminhoAnterior.current = caminho;
     let valendo = true;
-    contarMeusPedidos().then((resultado) => {
-      if (valendo && resultado.ok) setPedidos(resultado.dados);
+    contagemPara(caminho).then((total) => {
+      if (valendo && total !== null) setPedidos(total);
     });
     return () => {
       valendo = false;
