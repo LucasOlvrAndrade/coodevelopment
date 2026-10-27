@@ -119,6 +119,15 @@ Detalhes em `docs/architecture.md`; pesquisa em
 | A7 | Instalação do GitHub App no login (Story 1.2) | O login sempre começa pelo Better Auth (autorizar o app); na volta, sem instalação na conta (`GET /user/installations`), o app manda direto para `github.com/apps/coodevelopment/installations/new`, e a Setup URL volta para `/inicio`. "Request user authorization during installation" fica desligado: com ele, o GitHub devolve o código sem o `state` que o Better Auth confere e deixa a Setup URL indisponível. Para a pessoa são duas telas do GitHub em sequência, sem tela do app no meio |
 | A8 | Cifra dos tokens do GitHub (Story 1.2) | `account.encryptOAuthTokens` do Better Auth: XChaCha20-Poly1305 (cifra autenticada) com chave derivada do `BETTER_AUTH_SECRET`, conferido no código da 1.7.13. Substitui o AES-256-GCM com `CHAVE_CIFRA_TOKENS` previsto na arquitetura 0.2: mesma garantia (NFR8), uma variável a menos. Custo aceito: trocar o `BETTER_AUTH_SECRET` exige a rotação de chaves do Better Auth (`secrets`), senão os tokens guardados param de abrir e cada pessoa entra de novo |
 
+## Decisões de design (2026-10-27)
+
+Detalhes na front-end spec 0.4 (Branding & Style Guide).
+
+| # | Decisão | Escolha |
+|---|---|---|
+| V1 | Página inicial | O `responsive-hero-banner` do 21st.dev **igual ao prompt** (o Lucas pediu exatamente igual depois de uma primeira adaptação): a foto do componente, servida pelo app (a CSP só libera imagens do app e do GitHub), menu em pílula com o botão branco, botões translúcidos, Instrument Serif e Inter, nas cores do componente. No lugar dos logos de parceiros (seriam falsos), os aplicativos do Grupo RAM (RAM Firewall, Click Fone, RAM Backup, RAM Talk, RAM Vision, CRM) passam em loop, em branco, com botão de pausa (WCAG 2.2.2). O menu do celular abre de verdade (no original o botão não fazia nada). Abaixo da faixa, "Como funciona" com três passos, destino do link do menu e do botão secundário. É exceção às regras sóbrias da spec só na página inicial; as telas internas não mudam |
+| V2 | Cor primária | O verde do Grupo RAM, `#0f7433` (arquivo oficial da marca), nos dois temas, só como preenchimento (texto branco sobre ele dá 5,9:1). Verde em texto usa o token `--destaque`: `#0f7433` no claro (5,4:1 sobre o fundo) e `#4cc27a` no escuro (8,2:1) |
+
 ## Em aberto
 
 - Nada para o @architect. Sete pontos a provar nas stories estão marcados
