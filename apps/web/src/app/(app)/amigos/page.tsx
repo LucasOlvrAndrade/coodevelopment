@@ -1,41 +1,15 @@
 import type { Metadata } from "next";
-import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 import { BuscaAmigo } from "@/componentes/amigos/BuscaAmigo";
 import { LinhaPessoa } from "@/componentes/amigos/LinhaPessoa";
 import { ListaAmigos } from "@/componentes/amigos/ListaAmigos";
 import { PedidosRecebidos } from "@/componentes/amigos/PedidosRecebidos";
-import { Sugestoes } from "@/componentes/amigos/Sugestoes";
+import { SugestoesMutuos } from "@/componentes/amigos/SugestoesMutuos";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
-import { listarAmigos, listarPedidos, type Pessoa } from "@/servidor/dominio/amizade";
-import { sugerirMutuos } from "@/servidor/dominio/sugestoes";
-import { ErroApp } from "@/servidor/erros";
-import { githubDoUsuario, githubMutuos } from "@/servidor/github";
+import { listarAmigos, listarPedidos } from "@/servidor/dominio/amizade";
 
 export const metadata: Metadata = { title: "Amigos · Coodevelopment" };
-
-// Mútuos do GitHub que usam o app (Story 1.4), no próprio Suspense: o GitHub
-// não atrasa o resto da tela, e se falhar a busca continua funcionando.
-async function SugestoesMutuos() {
-  const eu = await exigirSessao();
-  let sugestoes: Pessoa[];
-  try {
-    sugestoes = await sugerirMutuos(db(), eu.id, githubMutuos(githubDoUsuario(eu.id)));
-  } catch (e) {
-    unstable_rethrow(e);
-    const reautenticar = e instanceof ErroApp && e.codigo === "reautenticar";
-    if (!reautenticar) console.error(JSON.stringify({ nivel: "erro", evento: "sugestoes_mutuos", erro: String(e) }));
-    return (
-      <p className="text-texto-suave">
-        {reautenticar
-          ? "Sua conexão com o GitHub venceu. Saia e entre de novo para ver as sugestões."
-          : "Não deu para carregar as sugestões do GitHub agora. A busca abaixo continua funcionando."}
-      </p>
-    );
-  }
-  return <Sugestoes sugestoes={sugestoes} />;
-}
 
 // Pedidos recebidos no topo, depois adicionar (sugestões e busca), enviados e amigos
 // (front-end spec, tela Amigos). Lê a sessão, por isso fica no Suspense.

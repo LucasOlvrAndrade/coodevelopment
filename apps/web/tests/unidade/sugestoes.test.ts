@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { pedidoAmizade } from "@/servidor/db/schema";
-import { aceitarPedido, pedirAmizade, recusarPedido } from "@/servidor/dominio/amizade";
-import { MAX_PAGINAS, sugerirMutuos, type GithubMutuos } from "@/servidor/dominio/sugestoes";
+import { aceitarPedido, desfazerAmizade, pedirAmizade, recusarPedido } from "@/servidor/dominio/amizade";
+import { filtrarSugestoes, MAX_PAGINAS, mutuosComConta, sugerirMutuos, type GithubMutuos } from "@/servidor/dominio/sugestoes";
 import { criarBancoDeTeste, criarUsuario } from "../apoio/banco-teste";
 
 type Conta = { id: number; login: string };
@@ -79,6 +79,39 @@ describe("sugestões de mútuos (AC 1 e 3)", () => {
     const todos = [PAI, ANA, BETO, CAIO];
     const { github } = githubFalso(todos, todos);
     expect(await sugerirMutuos(banco(), "lucas", github)).toEqual([]);
+  });
+
+  it("quem desfez a amizade não volta como sugestão para nenhum dos dois (PROD-001)", async () => {
+    await pedirAmizade(banco(), "pai", "lucas");
+    await aceitarPedido(banco(), "lucas", (await banco().select().from(pedidoAmizade))[0]!.id);
+    await desfazerAmizade(banco(), "lucas", "pai");
+    const { github } = githubFalso([PAI], [PAI]);
+    expect(await sugerirMutuos(banco(), "lucas", github)).toEqual([]);
+    const doPai = githubFalso([conta(1000, "lucas")], [conta(1000, "lucas")]);
+    expect(await sugerirMutuos(banco(), "pai", doPai.github)).toEqual([]);
+  });
+
+  it("a parte do GitHub e o filtro do banco se separam (o filtro vale na hora, sem o GitHub)", async () => {
+    const { github, chamadas } = githubFalso([PAI, ANA], [PAI, ANA]);
+    const mutuos = await mutuosComConta(banco(), "lucas", github);
+    expect(mutuos.map((p) => p.id)).toEqual(["ana", "pai"]);
+    await pedirAmizade(banco(), "lucas", "ana");
+    const antes = chamadas.sigo.length + chamadas.meSegue.length;
+    expect((await filtrarSugestoes(banco(), "lucas", mutuos)).map((p) => p.id)).toEqual(["pai"]);
+    expect(chamadas.sigo.length + chamadas.meSegue.length).toBe(antes);
+  });
+
+  it("uma conferência que falha só tira aquela pessoa (REL-001)", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { github } = githubFalso([PAI, ANA], [PAI, ANA]);
+    // Listas do mesmo tamanho: a menor é a de seguidos, e a conferência é "me segue".
+    github.meSegue = async (login) => {
+      if (login === "ana") throw Object.assign(new Error("secondary rate limit"), { status: 403 });
+      return true;
+    };
+    expect((await sugerirMutuos(banco(), "lucas", github)).map((p) => p.id)).toEqual(["pai"]);
+    expect(aviso).toHaveBeenCalledWith(expect.stringContaining("mutuo_nao_conferido"));
+    aviso.mockRestore();
   });
 
   it("sem seguidores ou sem seguidos, nem lista", async () => {
