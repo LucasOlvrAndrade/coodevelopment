@@ -180,6 +180,18 @@ export async function listarAmigos(banco: Banco, eu: string): Promise<(Pessoa & 
     .orderBy(sql`lower(${user.name})`);
 }
 
+// Pedido pendente que vale: entre quem ainda não é amigo. Numa corrida (pedir
+// de novo por uma aba antiga enquanto o outro aceita) pode sobrar um pedido
+// entre amigos; ele não aparece nem conta (gate da 1.3, REL-004).
+const pendenteValido = and(
+  eq(pedidoAmizade.status, "pendente"),
+  sql`not exists (
+    select 1 from ${amizade} a
+    where a.usuario_a = least(${pedidoAmizade.de}, ${pedidoAmizade.para})
+      and a.usuario_b = greatest(${pedidoAmizade.de}, ${pedidoAmizade.para})
+  )`,
+);
+
 export async function listarPedidos(banco: Banco, eu: string): Promise<{ recebidos: PedidoComPessoa[]; enviados: PedidoComPessoa[] }> {
   const colunas = { pedidoId: pedidoAmizade.id, criadoEm: pedidoAmizade.criadoEm, ...colunasPessoa };
   const [recebidos, enviados] = await Promise.all([
@@ -187,18 +199,18 @@ export async function listarPedidos(banco: Banco, eu: string): Promise<{ recebid
       .select(colunas)
       .from(pedidoAmizade)
       .innerJoin(user, eq(user.id, pedidoAmizade.de))
-      .where(and(eq(pedidoAmizade.para, eu), eq(pedidoAmizade.status, "pendente")))
+      .where(and(eq(pedidoAmizade.para, eu), pendenteValido))
       .orderBy(desc(pedidoAmizade.criadoEm)),
     banco
       .select(colunas)
       .from(pedidoAmizade)
       .innerJoin(user, eq(user.id, pedidoAmizade.para))
-      .where(and(eq(pedidoAmizade.de, eu), eq(pedidoAmizade.status, "pendente")))
+      .where(and(eq(pedidoAmizade.de, eu), pendenteValido))
       .orderBy(desc(pedidoAmizade.criadoEm)),
   ]);
   return { recebidos, enviados };
 }
 
 export function contarPedidosRecebidos(banco: Banco, eu: string): Promise<number> {
-  return banco.$count(pedidoAmizade, and(eq(pedidoAmizade.para, eu), eq(pedidoAmizade.status, "pendente")));
+  return banco.$count(pedidoAmizade, and(eq(pedidoAmizade.para, eu), pendenteValido));
 }

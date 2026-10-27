@@ -11,14 +11,15 @@ import {
   pedirAmizade,
   recusarPedido,
 } from "@/servidor/dominio/amizade";
-import { pedidoAmizade } from "@/servidor/db/schema";
+import { sql } from "drizzle-orm";
+import { amizade, pedidoAmizade } from "@/servidor/db/schema";
 import { criarBancoDeTeste, criarUsuario } from "../apoio/banco-teste";
 
 let teste: Awaited<ReturnType<typeof criarBancoDeTeste>>;
 const banco = () => teste.banco;
 
-// Ids com maiúsculas e minúsculas misturadas, como os do Better Auth: a ordem
-// do par da amizade tem de sair do banco, não da comparação do JavaScript.
+// Ids com maiúsculas e minúsculas misturadas, como os do Better Auth. A prova
+// de que a ordem do par sai do banco está em "ordem do par", no fim.
 const LUCAS = "Zl9lucas";
 const PAI = "apai7Q";
 const OUTRO = "Mout3ro";
@@ -241,5 +242,44 @@ describe("desfazer amizade (AC 4)", () => {
     const lista = await listarAmigos(banco(), LUCAS);
     expect(lista.map((a) => a.nome)).toEqual(["Outra Pessoa", "Pai"]);
     expect(lista[0]?.desde).toBeInstanceOf(Date);
+  });
+});
+
+describe("ordem do par e pedidos que sobram", () => {
+  // Em UTF-16 (JavaScript) o emoji vem antes do A de largura cheia; em bytes
+  // UTF-8 (collation C do banco) vem depois. Se a ordem saísse do JavaScript,
+  // o check usuario_a < usuario_b recusaria a amizade (gate da 1.3, TEST-001).
+  const EMOJI = "\u{1F600}a";
+  const LARGO = "Ａb";
+
+  it("os dois ids se ordenam diferente no JavaScript e no banco", async () => {
+    const [linha] = (await banco().execute(sql`select least(${EMOJI}::text, ${LARGO}::text) as menor`)).rows as { menor: string }[];
+    expect(EMOJI < LARGO).toBe(true);
+    expect(linha?.menor).toBe(LARGO);
+  });
+
+  it("pedir, aceitar, pedido cruzado e desfazer funcionam com eles", async () => {
+    await criarUsuario(banco(), EMOJI, "emoji");
+    await criarUsuario(banco(), LARGO, "largo");
+    await pedirAmizade(banco(), EMOJI, LARGO);
+    await aceitarPedido(banco(), LARGO, await pedidoDe(EMOJI, LARGO));
+    expect((await listarAmigos(banco(), EMOJI)).map((a) => a.id)).toEqual([LARGO]);
+    expect((await buscarPorLogin(banco(), LARGO, "emoji"))[0]?.relacao).toEqual({ tipo: "amigo" });
+    await desfazerAmizade(banco(), EMOJI, LARGO);
+
+    await pedirAmizade(banco(), LARGO, EMOJI);
+    expect(await pedirAmizade(banco(), EMOJI, LARGO)).toBe("amigos");
+    expect((await listarAmigos(banco(), LARGO)).map((a) => a.id)).toEqual([EMOJI]);
+  });
+
+  it("pedido pendente que sobrou entre amigos não aparece nem conta (REL-004)", async () => {
+    await pedirAmizade(banco(), LUCAS, PAI);
+    await aceitarPedido(banco(), PAI, await pedidoDe(LUCAS, PAI));
+    // A corrida: um pedido de novo por uma aba antiga, gravado depois do aceite.
+    await banco().insert(pedidoAmizade).values({ id: "sobra", de: LUCAS, para: PAI });
+    expect(await banco().select().from(amizade)).toHaveLength(1);
+    expect(await listarPedidos(banco(), PAI)).toEqual({ recebidos: [], enviados: [] });
+    expect(await listarPedidos(banco(), LUCAS)).toEqual({ recebidos: [], enviados: [] });
+    expect(await contarPedidosRecebidos(banco(), PAI)).toBe(0);
   });
 });
