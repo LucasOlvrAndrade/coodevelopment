@@ -19,6 +19,39 @@ export function camposDoPerfil(perfil: PerfilGithub) {
   return { githubId, login: perfil.login };
 }
 
+// Renovação do token do GitHub App. Substitui a do Better Auth, que só olha o
+// status HTTP: o GitHub responde 200 com `{ error: "bad_refresh_token" }`, e
+// aí o Better Auth devolvia o token vencido sem erro (gate da 1.2, REL-001).
+export async function renovarTokenGithub(
+  refreshToken: string,
+  credenciais: { clientId: string; clientSecret: string },
+) {
+  const resposta = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: credenciais.clientId,
+      client_secret: credenciais.clientSecret,
+    }),
+  });
+  const dados = (await resposta.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!resposta.ok || dados.error || typeof dados.access_token !== "string") {
+    // Só o código do erro; a resposta nunca vai para o log.
+    throw new Error(`renovação do token do GitHub recusada: ${String(dados.error ?? resposta.status)}`);
+  }
+  const agora = Date.now();
+  const emSegundos = (v: unknown) => (typeof v === "number" ? new Date(agora + v * 1000) : undefined);
+  return {
+    accessToken: dados.access_token,
+    refreshToken: typeof dados.refresh_token === "string" ? dados.refresh_token : undefined,
+    tokenType: typeof dados.token_type === "string" ? dados.token_type : undefined,
+    accessTokenExpiresAt: emSegundos(dados.expires_in),
+    refreshTokenExpiresAt: emSegundos(dados.refresh_token_expires_in),
+  };
+}
+
 export const ROTAS_DESLIGADAS = [
   "/update-user",
   "/sign-up/email",
@@ -63,6 +96,11 @@ function criarAuth() {
         // Nome, usuário e foto acompanham o GitHub a cada login.
         overrideUserInfoOnSignIn: true,
         mapProfileToUser: (perfil) => camposDoPerfil(perfil),
+        refreshAccessToken: (refreshToken) =>
+          renovarTokenGithub(refreshToken, {
+            clientId: e.GITHUB_APP_CLIENT_ID,
+            clientSecret: e.GITHUB_APP_CLIENT_SECRET,
+          }),
       },
     },
   });

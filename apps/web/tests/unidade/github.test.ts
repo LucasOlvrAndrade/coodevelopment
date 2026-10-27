@@ -39,6 +39,22 @@ describe("tokenDoUsuario", () => {
     expect(await tokenDoUsuario("u1")).toBe("ghu_2");
   });
 
+  it("se a renovação falhar, tenta mais uma vez (outra instância pode ter renovado)", async () => {
+    getAccessToken.mockRejectedValueOnce(new Error("FAILED_TO_GET_ACCESS_TOKEN")).mockResolvedValueOnce({ accessToken: "ghu_da_outra" });
+    expect(await tokenDoUsuario("u1")).toBe("ghu_da_outra");
+    expect(getAccessToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("se falhar duas vezes, pede para entrar de novo", async () => {
+    getAccessToken.mockRejectedValue(new Error("FAILED_TO_GET_ACCESS_TOKEN"));
+    await expect(tokenDoUsuario("u1")).rejects.toMatchObject({ codigo: "reautenticar", status: 401 });
+  });
+
+  it("token já vencido também pede para entrar de novo", async () => {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_velho", accessTokenExpiresAt: new Date(Date.now() - 1000) });
+    await expect(tokenDoUsuario("u1")).rejects.toMatchObject({ codigo: "reautenticar", status: 401 });
+  });
+
   it("sem conta do GitHub, recusa com 401", async () => {
     contas = [];
     await expect(tokenDoUsuario("u1")).rejects.toMatchObject({ codigo: "sem_conta_github", status: 401 });

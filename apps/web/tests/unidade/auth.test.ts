@@ -53,3 +53,58 @@ describe("rotas HTTP do Better Auth desligadas", () => {
     }
   });
 });
+
+describe("renovação do token do GitHub", () => {
+  const credenciais = { clientId: "id", clientSecret: "segredo" };
+
+  it("devolve os tokens novos com as validades", async () => {
+    const enviados: URLSearchParams[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+      enviados.push(new URLSearchParams(String(init?.body)));
+      return Response.json({
+        access_token: "ghu_novo",
+        refresh_token: "ghr_novo",
+        token_type: "bearer",
+        expires_in: 28800,
+        refresh_token_expires_in: 15811200,
+      });
+    });
+    const { renovarTokenGithub } = await import("@/servidor/auth");
+    const antes = Date.now();
+    const tokens = await renovarTokenGithub("ghr_velho", credenciais);
+    fetchFalso.mockRestore();
+    expect(tokens).toMatchObject({ accessToken: "ghu_novo", refreshToken: "ghr_novo" });
+    expect(tokens.accessTokenExpiresAt!.getTime()).toBeGreaterThanOrEqual(antes + 28800 * 1000);
+    expect(enviados[0]!.get("grant_type")).toBe("refresh_token");
+    expect(enviados[0]!.get("refresh_token")).toBe("ghr_velho");
+  });
+
+  it("lança quando o GitHub responde 200 com erro (refresh já usado, revogado ou vencido)", async () => {
+    const fetchFalso = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => Response.json({ error: "bad_refresh_token" }));
+    const { renovarTokenGithub } = await import("@/servidor/auth");
+    await expect(renovarTokenGithub("ghr_usado", credenciais)).rejects.toThrow(/bad_refresh_token/);
+    fetchFalso.mockRestore();
+  });
+
+  it("lança quando o GitHub responde com erro HTTP", async () => {
+    const fetchFalso = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response("indisponível", { status: 503 }));
+    const { renovarTokenGithub } = await import("@/servidor/auth");
+    await expect(renovarTokenGithub("ghr", credenciais)).rejects.toThrow(/503/);
+    fetchFalso.mockRestore();
+  });
+
+  it("é a renovação que o provedor github do Better Auth usa", async () => {
+    envDeTeste();
+    const fetchFalso = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => Response.json({ error: "bad_refresh_token" }));
+    const { auth } = await import("@/servidor/auth");
+    const github = auth().options.socialProviders?.github;
+    await expect(github?.refreshAccessToken?.("ghr_usado")).rejects.toThrow(/bad_refresh_token/);
+    fetchFalso.mockRestore();
+  });
+});

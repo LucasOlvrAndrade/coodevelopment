@@ -3,6 +3,7 @@ import { unstable_rethrow } from "next/navigation";
 
 const MENSAGENS: Record<string, string> = {
   inesperado: "Algo deu errado. Tente de novo.",
+  reautenticar: "Sua conexão com o GitHub venceu. Entre de novo.",
 };
 
 export class ErroApp extends Error {

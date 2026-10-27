@@ -18,12 +18,17 @@ async function buscarToken(usuarioId: string): Promise<string> {
     .where(and(eq(account.userId, usuarioId), eq(account.providerId, "github")))
     .limit(1);
   if (!conta) throw new ErroApp("sem_conta_github", 401);
-  // O Better Auth renova o token quando falta menos de 5 s para vencer (8 h no GitHub App).
-  const { accessToken } = await auth().api.getAccessToken({
-    body: { accountId: conta.id, userId: usuarioId },
-  });
-  if (!accessToken) throw new ErroApp("sem_conta_github", 401);
-  return accessToken;
+  const pedir = () => auth().api.getAccessToken({ body: { accountId: conta.id, userId: usuarioId } });
+  // O Better Auth renova o token quando falta menos de 5 s para vencer (8 h no
+  // GitHub App). Se a renovação falhar, tenta uma segunda vez: outra instância
+  // pode ter acabado de renovar e gastado o refresh, e aí a segunda leitura já
+  // acha o token novo no banco. Falhou de novo, o refresh morreu (revogado ou
+  // 6 meses): a pessoa precisa entrar outra vez.
+  const resultado = await pedir().catch(() => pedir().catch(() => null));
+  if (!resultado?.accessToken) throw new ErroApp("reautenticar", 401);
+  const venceEm = resultado.accessTokenExpiresAt?.getTime();
+  if (venceEm !== undefined && venceEm <= Date.now()) throw new ErroApp("reautenticar", 401);
+  return resultado.accessToken;
 }
 
 export function tokenDoUsuario(usuarioId: string): Promise<string> {
