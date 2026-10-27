@@ -26,6 +26,7 @@ outubro e entram nas Stories 1.2 e 4.x.
 | GitHub API | `@octokit/rest` | 22.0.1 (MIT) | Chamadas ao GitHub em nome do usuário | Hook antes de cada chamada busca o token pelo Better Auth, que renova o vencido (Story 1.2) |
 | Frontend Testing | Vitest + Testing Library | Vitest 4.1.12, `@testing-library/react` 16.3.3 (MIT) | Componentes e lógica de UI | Rápido, TypeScript nativo |
 | Backend Testing | Vitest; `@cloudflare/vitest-plugin` na sala (o antigo `vitest-pool-workers`, renomeado) | Vitest 4.1.12, `@cloudflare/vitest-plugin` 1.4.7 (MIT) | Protocolo, sincronização, rotas, sala | Testa o Durable Object no runtime real |
+| Database Testing | PGlite (`@electric-sql/pglite`), Postgres em WASM, com o migrador do Drizzle | 0.5.9 (Apache-2.0), só nos testes | Regras do app contra Postgres de verdade, com as migrações de `apps/web/drizzle` (Story 1.3) | Testa checks, unique e CTEs sem tocar no Neon e sem branch de teste |
 | E2E Testing | Playwright (`@playwright/test`) | `@playwright/test` 1.64.1 (Apache-2.0); `@axe-core/playwright` 4.14.0 (MPL-2.0, só nos testes, não vai para o app) | Login simulado, criar jam, página da jam ao vivo | Padrão do mercado; roda no Windows |
 | Build Tool | pnpm workspaces | pnpm 10.34.7 (MIT) | Monorepo | Já usado pelo Lucas |
 | Bundler | Turbopack (web), Wrangler/esbuild (sala), tsup (conector) | Turbopack do Next.js 16.4.3; Wrangler 4.152.0 (MIT ou Apache-2.0); tsup 8.5.1 (MIT) | Build de cada parte | O padrão de cada plataforma |
