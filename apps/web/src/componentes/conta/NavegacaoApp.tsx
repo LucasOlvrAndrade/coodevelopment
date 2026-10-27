@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { contarMeusPedidos } from "@/servidor/acoes/amizade";
 
 const ITENS = [
   { href: "/inicio", rotulo: "Jams" },
@@ -17,6 +19,28 @@ export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
   const caminho = usePathname();
   const noTopo = posicao === "topo";
 
+  // O layout não volta do servidor na navegação sem recarregar: ao trocar de
+  // página, a barra pede a contagem de novo (gate da 1.3, REL-003). Quando o
+  // layout volta (depois de uma ação), vale o número dele.
+  const [pedidos, setPedidos] = useState(pedidosRecebidos);
+  const [vindo, setVindo] = useState(pedidosRecebidos);
+  if (vindo !== pedidosRecebidos) {
+    setVindo(pedidosRecebidos);
+    setPedidos(pedidosRecebidos);
+  }
+  const caminhoAnterior = useRef(caminho);
+  useEffect(() => {
+    if (caminhoAnterior.current === caminho) return;
+    caminhoAnterior.current = caminho;
+    let valendo = true;
+    contarMeusPedidos().then((resultado) => {
+      if (valendo && resultado.ok) setPedidos(resultado.dados);
+    });
+    return () => {
+      valendo = false;
+    };
+  }, [caminho]);
+
   return (
     <nav
       aria-label="Principal"
@@ -28,7 +52,7 @@ export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
     >
       {ITENS.map((item) => {
         const atual = caminho === item.href || caminho.startsWith(`${item.href}/`);
-        const contador = item.href === "/amigos" && pedidosRecebidos > 0 ? pedidosRecebidos : 0;
+        const contador = item.href === "/amigos" && pedidos > 0 ? pedidos : 0;
         return (
           <Link
             key={item.href}

@@ -12,6 +12,7 @@ const regras = {
   aceitarPedido: vi.fn(async () => undefined),
   recusarPedido: vi.fn(async () => undefined),
   desfazerAmizade: vi.fn(async () => undefined),
+  contarPedidosRecebidos: vi.fn(async () => 2),
 };
 
 vi.mock("@/servidor/auth", () => ({ exigirSessao }));
@@ -47,6 +48,13 @@ describe("Server Actions de amizade", () => {
     expect(regras.aceitarPedido).toHaveBeenCalledWith(banco, "eu", "p1");
     expect(regras.recusarPedido).toHaveBeenCalledWith(banco, "eu", "p2");
     expect(regras.desfazerAmizade).toHaveBeenCalledWith(banco, "eu", "pai");
+    expect(refresh).toHaveBeenCalledTimes(4);
+  });
+
+  it("o contador da barra conta os pedidos de quem está logado, sem atualizar a página", async () => {
+    expect(await acoes.contarMeusPedidos()).toEqual({ ok: true, dados: 2 });
+    expect(regras.contarPedidosRecebidos).toHaveBeenCalledWith(banco, "eu");
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("a busca não muda dados e não atualiza a página", async () => {
