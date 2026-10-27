@@ -1,0 +1,71 @@
+schema: 1
+story: '1.3'
+story_title: 'Amigos por busca e pedido'
+gate: CONCERNS
+status_reason: 'Os 5 ACs estão cobertos e a autorização está certa: quem age vem da sessão, aceitar e recusar filtram para = eu, desfazer só acha par com eu. Sem achado alto. Ficam sete achados médios e baixos, quase todos na interface (relação velha na busca, foco perdido, nome acessível) e dois testes que prometem mais do que conferem.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente'
+reviewed_revision: 'commit:cd6769f'
+updated: '2026-10-27T00:00:00Z'
+
+top_issues:
+  - id: 'REL-001'
+    severity: medium
+    finding: 'BuscaAmigo guarda a relação de cada linha em useState(achado.relacao) e a key é id-tipo. Depois de pedir (vira "Pedido enviado") e o outro recusar, buscar de novo devolve nenhuma, a key não muda e a linha segue com "Pedido enviado" desabilitado: não dá para pedir de novo (contraria a A10). Variante: aceitar pela seção de pedidos deixa a linha da busca com "Aceitar pedido", que então falha.'
+    suggested_action: 'Contador de buscas na key e refazer a última busca quando os dados da página mudarem.'
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'O teste diz que os ids com maiúsculas provam a ordem do par pelo banco, mas no PGlite a collation é C e "Zl9lucas" < "apai7Q" também no JavaScript: trocar least/greatest por comparação no JS não quebra a suíte.'
+    suggested_action: 'Ids que se ordenam diferente em UTF-16 (JS) e em bytes UTF-8 (collation C), como "\u{1F600}a" e "Ａb".'
+  - id: 'A11Y-001'
+    severity: low
+    finding: 'O nome acessível "Aceitar o pedido de Pai" não contém o texto visível "Aceitar pedido" (WCAG 2.5.3); comando de voz falha.'
+    suggested_action: 'Aceitar pedido de {nome}.'
+  - id: 'A11Y-002'
+    severity: low
+    finding: 'Foco cai no body: "Pedir amizade" é trocado por outro botão desabilitado; aceitar, recusar e desfazer removem a linha no refresh, e o AlertDialog devolve o foco a um botão que sumiu.'
+    suggested_action: 'Manter o mesmo botão com aria-disabled e levar o foco ao aviso quando a linha some.'
+  - id: 'REL-002'
+    severity: low
+    finding: 'PedidosRecebidos tem um só "respondendo": responder ao segundo pedido antes da resposta do primeiro reativa os botões do primeiro.'
+    suggested_action: 'Um conjunto de ids em andamento.'
+  - id: 'REL-003'
+    severity: low
+    finding: 'O contador de pedidos da barra fica velho na navegação sem recarregar: o layout não é renderizado de novo.'
+    suggested_action: 'Atualizar o contador quando a página muda.'
+  - id: 'REL-004'
+    severity: low
+    finding: 'Corrida residual: pedir de novo por uma aba antiga no mesmo instante em que o outro aceita deixa um pedido pendente entre amigos (ja_amigos lê o início da instrução; o ON CONFLICT já vê o delete).'
+    suggested_action: 'Ignorar pedidos entre amigos nas listas e no contador.'
+  - id: 'TEST-002'
+    severity: low
+    finding: 'O teste das Server Actions diz que a página é atualizada, mas só confere o refresh do pedir.'
+    suggested_action: 'Conferir o refresh nas quatro ações que mudam dados.'
+
+evidence:
+  tests_reviewed: 46
+  e2e: '8 testes, todos passando'
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (92 no app), CI verde; code-review à mão, com revisor independente que conferiu as CTEs e a collation no PGlite'
+  production: 'migração 0002 no Neon; /amigos e /inicio sem sessão voltam para /; tela com axe sem violações nos dois temas e em 360 px (usuários de teste temporários, apagados)'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Autorização pela sessão em toda Server Action; filtros de dono na própria instrução SQL; busca exata sem enumerar usuários; nenhum e-mail sai.'
+  performance:
+    status: PASS
+    notes: 'Contador numa consulta por página; busca limitada a 5 resultados.'
+  reliability:
+    status: CONCERNS
+    notes: 'REL-001 a REL-004.'
+  maintainability:
+    status: PASS
+    notes: 'Regras puras com o banco por parâmetro, testadas contra Postgres de verdade.'
+
+recommendations:
+  immediate:
+    - 'REL-001, TEST-001 e A11Y-001 e 002.'
+  future:
+    - 'E2E com sessão quando houver a branch de teste do Neon.'
