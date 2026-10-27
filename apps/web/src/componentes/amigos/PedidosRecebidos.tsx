@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { aceitarPedido, recusarPedido } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 import { LinhaPessoa } from "./LinhaPessoa";
@@ -29,7 +30,7 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
     setAviso("");
     setRespondendo((atual) => new Set(atual).add(pedido.pedidoId));
     iniciar(async () => {
-      const resultado = aceitar ? await aceitarPedido(pedido.pedidoId) : await recusarPedido(pedido.pedidoId);
+      const resultado = await semQuebrar(() => (aceitar ? aceitarPedido(pedido.pedidoId) : recusarPedido(pedido.pedidoId)));
       if (!resultado.ok) {
         // Só no erro os botões voltam; no sucesso ficam travados até a linha sair.
         setRespondendo((atual) => {

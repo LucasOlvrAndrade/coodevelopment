@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { criarJamComRepositorio } from "@/servidor/acoes/jam";
 
 // Mesma regra do servidor (dominio/jam.ts): o GitHub aceita até 100 caracteres
@@ -31,7 +32,7 @@ export function CriarRepositorio() {
     }
     setErroDoNome(null);
     iniciar(async () => {
-      const resultado = await criarJamComRepositorio(limpo, privado);
+      const resultado = await semQuebrar(() => criarJamComRepositorio(limpo, privado));
       if (resultado.ok) router.push(`/inicio?nova=${encodeURIComponent(resultado.dados.id)}`);
       else if (ERROS_DO_NOME.has(resultado.erro.codigo)) setErroDoNome(resultado.erro.mensagem);
       else setErro(resultado.erro.mensagem);

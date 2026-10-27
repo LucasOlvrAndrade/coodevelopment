@@ -3,11 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { criarJamImportando } from "@/servidor/acoes/jam";
 import type { Repositorio } from "@/servidor/dominio/jam";
 
 const MAX_NA_TELA = 100;
-const dataCurta = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+// Fuso fixo: o servidor formata em UTC e o navegador em Brasília, e a data do
+// push perto da meia-noite sairia diferente nos dois (gate da 2.1, REL-002).
+const dataCurta = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo" });
 
 // Importar repositório (Story 2.1, AC 1 e 2): a lista dos repositórios da conta
 // com busca, e "Criar jam" só com um escolhido (front-end spec, Nova jam).
@@ -27,7 +30,7 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
     if (!escolhido) return;
     setErro(null);
     iniciar(async () => {
-      const resultado = await criarJamImportando(escolhido.owner, escolhido.nome);
+      const resultado = await semQuebrar(() => criarJamImportando(escolhido.owner, escolhido.nome));
       if (resultado.ok) router.push(`/inicio?nova=${encodeURIComponent(resultado.dados.id)}`);
       else setErro(resultado.erro.mensagem);
     });
@@ -62,10 +65,11 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
 
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 text-corpo font-medium">Seus repositórios</legend>
-        {naTela.length === 0 ? (
-          <p className="text-texto-suave">Nenhum repositório com esse nome.</p>
-        ) : (
-          <ul id={idLista} className="max-h-[28rem] divide-y divide-divisoria overflow-y-auto rounded-controle border border-divisoria">
+        {/* A lista fica sempre na página (o campo de busca aponta para ela); vazia, some. */}
+        <ul
+          id={idLista}
+          className={naTela.length === 0 ? "hidden" : "max-h-[28rem] divide-y divide-divisoria overflow-y-auto rounded-controle border border-divisoria"}
+        >
             {naTela.map((r) => {
               const chave = `${r.owner}/${r.nome}`;
               const marcado = escolhido?.owner === r.owner && escolhido.nome === r.nome;
@@ -96,13 +100,16 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
                 </li>
               );
             })}
-          </ul>
-        )}
-        {filtrados.length > MAX_NA_TELA && (
-          <p className="text-pequeno text-texto-suave">
-            Mostrando {MAX_NA_TELA} de {filtrados.length}. Digite parte do nome para achar os outros.
-          </p>
-        )}
+        </ul>
+        <p role="status" className="text-pequeno text-texto-suave">
+          {naTela.length === 0
+            ? "Nenhum repositório com esse nome."
+            : filtrados.length > MAX_NA_TELA
+              ? `Mostrando ${MAX_NA_TELA} de ${filtrados.length}. Digite parte do nome para achar os outros.`
+              : termo
+                ? `${filtrados.length} ${filtrados.length === 1 ? "repositório" : "repositórios"} com esse nome.`
+                : ""}
+        </p>
       </fieldset>
 
       {erro && (
@@ -112,7 +119,8 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
       )}
       <div>
         <button type="button" disabled={!escolhido || criando} onClick={criar} className={`${botaoPrincipal} px-4 py-3`}>
-          {criando ? "Criando a jam..." : "Criar jam"}
+          {/* O nome no botão: a escolha continua valendo mesmo escondida pelo filtro (UX-001). */}
+          {criando ? "Criando a jam..." : escolhido ? `Criar jam com ${escolhido.nome}` : "Criar jam"}
         </button>
       </div>
     </div>

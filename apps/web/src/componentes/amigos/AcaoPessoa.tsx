@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { aceitarPedido, pedirAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
 
@@ -44,7 +45,7 @@ export function AcaoPessoa({ pessoa, relacaoInicial, anunciar }: Props) {
     setErro(null);
     setRelacao({ tipo: "pedido_enviado" });
     iniciar(async () => {
-      const resultado = await pedirAmizade(pessoa.id);
+      const resultado = await semQuebrar(() => pedirAmizade(pessoa.id));
       if (!resultado.ok) {
         setRelacao({ tipo: "nenhuma" });
         setErro(resultado.erro.mensagem);
@@ -59,7 +60,7 @@ export function AcaoPessoa({ pessoa, relacaoInicial, anunciar }: Props) {
   function aceitar(pedidoId: string) {
     setErro(null);
     iniciar(async () => {
-      const resultado = await aceitarPedido(pedidoId);
+      const resultado = await semQuebrar(() => aceitarPedido(pedidoId));
       if (resultado.ok) virouAmigo(`Agora você e ${pessoa.nome} são amigos.`);
       else setErro(resultado.erro.mensagem);
     });

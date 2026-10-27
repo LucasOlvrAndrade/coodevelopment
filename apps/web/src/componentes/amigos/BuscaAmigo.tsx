@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { buscarAmigo } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
 import { AcaoPessoa } from "./AcaoPessoa";
@@ -28,7 +29,7 @@ export function BuscaAmigo({ versao }: { versao: string }) {
     const consulta = ultimaBusca.current;
     if (consulta === null) return;
     let valendo = true;
-    buscarAmigo(consulta).then((resultado) => {
+    semQuebrar(() => buscarAmigo(consulta)).then((resultado) => {
       if (valendo && resultado.ok) setAchados(resultado.dados);
     });
     return () => {
@@ -42,7 +43,7 @@ export function BuscaAmigo({ versao }: { versao: string }) {
     ultimaBusca.current = texto;
     setRodada((n) => n + 1);
     iniciar(async () => {
-      const resultado = await buscarAmigo(texto);
+      const resultado = await semQuebrar(() => buscarAmigo(texto));
       if (resultado.ok) {
         setErro(null);
         setAchados(resultado.dados);

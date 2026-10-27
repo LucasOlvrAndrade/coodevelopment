@@ -3,6 +3,7 @@
 import { AlertDialog } from "radix-ui";
 import { useRef, useState, useTransition } from "react";
 import { botaoSecundario } from "@/componentes/ui/botoes";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { desfazerAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 import { LinhaPessoa } from "./LinhaPessoa";
@@ -57,7 +58,7 @@ function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () 
   function confirmar() {
     setErro(null);
     iniciar(async () => {
-      const resultado = await desfazerAmizade(amigo.id);
+      const resultado = await semQuebrar(() => desfazerAmizade(amigo.id));
       if (resultado.ok) {
         setDesfeita(true);
         setAberto(false);

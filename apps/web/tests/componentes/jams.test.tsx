@@ -58,9 +58,25 @@ describe("importar repositório (Story 2.1)", () => {
     });
     render(<EscolherRepositorio repositorios={[repo("projeto")]} />);
     fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Criar jam" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Já existe uma jam aberta para esse repositório.");
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("o botão diz qual repositório vai ser usado, mesmo escondido pelo filtro (gate da 2.1, UX-001)", () => {
+    render(<EscolherRepositorio repositorios={[repo("projeto"), repo("site")]} />);
+    fireEvent.click(screen.getByRole("radio", { name: /site/ }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar repositório" }), { target: { value: "proj" } });
+    expect(screen.getByRole("button", { name: "Criar jam com site" })).toBeEnabled();
+    expect(screen.getByRole("status")).toHaveTextContent("1 repositório com esse nome.");
+  });
+
+  it("ação que lança (sem rede) vira mensagem, sem derrubar a tela (A11Y-001)", async () => {
+    criarJamImportando.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<EscolherRepositorio repositorios={[repo("projeto")]} />);
+    fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não deu para falar com o servidor");
   });
 
   it("sem repositórios, explica o All repositories", () => {
