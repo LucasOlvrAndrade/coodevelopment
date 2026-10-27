@@ -873,9 +873,11 @@ create table participante (
   usuario_id text not null references "user"(id) on delete cascade,
   papel text not null check (papel in ('criador','convidado')),
   colaborador text not null default 'pendente' check (colaborador in ('ok','pendente','falhou')),
+  vaga smallint not null check (vaga between 1 and 3), -- A12: limite de 3 pelo banco
   entrou_em timestamptz not null default now(),
   primary key (jam_id, usuario_id)
 );
+create unique index participante_jam_vaga on participante (jam_id, vaga);
 create index participante_usuario on participante (usuario_id);
 
 create table fechamento (
