@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { account } from "@/servidor/db/schema";
+import type { GithubRepositorios } from "@/servidor/dominio/jam";
 import { POR_PAGINA, type GithubMutuos } from "@/servidor/dominio/sugestoes";
 import { ErroApp } from "@/servidor/erros";
 
@@ -84,5 +85,47 @@ export function githubMutuos(octokit: Octokit): GithubMutuos {
     },
     sigo: (login) => sim(octokit.rest.users.checkPersonIsFollowedByAuthenticated({ username: login })),
     meSegue: (login, meuLogin) => sim(octokit.rest.users.checkFollowingForUser({ username: login, target_user: meuLogin })),
+  };
+}
+
+// Repositórios da conta para a nova jam (Story 2.1). Com o token do GitHub
+// App, o GitHub só devolve o que a instalação alcança.
+export function githubRepositorios(octokit: Octokit): GithubRepositorios {
+  async function ouNulo<T>(chamada: Promise<T>, statusSemResultado: number[]) {
+    try {
+      return await chamada;
+    } catch (e) {
+      if (statusSemResultado.includes((e as { status?: number }).status ?? 0)) return null;
+      throw e;
+    }
+  }
+  return {
+    async listar(pagina) {
+      const { data } = await octokit.rest.repos.listForAuthenticatedUser({
+        affiliation: "owner",
+        sort: "pushed",
+        direction: "desc",
+        per_page: 100,
+        page: pagina,
+      });
+      return data.map((r) => ({
+        owner: r.owner.login,
+        nome: r.name,
+        privado: r.private,
+        descricao: r.description,
+        atualizadoEm: r.pushed_at ?? null,
+      }));
+    },
+    async buscar(owner, nome) {
+      const resposta = await ouNulo(octokit.rest.repos.get({ owner, repo: nome }), [404]);
+      if (!resposta) return null;
+      const { data } = resposta;
+      return { owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch };
+    },
+    async shaDaBranch(owner, nome, branch) {
+      // Repositório vazio responde 409; branch que não existe, 404.
+      const resposta = await ouNulo(octokit.rest.git.getRef({ owner, repo: nome, ref: `heads/${branch}` }), [404, 409]);
+      return resposta?.data.object.sha ?? null;
+    },
   };
 }

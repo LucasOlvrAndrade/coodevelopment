@@ -9,7 +9,7 @@ vi.mock("@/servidor/db", () => {
   return { db: () => ({ select: () => consulta }) };
 });
 
-const { githubDoUsuario, githubMutuos, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
+const { githubDoUsuario, githubMutuos, githubRepositorios, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
 
 beforeEach(() => {
   getAccessToken.mockReset();
@@ -124,5 +124,56 @@ describe("githubMutuos", () => {
     await expect(github.sigo("quebrado")).rejects.toMatchObject({ status: 500 });
     fetchFalso.mockRestore();
     expect(urls.slice(0, 3)).toEqual(["/user/following/pai", "/user/following/estranho", "/users/ana/following/lucas"]);
+  });
+});
+
+describe("githubRepositorios", () => {
+  function comRespostas(responder: (url: URL) => Response) {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_x" });
+    const urls: string[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      const u = new URL(String(url));
+      urls.push(u.pathname + u.search);
+      return responder(u);
+    });
+    return { github: githubRepositorios(githubDoUsuario("u1")), urls, fetchFalso };
+  }
+
+  it("lista só os repositórios de que a conta é dona, do push mais recente", async () => {
+    const { github, urls, fetchFalso } = comRespostas(() =>
+      Response.json([{ owner: { login: "lucas" }, name: "projeto", private: true, description: null, pushed_at: "2026-10-27T10:00:00Z" }]),
+    );
+    expect(await github.listar(2)).toEqual([
+      { owner: "lucas", nome: "projeto", privado: true, descricao: null, atualizadoEm: "2026-10-27T10:00:00Z" },
+    ]);
+    fetchFalso.mockRestore();
+    expect(urls).toEqual(["/user/repos?affiliation=owner&sort=pushed&direction=desc&per_page=100&page=2"]);
+  });
+
+  it("buscar devolve o dono com o id numérico e a branch padrão; 404 vira null", async () => {
+    const { github, fetchFalso } = comRespostas((u) =>
+      u.pathname === "/repos/lucas/projeto"
+        ? Response.json({ owner: { login: "lucas", id: 1000 }, name: "projeto", default_branch: "main" })
+        : Response.json({ message: "Not Found" }, { status: 404 }),
+    );
+    expect(await github.buscar("lucas", "projeto")).toEqual({ owner: "lucas", ownerId: 1000, nome: "projeto", branchPadrao: "main" });
+    expect(await github.buscar("lucas", "nada")).toBeNull();
+    fetchFalso.mockRestore();
+  });
+
+  it("sha da branch; repositório vazio (409) e branch inexistente (404) viram null; 500 sobe", async () => {
+    // O Octokit manda o ref com a barra codificada (heads%2Fmain), que a API aceita.
+    const { github, urls, fetchFalso } = comRespostas((u) => {
+      if (decodeURIComponent(u.pathname) === "/repos/lucas/cheio/git/ref/heads/main") return Response.json({ object: { sha: "abc123" } });
+      if (u.pathname.startsWith("/repos/lucas/vazio")) return Response.json({ message: "Git Repository is empty." }, { status: 409 });
+      if (u.pathname.startsWith("/repos/lucas/quebrado")) return Response.json({ message: "erro" }, { status: 500 });
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    });
+    expect(await github.shaDaBranch("lucas", "cheio", "main")).toBe("abc123");
+    expect(await github.shaDaBranch("lucas", "vazio", "main")).toBeNull();
+    expect(await github.shaDaBranch("lucas", "cheio", "outra")).toBeNull();
+    await expect(github.shaDaBranch("lucas", "quebrado", "main")).rejects.toMatchObject({ status: 500 });
+    fetchFalso.mockRestore();
+    expect(urls[0]).toBe("/repos/lucas/cheio/git/ref/heads%2Fmain");
   });
 });
