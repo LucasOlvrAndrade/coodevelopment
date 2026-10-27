@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 // Aplicativos do Grupo RAM na faixa da página inicial (V1), em branco como os
-// logos do componente original. Ícones do Lucide (ISC); o do RAM Firewall é o
-// escudo com o T do material do Lucas.
+// logos do componente original. Ícones oficiais, os mesmos do acesso rápido de
+// apps.gruporam.com.br.
 
 function Icone({ children }: { children: ReactNode }) {
   return (
@@ -12,17 +12,13 @@ function Icone({ children }: { children: ReactNode }) {
   );
 }
 
-const ESCUDO =
-  "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z";
-
 export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
   {
     nome: "RAM Firewall",
     icone: (
       <Icone>
-        <path d={ESCUDO} />
-        <path d="M9 10h6" />
-        <path d="M12 10v5" />
+        <path d="M12 3l8 3v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z" />
+        <path d="M8 11h8M12 11v4M10 15h4" />
       </Icone>
     ),
   },
@@ -30,7 +26,7 @@ export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
     nome: "Click Fone",
     icone: (
       <Icone>
-        <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
+        <path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />
       </Icone>
     ),
   },
@@ -38,9 +34,8 @@ export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
     nome: "RAM Backup",
     icone: (
       <Icone>
-        <path d="M12 13v8l-4-4" />
-        <path d="m12 21 4-4" />
-        <path d="M4.393 15.269A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.436 8.284" />
+        <path d="M6.5 18a4.5 4.5 0 1 1 .9-8.9 6 6 0 0 1 11.6 1.6A3.7 3.7 0 0 1 18 18h-3" />
+        <path d="M12 13v7M9.5 17.5L12 20l2.5-2.5" />
       </Icone>
     ),
   },
@@ -48,8 +43,8 @@ export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
     nome: "RAM Talk",
     icone: (
       <Icone>
-        <path d="M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        <path d="M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1" />
+        <path d="M4 5h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+        <path d="M20 9h1a1 1 0 0 1 1 1v9l-3-2h-5" />
       </Icone>
     ),
   },
@@ -57,7 +52,7 @@ export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
     nome: "RAM Vision",
     icone: (
       <Icone>
-        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+        <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" />
         <circle cx="12" cy="12" r="3" />
       </Icone>
     ),
@@ -66,10 +61,9 @@ export const APLICATIVOS_GRUPO_RAM: { nome: string; icone: ReactNode }[] = [
     nome: "CRM",
     icone: (
       <Icone>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <path d="M16 3.128a4 4 0 0 1 0 7.744" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-        <circle cx="9" cy="7" r="4" />
+        <circle cx="9" cy="8" r="3.2" />
+        <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+        <path d="M16 4.5a3.2 3.2 0 0 1 0 7M17.5 14.6a5.5 5.5 0 0 1 3 4.9" />
       </Icone>
     ),
   },
