@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { obterSessao } from "@/servidor/auth";
 
@@ -7,8 +8,8 @@ export async function Saudacao() {
   return <h1 className="text-h1 font-semibold">Olá, {primeiroNome}</h1>;
 }
 
-// Início vazio: ainda não há jams. Criar jam (2.1) e Adicionar amigos (1.3)
-// ganham ação nas stories delas.
+// Início vazio: ainda não há jams. Criar jam ganha ação na Story 2.1; Adicionar
+// amigos leva à tela de Amigos (1.3).
 export default function Inicio() {
   return (
     <div className="flex flex-col gap-6">
@@ -29,17 +30,15 @@ export default function Inicio() {
           >
             Criar jam
           </button>
-          <button
-            type="button"
-            disabled
-            aria-describedby="aviso-em-breve"
-            className="rounded-controle border border-borda-controle px-4 py-3 text-corpo font-medium disabled:opacity-60"
+          <Link
+            href="/amigos"
+            className="rounded-controle border border-borda-controle px-4 py-3 text-corpo font-medium transition-colors hover:bg-superficie"
           >
             Adicionar amigos
-          </button>
+          </Link>
         </div>
         <p id="aviso-em-breve" className="text-pequeno text-texto-suave">
-          Criar jam e adicionar amigos chegam nas próximas versões.
+          Criar jam chega na próxima versão.
         </p>
       </section>
     </div>

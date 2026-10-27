@@ -7,11 +7,11 @@ vi.mock("@/servidor/auth", () => ({ obterSessao }));
 const { default: Inicio, Saudacao } = await import("@/app/(app)/inicio/page");
 
 describe("Início vazio", () => {
-  it("diz que não há jams e oferece Criar jam e Adicionar amigos", () => {
+  it("diz que não há jams, oferece Criar jam e leva a Amigos", () => {
     render(<Inicio />);
     expect(screen.getByText("Você ainda não tem nenhuma jam.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar jam" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Adicionar amigos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Adicionar amigos" })).toHaveAttribute("href", "/amigos");
   });
 
   it("não usa travessão no texto", () => {
