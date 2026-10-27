@@ -1,31 +1,46 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { aceitarPedido, recusarPedido } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 import { botaoPrincipal, botaoSecundario } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
+import { useFocarQuandoSair } from "./use-focar-quando-sair";
 
 type Pedido = Pessoa & { pedidoId: string };
 
 // Pedidos recebidos, no topo da tela (front-end spec): aceitar cria a amizade,
 // recusar tira o pedido das duas listas (AC 3). Depois de responder, a página
-// volta do servidor sem o pedido.
+// volta do servidor sem o pedido, e o foco vai para o aviso.
 export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
   const [aviso, setAviso] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [respondendo, setRespondendo] = useState<string | null>(null);
+  // Cada pedido com a sua resposta em andamento (gate da 1.3, REL-002).
+  const [respondendo, setRespondendo] = useState<ReadonlySet<string>>(new Set());
   const [, iniciar] = useTransition();
+  const avisoRef = useRef<HTMLParagraphElement>(null);
+  const focarQuandoSair = useFocarQuandoSair(
+    pedidos.map((p) => p.pedidoId),
+    avisoRef,
+  );
 
   function responder(pedido: Pedido, aceitar: boolean) {
     setErro(null);
     setAviso("");
-    setRespondendo(pedido.pedidoId);
+    setRespondendo((atual) => new Set(atual).add(pedido.pedidoId));
     iniciar(async () => {
       const resultado = aceitar ? await aceitarPedido(pedido.pedidoId) : await recusarPedido(pedido.pedidoId);
-      setRespondendo(null);
-      if (!resultado.ok) setErro(resultado.erro.mensagem);
-      else setAviso(aceitar ? `Agora você e ${pedido.nome} são amigos.` : `Pedido de ${pedido.nome} recusado.`);
+      setRespondendo((atual) => {
+        const proximo = new Set(atual);
+        proximo.delete(pedido.pedidoId);
+        return proximo;
+      });
+      if (!resultado.ok) {
+        setErro(resultado.erro.mensagem);
+        return;
+      }
+      focarQuandoSair(pedido.pedidoId);
+      setAviso(aceitar ? `Agora você e ${pedido.nome} são amigos.` : `Pedido de ${pedido.nome} recusado.`);
     });
   }
 
@@ -42,7 +57,7 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
                 <LinhaPessoa nome={pedido.nome} login={pedido.login} foto={pedido.foto}>
                   <button
                     type="button"
-                    disabled={respondendo === pedido.pedidoId}
+                    disabled={respondendo.has(pedido.pedidoId)}
                     onClick={() => responder(pedido, true)}
                     aria-label={`Aceitar o pedido de ${pedido.nome}`}
                     className={botaoPrincipal}
@@ -51,7 +66,7 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
                   </button>
                   <button
                     type="button"
-                    disabled={respondendo === pedido.pedidoId}
+                    disabled={respondendo.has(pedido.pedidoId)}
                     onClick={() => responder(pedido, false)}
                     aria-label={`Recusar o pedido de ${pedido.nome}`}
                     className={botaoSecundario}
@@ -69,7 +84,7 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
           {erro}
         </p>
       )}
-      <p role="status" className="text-corpo">
+      <p ref={avisoRef} tabIndex={-1} role="status" className="text-corpo outline-none">
         {aviso}
       </p>
     </div>

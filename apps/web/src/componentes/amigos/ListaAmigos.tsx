@@ -1,16 +1,22 @@
 "use client";
 
 import { AlertDialog } from "radix-ui";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { desfazerAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 import { botaoSecundario } from "./estilos";
 import { LinhaPessoa } from "./LinhaPessoa";
+import { useFocarQuandoSair } from "./use-focar-quando-sair";
 
 // Amigos com "Desfazer amizade", sempre com confirmação (front-end spec). Qualquer
 // um dos dois desfaz (AC 4).
 export function ListaAmigos({ amigos }: { amigos: Pessoa[] }) {
   const [aviso, setAviso] = useState("");
+  const avisoRef = useRef<HTMLParagraphElement>(null);
+  const focarQuandoSair = useFocarQuandoSair(
+    amigos.map((a) => a.id),
+    avisoRef,
+  );
 
   return (
     <div className="flex flex-col gap-2">
@@ -21,13 +27,19 @@ export function ListaAmigos({ amigos }: { amigos: Pessoa[] }) {
           {amigos.map((amigo) => (
             <li key={amigo.id}>
               <LinhaPessoa nome={amigo.nome} login={amigo.login} foto={amigo.foto}>
-                <DesfazerAmizade amigo={amigo} aoDesfazer={() => setAviso(`Você e ${amigo.nome} não são mais amigos.`)} />
+                <DesfazerAmizade
+                  amigo={amigo}
+                  aoDesfazer={() => {
+                    focarQuandoSair(amigo.id);
+                    setAviso(`Você e ${amigo.nome} não são mais amigos.`);
+                  }}
+                />
               </LinhaPessoa>
             </li>
           ))}
         </ul>
       )}
-      <p role="status" className="text-corpo">
+      <p ref={avisoRef} tabIndex={-1} role="status" className="text-corpo outline-none">
         {aviso}
       </p>
     </div>

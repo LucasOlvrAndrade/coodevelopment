@@ -8,6 +8,7 @@ const acoes = {
   aceitarPedido: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
   recusarPedido: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
   desfazerAmizade: vi.fn(async (): Promise<Resultado<void>> => ({ ok: true, dados: undefined })),
+  contarMeusPedidos: vi.fn(async (): Promise<Resultado<number>> => ({ ok: true, dados: 0 })),
 };
 vi.mock("@/servidor/acoes/amizade", () => acoes);
 
@@ -42,15 +43,20 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
     acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
     const envio = adiada<Resultado<string>>();
     acoes.pedirAmizade.mockReturnValueOnce(envio.promessa);
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
 
     await buscar("@pai-dev");
     expect(acoes.buscarAmigo).toHaveBeenCalledWith("@pai-dev");
     const resultado = await screen.findByRole("list", { name: "Resultado da busca" });
     expect(within(resultado).getByText("@pai-dev")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Pedir amizade a Pai" }));
-    expect(screen.getByRole("button", { name: "Pedido enviado" })).toBeDisabled();
+    // O mesmo botão muda de estado e o foco fica nele (gate da 1.3, A11Y-002).
+    const botao = screen.getByRole("button", { name: "Pedir amizade a Pai" });
+    botao.focus();
+    fireEvent.click(botao);
+    expect(botao).toHaveAccessibleName("Pedido enviado");
+    expect(botao).toHaveAttribute("aria-disabled", "true");
+    expect(botao).toHaveFocus();
     expect(acoes.pedirAmizade).toHaveBeenCalledWith("pai");
 
     envio.resolver({ ok: true, dados: "pedido_enviado" });
@@ -59,7 +65,7 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
 
   it("quem não tem conta: avisa que ninguém com esse usuário usa o app", async () => {
     acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [] });
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
     await buscar("ninguem");
     expect(await screen.findByRole("status")).toHaveTextContent("Ninguém com esse usuário usa o Coodevelopment ainda.");
   });
@@ -69,7 +75,7 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
       ok: false,
       erro: { codigo: "login_invalido", mensagem: "Isso não parece um usuário do GitHub: use letras, números e hífen." },
     });
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
     await buscar("pai dev");
     expect(await screen.findByRole("alert")).toHaveTextContent("Isso não parece um usuário do GitHub");
     expect(screen.getByLabelText("Usuário do GitHub")).toHaveAttribute("aria-invalid", "true");
@@ -79,7 +85,7 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
   it("pedido cruzado: avisa que agora são amigos", async () => {
     acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
     acoes.pedirAmizade.mockResolvedValueOnce({ ok: true, dados: "amigos" });
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
     await buscar("pai-dev");
     fireEvent.click(await screen.findByRole("button", { name: "Pedir amizade a Pai" }));
     expect(await screen.findByText("Amigo")).toBeInTheDocument();
@@ -89,7 +95,7 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
   it("se o pedido falha, o botão volta e o erro aparece", async () => {
     acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
     acoes.pedirAmizade.mockResolvedValueOnce({ ok: false, erro: { codigo: "inesperado", mensagem: "Algo deu errado. Tente de novo." } });
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
     await buscar("pai-dev");
     fireEvent.click(await screen.findByRole("button", { name: "Pedir amizade a Pai" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Algo deu errado. Tente de novo.");
@@ -106,18 +112,76 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
         { ...PAI, relacao: { tipo: "pedido_recebido", pedidoId: "p1" } },
       ],
     });
-    render(<BuscaAmigo />);
+    render(<BuscaAmigo versao="v1" />);
     await buscar("qualquer");
     expect(await screen.findByText("É você")).toBeInTheDocument();
     expect(screen.getByText("Amigo")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pedido enviado" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Aceitar o pedido de Pai" }));
+    expect(screen.getByRole("button", { name: "Pedido enviado" })).toHaveAttribute("aria-disabled", "true");
+    // O nome acessível contém o texto visível (WCAG 2.5.3, A11Y-001).
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar pedido de Pai" }));
     await waitFor(() => expect(acoes.aceitarPedido).toHaveBeenCalledWith("p1"));
     expect(await screen.findByRole("status")).toHaveTextContent("Agora você e Pai são amigos.");
   });
 });
 
+describe("busca depois que os dados mudam (gate da 1.3, REL-001)", () => {
+  it("depois de um pedido recusado, buscar de novo deixa pedir outra vez", async () => {
+    acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
+    acoes.pedirAmizade.mockResolvedValueOnce({ ok: true, dados: "pedido_enviado" });
+    render(<BuscaAmigo versao="v1" />);
+    await buscar("pai-dev");
+    fireEvent.click(await screen.findByRole("button", { name: "Pedir amizade a Pai" }));
+    await screen.findByText("Pedido enviado para Pai.");
+
+    // O Pai recusou em outro computador; a busca nova volta sem relação.
+    acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
+    await buscar("pai-dev");
+    const botao = await screen.findByRole("button", { name: "Pedir amizade a Pai" });
+    expect(botao).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("quando a página muda, a última busca é refeita e a relação atualiza", async () => {
+    acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "nenhuma" } }] });
+    const { rerender } = render(<BuscaAmigo versao="v1" />);
+    await buscar("pai-dev");
+    await screen.findByRole("button", { name: "Pedir amizade a Pai" });
+
+    acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [{ ...PAI, relacao: { tipo: "pedido_recebido", pedidoId: "p9" } }] });
+    rerender(<BuscaAmigo versao="v2" />);
+    expect(await screen.findByRole("button", { name: "Aceitar pedido de Pai" })).toBeEnabled();
+    expect(acoes.buscarAmigo).toHaveBeenLastCalledWith("pai-dev");
+  });
+
+  it("sem busca feita, a mudança de versão não busca nada", () => {
+    const { rerender } = render(<BuscaAmigo versao="v1" />);
+    rerender(<BuscaAmigo versao="v2" />);
+    expect(acoes.buscarAmigo).not.toHaveBeenCalled();
+  });
+});
+
 describe("pedidos recebidos (AC 3)", () => {
+  it("responder a um pedido não libera os botões do outro em andamento (REL-002)", async () => {
+    const primeiro = adiada<Resultado<void>>();
+    acoes.aceitarPedido.mockReturnValueOnce(primeiro.promessa);
+    const segundo = adiada<Resultado<void>>();
+    acoes.aceitarPedido.mockReturnValueOnce(segundo.promessa);
+    render(<PedidosRecebidos pedidos={[{ ...PAI, pedidoId: "p1" }, { id: "ana", login: "ana", nome: "Ana", foto: null, pedidoId: "p2" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar o pedido de Pai" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar o pedido de Ana" }));
+    segundo.resolver({ ok: true, dados: undefined });
+    await screen.findByText("Agora você e Ana são amigos.");
+    expect(screen.getByRole("button", { name: "Aceitar o pedido de Pai" })).toBeDisabled();
+    primeiro.resolver({ ok: true, dados: undefined });
+  });
+
+  it("quando o pedido respondido sai da lista, o foco vai para o aviso (A11Y-002)", async () => {
+    const { rerender } = render(<PedidosRecebidos pedidos={[{ ...PAI, pedidoId: "p1" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Recusar o pedido de Pai" }));
+    await screen.findByText("Pedido de Pai recusado.");
+    rerender(<PedidosRecebidos pedidos={[]} />);
+    expect(screen.getByRole("status")).toHaveFocus();
+  });
+
   const pedidos = [{ ...PAI, pedidoId: "p1" }];
 
   it("aceitar e recusar chamam a ação com o id do pedido", async () => {
@@ -170,6 +234,16 @@ describe("lista de amigos (AC 4)", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Você e Pai não são mais amigos.");
   });
 
+  it("quando o amigo sai da lista, o foco vai para o aviso (A11Y-002)", async () => {
+    const { rerender } = render(<ListaAmigos amigos={[PAI]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer amizade com Pai" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desfazer amizade" }));
+    await waitFor(() => expect(acoes.desfazerAmizade).toHaveBeenCalled());
+    await screen.findByText("Você e Pai não são mais amigos.");
+    rerender(<ListaAmigos amigos={[]} />);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
+  });
+
   it("se falhar, o erro aparece no diálogo, que fica aberto", async () => {
     acoes.desfazerAmizade.mockResolvedValueOnce({ ok: false, erro: { codigo: "nao_sao_amigos", mensagem: "Vocês já não são amigos." } });
     render(<ListaAmigos amigos={[PAI]} />);
@@ -186,7 +260,7 @@ describe("sugestões de mútuos (Story 1.4)", () => {
     render(<Sugestoes sugestoes={[PAI]} />);
     const lista = screen.getByRole("list", { name: "Sugestões do GitHub" });
     fireEvent.click(within(lista).getByRole("button", { name: "Pedir amizade a Pai" }));
-    expect(screen.getByRole("button", { name: "Pedido enviado" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pedido enviado" })).toHaveAttribute("aria-disabled", "true");
     await waitFor(() => expect(acoes.pedirAmizade).toHaveBeenCalledWith("pai"));
     expect(await screen.findByRole("status")).toHaveTextContent("Pedido enviado para Pai.");
   });
@@ -205,6 +279,16 @@ describe("navegação principal", () => {
     const amigos = screen.getByRole("link", { name: "Amigos, 2 pedidos recebidos" });
     expect(amigos).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Jams" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("ao trocar de página, pede a contagem de novo (REL-003)", async () => {
+    caminho = "/inicio";
+    acoes.contarMeusPedidos.mockResolvedValueOnce({ ok: true, dados: 3 });
+    const { rerender } = render(<NavegacaoApp pedidosRecebidos={0} posicao="topo" />);
+    expect(acoes.contarMeusPedidos).not.toHaveBeenCalled();
+    caminho = "/amigos";
+    rerender(<NavegacaoApp pedidosRecebidos={0} posicao="topo" />);
+    expect(await screen.findByRole("link", { name: "Amigos, 3 pedidos recebidos" })).toBeInTheDocument();
   });
 
   it("sem pedidos, sem contador", () => {

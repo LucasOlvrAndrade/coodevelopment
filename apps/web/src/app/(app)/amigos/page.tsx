@@ -43,6 +43,8 @@ async function ConteudoAmigos() {
   const eu = await exigirSessao();
   const [{ recebidos, enviados }, amigos] = await Promise.all([listarPedidos(db(), eu.id), listarAmigos(db(), eu.id)]);
   const pessoa = ({ id, login, nome, foto }: { id: string; login: string; nome: string; foto: string | null }) => ({ id, login, nome, foto });
+  // Muda quando pedidos ou amigos mudam: a busca refaz a última consulta (REL-001).
+  const versao = [recebidos.map((p) => p.pedidoId), enviados.map((p) => p.pedidoId), amigos.map((a) => a.id)].map((ids) => ids.join(",")).join("|");
 
   return (
     <>
@@ -65,7 +67,7 @@ async function ConteudoAmigos() {
           <h3 id="titulo-busca" className="text-h3 font-semibold">
             Buscar
           </h3>
-          <BuscaAmigo />
+          <BuscaAmigo versao={versao} />
         </section>
       </section>
 
