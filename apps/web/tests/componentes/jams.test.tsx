@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Repositorio } from "@/servidor/dominio/jam";
 
 const criarJamImportando = vi.fn();
-vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando }));
+const criarJamComRepositorio = vi.fn();
+vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando, criarJamComRepositorio }));
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const { EscolherRepositorio } = await import("@/componentes/jams/EscolherRepositorio");
+const { CriarRepositorio } = await import("@/componentes/jams/CriarRepositorio");
+const { AlternarNovaJam } = await import("@/componentes/jams/AlternarNovaJam");
 
 const repo = (nome: string, extra: Partial<Repositorio> = {}): Repositorio => ({
   owner: "LucasOlvrAndrade",
@@ -70,5 +73,68 @@ describe("importar repositório (Story 2.1)", () => {
     render(<EscolherRepositorio repositorios={Array.from({ length: 150 }, (_, i) => repo(`r${i}`))} />);
     expect(screen.getAllByRole("radio")).toHaveLength(100);
     expect(screen.getByText("Mostrando 100 de 150. Digite parte do nome para achar os outros.")).toBeInTheDocument();
+  });
+});
+
+describe("criar repositório (Story 2.2)", () => {
+  async function preencher(nome: string) {
+    fireEvent.change(screen.getByRole("textbox", { name: "Nome do repositório" }), { target: { value: nome } });
+  }
+
+  it("alterna entre importar e criar, sem perder o que foi digitado", () => {
+    render(<AlternarNovaJam importar={<p>painel de importar</p>} criar={<CriarRepositorio />} />);
+    expect(screen.getByRole("button", { name: "Importar repositório" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("painel de importar")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório" }));
+    expect(screen.getByRole("button", { name: "Criar repositório" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.change(screen.getByRole("textbox", { name: "Nome do repositório" }), { target: { value: "meu-app" } });
+    fireEvent.click(screen.getByRole("button", { name: "Importar repositório" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório" }));
+    expect(screen.getByRole("textbox", { name: "Nome do repositório" })).toHaveValue("meu-app");
+  });
+
+  it("cria com nome e visibilidade (privado por padrão) e volta ao Início (AC 1)", async () => {
+    criarJamComRepositorio.mockResolvedValueOnce({ ok: true, dados: { id: "abcd-efgh" } });
+    render(<CriarRepositorio />);
+    expect(screen.getByRole("radio", { name: /Privado/ })).toBeChecked();
+    await preencher(" meu-app ");
+    fireEvent.click(screen.getByRole("radio", { name: /Público/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório e jam" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/inicio?nova=abcd-efgh"));
+    expect(criarJamComRepositorio).toHaveBeenCalledWith("meu-app", false);
+  });
+
+  it("nome inválido mostra o erro no campo, sem chamar o servidor", async () => {
+    render(<CriarRepositorio />);
+    await preencher("com espaço");
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório e jam" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Use só letras, números, ponto, hífen e sublinhado");
+    expect(screen.getByRole("textbox", { name: "Nome do repositório" })).toHaveAttribute("aria-invalid", "true");
+    expect(criarJamComRepositorio).not.toHaveBeenCalled();
+  });
+
+  it("nome que já existe aparece no próprio campo (AC 4)", async () => {
+    criarJamComRepositorio.mockResolvedValueOnce({
+      ok: false,
+      erro: { codigo: "repositorio_ja_existe", mensagem: "Você já tem um repositório com esse nome no GitHub. Escolha outro nome ou importe esse." },
+    });
+    render(<CriarRepositorio />);
+    await preencher("projeto");
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório e jam" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Você já tem um repositório com esse nome");
+    expect(screen.getByRole("textbox", { name: "Nome do repositório" })).toHaveAccessibleDescription(/Você já tem um repositório com esse nome/);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("outro erro (instalação parcial) aparece abaixo do formulário", async () => {
+    criarJamComRepositorio.mockResolvedValueOnce({
+      ok: false,
+      erro: { codigo: "instalacao_parcial", mensagem: "Mude para All repositories em https://github.com/settings/installations/77" },
+    });
+    render(<CriarRepositorio />);
+    await preencher("novo");
+    fireEvent.click(screen.getByRole("button", { name: "Criar repositório e jam" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("settings/installations/77");
+    expect(screen.getByRole("textbox", { name: "Nome do repositório" })).not.toHaveAttribute("aria-invalid");
   });
 });
