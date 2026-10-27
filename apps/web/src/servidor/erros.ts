@@ -17,6 +17,10 @@ const MENSAGENS: Record<string, string> = {
   repositorio_de_outra_conta: "Só dá para criar uma jam com um repositório da sua conta.",
   repositorio_vazio: "Esse repositório ainda não tem nenhum commit. Faça um commit nele ou crie um repositório novo pela jam.",
   jam_ja_existe: "Já existe uma jam aberta para esse repositório. Ela está no seu Início.",
+  // Repositório novo (Story 2.2)
+  nome_repositorio_invalido: "Use só letras, números, ponto, hífen e sublinhado, com até 100 caracteres.",
+  repositorio_ja_existe: "Você já tem um repositório com esse nome no GitHub. Escolha outro nome ou importe esse.",
+  instalacao_ausente: "O Coodevelopment não está instalado na sua conta do GitHub. Saia e entre de novo para instalar.",
 };
 
 export class ErroApp extends Error {

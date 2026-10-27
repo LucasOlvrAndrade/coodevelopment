@@ -127,5 +127,23 @@ export function githubRepositorios(octokit: Octokit): GithubRepositorios {
       const resposta = await ouNulo(octokit.rest.git.getRef({ owner, repo: nome, ref: `heads/${branch}` }), [404, 409]);
       return resposta?.data.object.sha ?? null;
     },
+    async criar(nome, privado) {
+      try {
+        const { data } = await octokit.rest.repos.createForAuthenticatedUser({ name: nome, private: privado, auto_init: true });
+        return { owner: data.owner.login, ownerId: data.owner.id, nome: data.name, branchPadrao: data.default_branch ?? "main" };
+      } catch (e) {
+        const erro = e as { status?: number; response?: { data?: { errors?: { message?: string }[] } } };
+        if (erro.status === 422) {
+          const motivos = (erro.response?.data?.errors ?? []).map((x) => x.message ?? "").join(" ");
+          throw new ErroApp(/already exists/i.test(motivos) ? "repositorio_ja_existe" : "nome_repositorio_invalido", 422);
+        }
+        throw e;
+      }
+    },
+    async instalacao(githubId) {
+      const { data } = await octokit.rest.apps.listInstallationsForAuthenticatedUser({ per_page: 100 });
+      const daConta = data.installations.find((i) => i.account?.id === githubId);
+      return daConta ? { id: daConta.id, selecao: daConta.repository_selection } : { id: null, selecao: null };
+    },
   };
 }

@@ -21,7 +21,14 @@ export interface GithubRepositorios {
   buscar(owner: string, nome: string): Promise<{ owner: string; ownerId: number; nome: string; branchPadrao: string } | null>;
   // null quando o repositório está vazio (sem commit na branch).
   shaDaBranch(owner: string, nome: string, branch: string): Promise<string | null>;
+  // Repositório novo na conta, com commit inicial (Story 2.2). Nome repetido
+  // lança ErroApp("repositorio_ja_existe").
+  criar(nome: string, privado: boolean): Promise<RepositorioDoGithub>;
+  // A instalação do app na conta da pessoa: "all" cobre repositório criado depois.
+  instalacao(githubId: number): Promise<{ id: number | null; selecao: "all" | "selected" | null }>;
 }
+
+type RepositorioDoGithub = { owner: string; ownerId: number; nome: string; branchPadrao: string };
 
 export type JamDoInicio = {
   id: string;
@@ -90,8 +97,12 @@ export async function criarJam(
   const baseSha = await github.shaDaBranch(repositorio.owner, repositorio.nome, repositorio.branchPadrao);
   if (!baseSha) throw new ErroApp("repositorio_vazio");
 
-  // Jam e participante criador numa instrução só (A9). Id repetido tenta outro;
-  // jam aberta criada ao mesmo tempo no mesmo repositório cai no índice (A11).
+  return gravarJam(banco, eu, repositorio, baseSha);
+}
+
+// Jam e participante criador numa instrução só (A9). Id repetido tenta outro;
+// jam aberta criada ao mesmo tempo no mesmo repositório cai no índice (A11).
+async function gravarJam(banco: Banco, eu: { id: string }, repositorio: RepositorioDoGithub, baseSha: string): Promise<{ id: string }> {
   for (let tentativa = 0; tentativa < 3; tentativa++) {
     const id = gerarIdJam();
     try {
@@ -135,4 +146,59 @@ export async function listarJams(banco: Banco, eu: string): Promise<JamDoInicio[
       .filter((p) => p.jamId === j.id)
       .map(({ papel, id, login, nome, foto }) => ({ papel, id, login, nome, foto })),
   }));
+}
+
+// Nome de repositório como o GitHub aceita: até 100 caracteres de letras,
+// números, ponto, hífen e sublinhado, e não pode ser "." nem "..".
+export function nomeDeRepositorioValido(nome: string): boolean {
+  return /^[\w.-]{1,100}$/.test(nome) && nome !== "." && nome !== "..";
+}
+
+const pausa = (ms: number) => new Promise<void>((resolver) => setTimeout(resolver, ms));
+
+// Story 2.2: cria o repositório na conta de quem cria (D4) e a jam ligada a ele.
+export async function criarJamComRepositorioNovo(
+  banco: Banco,
+  eu: { id: string; githubId: number },
+  github: GithubRepositorios,
+  novo: { nome: string; privado: boolean },
+  esperar: (ms: number) => Promise<void> = pausa,
+): Promise<{ id: string }> {
+  if (!nomeDeRepositorioValido(novo.nome)) throw new ErroApp("nome_repositorio_invalido");
+
+  // Com "Only select repositories", o repositório novo ficaria fora do alcance
+  // do app (pendência 2 da Story 1.2): confere antes de criar qualquer coisa.
+  const instalacao = await github.instalacao(eu.githubId);
+  if (instalacao.selecao === null) throw new ErroApp("instalacao_ausente", 409);
+  if (instalacao.selecao !== "all") {
+    throw new ErroApp(
+      "instalacao_parcial",
+      409,
+      `No GitHub, o Coodevelopment está liberado só para alguns repositórios, e um repositório novo ficaria de fora. Mude para "All repositories" em https://github.com/settings/installations/${instalacao.id} e tente de novo.`,
+    );
+  }
+
+  const repositorio = await github.criar(novo.nome, novo.privado);
+
+  // O commit inicial do auto_init pode levar uns instantes para aparecer.
+  let baseSha: string | null = null;
+  for (let tentativa = 0; tentativa < 5 && !baseSha; tentativa++) {
+    if (tentativa > 0) await esperar(400 * tentativa);
+    baseSha = await github.shaDaBranch(repositorio.owner, repositorio.nome, repositorio.branchPadrao).catch(() => null);
+  }
+
+  // Daqui em diante o repositório já existe no GitHub: nada é apagado lá, e a
+  // pessoa é mandada importar (nada fica pela metade sem explicação).
+  try {
+    if (!baseSha) throw new Error("o commit inicial do repositório novo não apareceu");
+    return await gravarJam(banco, eu, repositorio, baseSha);
+  } catch (e) {
+    if (e instanceof ErroApp) throw e;
+    console.error(JSON.stringify({ nivel: "erro", evento: "repositorio_criado_sem_jam", erro: String(e) }));
+    throw new ErroApp(
+      "repositorio_criado_sem_jam",
+      500,
+      `O repositório ${repositorio.owner}/${repositorio.nome} foi criado no GitHub, mas a jam não. Importe-o em "Importar repositório" para criar a jam.`,
+    );
+  }
 }

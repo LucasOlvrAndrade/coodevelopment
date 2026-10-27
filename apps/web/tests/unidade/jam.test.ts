@@ -1,7 +1,17 @@
 // @vitest-environment node
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { jam, participante } from "@/servidor/db/schema";
-import { criarJam, gerarIdJam, listarJams, listarRepositorios, type GithubRepositorios, type Repositorio } from "@/servidor/dominio/jam";
+import { ErroApp } from "@/servidor/erros";
+import {
+  criarJam,
+  criarJamComRepositorioNovo,
+  gerarIdJam,
+  listarJams,
+  listarRepositorios,
+  nomeDeRepositorioValido,
+  type GithubRepositorios,
+  type Repositorio,
+} from "@/servidor/dominio/jam";
 import { criarBancoDeTeste, criarUsuario } from "../apoio/banco-teste";
 
 let teste: Awaited<ReturnType<typeof criarBancoDeTeste>>;
@@ -13,9 +23,18 @@ const PAI = { id: "pai", githubId: 1001 };
 type RepoFalso = { owner: string; ownerId: number; nome: string; branchPadrao: string; sha: string | null };
 
 // GitHub de mentira com os repositórios dados (nomes sem diferença de maiúscula, como no GitHub).
-function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][]) {
+function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][], selecao: "all" | "selected" | null = "all") {
   const pedidas: number[] = [];
+  const criados: string[] = [];
   const github: GithubRepositorios = {
+    criar: async (nome, privado) => {
+      if (repos.some((r) => r.nome.toLowerCase() === nome.toLowerCase())) throw new ErroApp("repositorio_ja_existe", 422);
+      criados.push(`${nome}:${privado ? "privado" : "público"}`);
+      const novo = { owner: "LucasOlvrAndrade", ownerId: 1000, nome, branchPadrao: "main", sha: "inicial1" };
+      repos.push(novo);
+      return { owner: novo.owner, ownerId: novo.ownerId, nome, branchPadrao: "main" };
+    },
+    instalacao: async () => ({ id: selecao ? 77 : null, selecao }),
     listar: async (pagina) => {
       pedidas.push(pagina);
       return paginas?.[pagina - 1] ?? [];
@@ -26,7 +45,7 @@ function githubFalso(repos: RepoFalso[], paginas?: Repositorio[][]) {
     },
     shaDaBranch: async (owner, nome) => repos.find((x) => x.owner === owner && x.nome === nome)?.sha ?? null,
   };
-  return { github, pedidas };
+  return { github, pedidas, criados };
 }
 
 const projeto: RepoFalso = { owner: "LucasOlvrAndrade", ownerId: 1000, nome: "projeto", branchPadrao: "main", sha: "abc123" };
@@ -169,5 +188,82 @@ describe("Início (AC 3)", () => {
 
   it("sem jams, lista vazia", async () => {
     expect(await listarJams(banco(), "pai")).toEqual([]);
+  });
+});
+
+describe("criar jam com repositório novo (Story 2.2)", () => {
+  const semEspera = async () => {};
+
+  it("valida o nome como o GitHub", () => {
+    for (const ok of ["projeto", "meu-app_2", "site.github.io", "a".repeat(100)]) expect(nomeDeRepositorioValido(ok)).toBe(true);
+    for (const ruim of ["", ".", "..", "com espaço", "acentuação", "a/b", "a".repeat(101)]) expect(nomeDeRepositorioValido(ruim)).toBe(false);
+  });
+
+  it("cria o repositório na conta, com commit inicial, e a jam ligada a ele (AC 2 e 3)", async () => {
+    const { github, criados } = githubFalso([]);
+    const { id } = await criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "novo-app", privado: true }, semEspera);
+    expect(criados).toEqual(["novo-app:privado"]);
+    expect((await banco().select().from(jam))[0]).toMatchObject({ id, repoNome: "novo-app", baseSha: "inicial1", criadorId: "lucas" });
+    expect((await listarJams(banco(), "lucas")).map((j) => j.id)).toEqual([id]);
+  });
+
+  it("nome repetido dá erro claro e não cria nada (AC 4)", async () => {
+    const { github, criados } = githubFalso([projeto]);
+    expect(await erroDe(criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "Projeto", privado: false }, semEspera))).toEqual({
+      codigo: "repositorio_ja_existe",
+      status: 422,
+    });
+    expect(criados).toEqual([]);
+    expect(await banco().select().from(jam)).toEqual([]);
+  });
+
+  it("nome inválido não chega ao GitHub", async () => {
+    const { github, criados } = githubFalso([]);
+    expect(await erroDe(criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "com espaço", privado: true }, semEspera))).toEqual({
+      codigo: "nome_repositorio_invalido",
+      status: 400,
+    });
+    expect(criados).toEqual([]);
+  });
+
+  it("instalação só em alguns repositórios: avisa com o link e não cria (pendência 2 da 1.2)", async () => {
+    const { github, criados } = githubFalso([], undefined, "selected");
+    const erro = await criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "novo", privado: true }, semEspera).catch((e) => e);
+    expect(erro).toMatchObject({ codigo: "instalacao_parcial", status: 409 });
+    expect(erro.message).toContain("https://github.com/settings/installations/77");
+    expect(criados).toEqual([]);
+  });
+
+  it("sem instalação na conta, pede para entrar de novo", async () => {
+    const { github } = githubFalso([], undefined, null);
+    expect(await erroDe(criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "novo", privado: true }, semEspera))).toEqual({
+      codigo: "instalacao_ausente",
+      status: 409,
+    });
+  });
+
+  it("espera o commit inicial aparecer, tentando de novo", async () => {
+    const { github } = githubFalso([]);
+    let tentativas = 0;
+    const original = github.shaDaBranch;
+    github.shaDaBranch = async (...args) => (++tentativas < 3 ? null : original(...args));
+    const esperas: number[] = [];
+    await criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "lento", privado: true }, async (ms) => {
+      esperas.push(ms);
+    });
+    expect(tentativas).toBe(3);
+    expect(esperas).toEqual([400, 800]);
+  });
+
+  it("repositório criado e jam com falha: a mensagem manda importar, e nada é apagado", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { github, criados } = githubFalso([]);
+    github.shaDaBranch = async () => null;
+    const erro = await criarJamComRepositorioNovo(banco(), LUCAS, github, { nome: "sem-commit", privado: true }, semEspera).catch((e) => e);
+    expect(erro).toMatchObject({ codigo: "repositorio_criado_sem_jam" });
+    expect(erro.message).toContain("LucasOlvrAndrade/sem-commit");
+    expect(criados).toEqual(["sem-commit:privado"]);
+    expect(await banco().select().from(jam)).toEqual([]);
+    log.mockRestore();
   });
 });

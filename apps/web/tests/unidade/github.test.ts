@@ -177,3 +177,50 @@ describe("githubRepositorios", () => {
     expect(urls[0]).toBe("/repos/lucas/cheio/git/ref/heads%2Fmain");
   });
 });
+
+describe("githubRepositorios: criar e instalação (Story 2.2)", () => {
+  function comResposta(responder: (url: URL, init?: RequestInit) => Response) {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_x" });
+    const corpos: unknown[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (init?.body) corpos.push(JSON.parse(String(init.body)));
+      return responder(new URL(String(url)), init);
+    });
+    return { github: githubRepositorios(githubDoUsuario("u1")), corpos, fetchFalso };
+  }
+
+  it("cria com auto_init e a visibilidade escolhida", async () => {
+    const { github, corpos, fetchFalso } = comResposta(() =>
+      Response.json({ owner: { login: "lucas", id: 1000 }, name: "novo", default_branch: "main" }, { status: 201 }),
+    );
+    expect(await github.criar("novo", true)).toEqual({ owner: "lucas", ownerId: 1000, nome: "novo", branchPadrao: "main" });
+    fetchFalso.mockRestore();
+    expect(corpos).toEqual([{ name: "novo", private: true, auto_init: true }]);
+  });
+
+  it("nome que já existe vira repositorio_ja_existe; outro 422 vira nome inválido", async () => {
+    const existe = comResposta(() =>
+      Response.json({ message: "Repository creation failed.", errors: [{ message: "name already exists on this account" }] }, { status: 422 }),
+    );
+    await expect(existe.github.criar("projeto", false)).rejects.toMatchObject({ codigo: "repositorio_ja_existe" });
+    existe.fetchFalso.mockRestore();
+    const outro = comResposta(() => Response.json({ message: "Validation Failed", errors: [{ message: "name is invalid" }] }, { status: 422 }));
+    await expect(outro.github.criar("x", false)).rejects.toMatchObject({ codigo: "nome_repositorio_invalido" });
+    outro.fetchFalso.mockRestore();
+  });
+
+  it("acha a instalação da conta e a seleção de repositórios", async () => {
+    const { github, fetchFalso } = comResposta(() =>
+      Response.json({
+        total_count: 2,
+        installations: [
+          { id: 5, account: { id: 999 }, repository_selection: "all" },
+          { id: 7, account: { id: 1000 }, repository_selection: "selected" },
+        ],
+      }),
+    );
+    expect(await github.instalacao(1000)).toEqual({ id: 7, selecao: "selected" });
+    expect(await github.instalacao(123)).toEqual({ id: null, selecao: null });
+    fetchFalso.mockRestore();
+  });
+});

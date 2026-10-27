@@ -28,3 +28,13 @@ export async function criarJamImportando(owner: string, repo: string) {
     });
   });
 }
+
+export async function criarJamComRepositorio(nome: string, privado: boolean) {
+  return executar(async () => {
+    const eu = await exigirSessao();
+    return regras.criarJamComRepositorioNovo(db(), { id: eu.id, githubId: eu.githubId }, githubRepositorios(githubDoUsuario(eu.id)), {
+      nome: entrada(z.string().min(1).max(100), nome),
+      privado: entrada(z.boolean(), privado),
+    });
+  });
+}
