@@ -1,4 +1,4 @@
-import { bigint, boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Tabelas do Better Auth 1.7 (campos de get-tables do @better-auth/core),
 // com nomes de coluna em snake_case. As chaves em camelCase são as que o
@@ -63,7 +63,12 @@ export const account = pgTable(
     createdAt: criadoEm(),
     updatedAt: atualizadoEm(),
   },
-  (t) => [index("account_user_id").on(t.userId)],
+  // Uma conta por provedor e por usuário: o login do GitHub não se repete, e
+  // tokenDoUsuario acha sempre a mesma linha (gate da 1.2, MNT-001).
+  (t) => [
+    uniqueIndex("account_provider_account").on(t.providerId, t.accountId),
+    uniqueIndex("account_user_provider").on(t.userId, t.providerId),
+  ],
 );
 
 export const verification = pgTable(
