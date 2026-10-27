@@ -127,3 +127,54 @@ export const amizade = pgTable(
     check("amizade_par_em_ordem", sql`${t.usuarioA} < ${t.usuarioB}`),
   ],
 );
+
+// Jams (Story 2.1, database-schema.md). Uma jam não fechada por repositório
+// (A11); o nome do repositório no GitHub não diferencia maiúscula.
+export const jam = pgTable(
+  "jam",
+  {
+    id: text("id").primaryKey(),
+    nome: text("nome").notNull(),
+    repoOwner: text("repo_owner").notNull(),
+    repoNome: text("repo_nome").notNull(),
+    branch: text("branch").notNull(),
+    criadorId: text("criador_id")
+      .notNull()
+      .references(() => user.id),
+    estado: text("estado", { enum: ["aberta", "fechando", "fechada"] }).notNull().default("aberta"),
+    baseSha: text("base_sha").notNull(),
+    // Lembrete de trabalho sem commit há 24 h (FR24); a sala atualiza.
+    primeiraMudancaEm: timestamp("primeira_mudanca_em", { withTimezone: true }),
+    ultimoCommitEm: timestamp("ultimo_commit_em", { withTimezone: true }),
+    criadaEm: timestamp("criada_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("jam_repo").on(t.repoOwner, t.repoNome),
+    uniqueIndex("jam_repo_aberta")
+      .on(sql`lower(${t.repoOwner})`, sql`lower(${t.repoNome})`)
+      .where(sql`${t.estado} <> 'fechada'`),
+    check("jam_estado", sql`${t.estado} in ('aberta', 'fechando', 'fechada')`),
+  ],
+);
+
+export const participante = pgTable(
+  "participante",
+  {
+    jamId: text("jam_id")
+      .notNull()
+      .references(() => jam.id, { onDelete: "cascade" }),
+    usuarioId: text("usuario_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    papel: text("papel", { enum: ["criador", "convidado"] }).notNull(),
+    // Convite de colaborador no GitHub (Story 2.3); o criador é o dono, já "ok".
+    colaborador: text("colaborador", { enum: ["ok", "pendente", "falhou"] }).notNull().default("pendente"),
+    entrouEm: timestamp("entrou_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "participante_jam_usuario", columns: [t.jamId, t.usuarioId] }),
+    index("participante_usuario").on(t.usuarioId),
+    check("participante_papel", sql`${t.papel} in ('criador', 'convidado')`),
+    check("participante_colaborador", sql`${t.colaborador} in ('ok', 'pendente', 'falhou')`),
+  ],
+);
