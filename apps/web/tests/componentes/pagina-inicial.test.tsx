@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/servidor/auth", () => ({ obterSessao: vi.fn(async () => null) }));
@@ -25,6 +25,22 @@ describe("página inicial", () => {
     const botao = screen.getByRole("button", { name: "Entrar com GitHub" });
     expect(botao).toBeEnabled();
     expect(botao).toHaveAccessibleDescription(/All repositories/);
+  });
+
+  it("o botão branco do menu também entra com o GitHub", () => {
+    render(<PaginaInicial {...props} />);
+    const botao = screen.getByRole("button", { name: "Entrar" });
+    expect(botao).toHaveAccessibleDescription(/All repositories/);
+  });
+
+  it("Como funciona leva à seção que explica os passos", () => {
+    render(<PaginaInicial {...props} />);
+    for (const link of screen.getAllByRole("link", { name: "Como funciona" })) {
+      expect(link).toHaveAttribute("href", "#como-funciona");
+    }
+    const secao = screen.getByRole("region", { name: "Como funciona" });
+    expect(secao).toHaveAttribute("id", "como-funciona");
+    expect(within(secao).getAllByRole("listitem")).toHaveLength(3);
   });
 
   it("mostra o que o app precisa quando a pessoa recusa no GitHub", async () => {

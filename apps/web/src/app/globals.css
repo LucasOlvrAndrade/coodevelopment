@@ -10,6 +10,7 @@
   --color-borda-controle: var(--borda-controle);
   --color-primaria: var(--primaria);
   --color-sobre-primaria: var(--sobre-primaria);
+  --color-destaque: var(--destaque);
   --color-sucesso: var(--sucesso);
   --color-alerta: var(--alerta);
   --color-erro: var(--erro);
@@ -19,6 +20,9 @@
 
   --font-sans: var(--fonte-plex-sans);
   --font-mono: var(--fonte-plex-mono);
+  /* Só na página inicial (V1); as variáveis vêm do layout de (publico). */
+  --font-inter: var(--fonte-inter), system-ui, sans-serif;
+  --font-instrument-serif: var(--fonte-instrument-serif), Georgia, serif;
 
   /* Escala de tipo da front-end spec */
   --text-h1: 28px;
@@ -47,4 +51,62 @@ body {
 :focus-visible {
   outline: 2px solid var(--primaria);
   outline-offset: 2px;
+}
+
+/* Entrada da faixa da página inicial (V1), uma vez, ao carregar. */
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in-1,
+.animate-fade-slide-in-2,
+.animate-fade-slide-in-3,
+.animate-fade-slide-in-4 {
+  animation: fade-slide-in 0.7s ease-out both;
+}
+.animate-fade-slide-in-2 {
+  animation-delay: 0.1s;
+}
+.animate-fade-slide-in-3 {
+  animation-delay: 0.2s;
+}
+.animate-fade-slide-in-4 {
+  animation-delay: 0.3s;
+}
+
+/* Aplicativos do Grupo RAM passando em loop: a trilha tem quatro cópias e anda
+   metade dela. Fora das camadas do Tailwind de propósito, para a pausa (mouse
+   em cima ou o botão) não depender da ordem das classes. */
+@keyframes faixa-em-loop {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.faixa-em-loop {
+  animation: faixa-em-loop 40s linear infinite;
+}
+.faixa-em-loop:hover,
+.faixa-em-loop[data-pausada="true"] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-slide-in-1,
+  .animate-fade-slide-in-2,
+  .animate-fade-slide-in-3,
+  .animate-fade-slide-in-4,
+  .faixa-em-loop {
+    animation: none;
+  }
 }

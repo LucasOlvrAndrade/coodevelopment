@@ -12,6 +12,17 @@ borda neon nem vidro (5, 6), escuro com contraste real (7), sem fileira de 3
 sem fade-in na rolagem nem luz no mouse (12, 13), hover rápido (14), escala
 fixa (15), texto à esquerda (16), texto concreto (17, 18).
 
+**Exceção, a faixa da página inicial (V1, 2026-10-27):** é o
+`responsive-hero-banner` do 21st.dev igual ao prompt, a pedido do Lucas:
+foto de fundo do componente (servida pelo próprio app), menu em pílula
+translúcida com o botão branco, selo e botão principal translúcidos, título
+em Instrument Serif, texto em Inter e entrada com deslize ao carregar, nas
+cores do componente (branco e preto translúcidos, sem a primária). No lugar
+dos logos de parceiros, os aplicativos do Grupo RAM passam em loop, em
+branco. Abaixo da faixa, a seção "Como funciona" com os três passos, no
+mesmo fundo. Esses sinais valem lá de propósito e só lá; as telas internas
+continuam sóbrias como acima.
+
 ## Color Palette
 
 Contrastes calculados (WCAG) sobre a superfície e sobre o fundo; todos os
@@ -19,9 +30,9 @@ textos passam de 4,5:1 e os controles de 3:1.
 
 | Color Type | Hex Code | Usage |
 |---|---|---|
-| Primary | `#1F6B57` (claro) / `#5FC1A3` (escuro) | Ação principal, links, foco |
+| Primary | `#0F7433` nos dois temas, o verde do Grupo RAM (V2) | Ação principal e foco, só como preenchimento: texto branco sobre ela dá 5,9:1; como contorno de foco, 5,4:1 no claro e 3,1:1 no escuro |
 | Secondary | Participante 1 `#AD4719` / `#F08A5B`; participante 2 `#24708F` / `#6BB8D6`; participante 3 `#7C600F` / `#D9B44A` | Marca de cada pessoa: faixa, avisos, arquivos dela |
-| Accent | `#1F6B57` / `#5FC1A3` | O mesmo da primária; o destaque visual vem das cores dos participantes |
+| Accent | `--destaque`: `#0F7433` (claro) / `#4CC27A` (escuro) | Verde em texto (links, números, a segunda linha do título da página inicial): 5,4:1 sobre o fundo claro e 8,2:1 sobre o escuro. O destaque visual das telas internas continua vindo das cores dos participantes |
 | Success | `#2D7A4B` / `#6CC891` | Conectado, commit feito |
 | Warning | `#9A6410` / `#E3A74A` | Lembrete de trabalho não salvo, "sem aviso", dependências |
 | Error | `#B3362A` / `#F07C6E` | Conflito, erros, ações destrutivas |
@@ -35,6 +46,8 @@ textos passam de 4,5:1 e os controles de 3:1.
   sem ser a Inter de todo template; boa em português)
 - **Secondary:** a mesma, em pesos diferentes (sem par de fontes)
 - **Monospace:** IBM Plex Mono (comandos, prompts, caminhos de arquivo)
+- **Página inicial (V1):** Inter no texto e Instrument Serif 400 nos
+  títulos, como no componente original; só nas páginas públicas
 
 ### Type Scale
 
@@ -48,6 +61,10 @@ textos passam de 4,5:1 e os controles de 3:1.
 
 O texto do status do Claude usa 17 px, peso 500, para ser o maior texto
 corrido da página da jam.
+
+A faixa da página inicial tem título próprio, fora desta escala: 36 px no
+celular, 48 px a partir de 640 px, 60 px a partir de 768 px e 72 px a partir
+de 1024 px.
 
 ## Iconography
 
