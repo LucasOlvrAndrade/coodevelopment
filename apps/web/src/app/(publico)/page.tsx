@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AvisoErroLogin } from "@/componentes/conta/AvisoErroLogin";
 import { BotaoEntrar } from "@/componentes/conta/BotaoEntrar";
+import { APLICATIVOS_GRUPO_RAM } from "@/componentes/marca/aplicativos-grupo-ram";
 import { HeroBanner } from "@/componentes/ui/HeroBanner";
 import { obterSessao } from "@/servidor/auth";
 
@@ -14,7 +15,7 @@ async function RedirecionarSeLogado() {
 const PASSOS = [
   {
     titulo: "Entre e chame os amigos",
-    texto: "Entre com o GitHub e convide até duas pessoas para uma jam, ligada a um repositório.",
+    texto: "Entre com o GitHub e chame até duas pessoas para uma jam, ligada a um repositório.",
   },
   {
     titulo: "Cada um no seu Claude Code",
@@ -33,31 +34,24 @@ export default function PaginaInicial({ searchParams }: PageProps<"/">) {
         <RedirecionarSeLogado />
       </Suspense>
 
-      <main>
+      <main className="font-inter bg-[#09090b] text-white">
         <HeroBanner
           marca="coodevelopment"
-          selo={{ rotulo: "Beta", texto: "Até três pessoas, uma jam por repositório" }}
+          links={[
+            { rotulo: "Início", href: "/", ativo: true },
+            { rotulo: "Como funciona", href: "#como-funciona" },
+          ]}
+          acaoMenu={<BotaoEntrar variante="menu" />}
+          seloRotulo="Beta"
+          seloTexto="Até três pessoas, uma jam por repositório"
           titulo="Programe junto com seus amigos,"
           tituloLinha2="cada um com o seu Claude Code"
-          descricao={<p>Vendo ao vivo o que cada Claude está fazendo.</p>}
-          acoes={
-            <>
-              <BotaoEntrar />
-              <a
-                href="#como-funciona"
-                className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-corpo font-medium text-white/90 transition-colors hover:text-white"
-              >
-                Como funciona
-                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                  <path d="M12 5v14" />
-                  <path d="m19 12-7 7-7-7" />
-                </svg>
-              </a>
-            </>
-          }
+          descricao="Cada um no próprio computador, com o próprio Claude Code e na stack que quiser. Os arquivos ficam em sincronia, e todo mundo vê na hora o que cada Claude está fazendo."
+          acaoPrincipal={<BotaoEntrar />}
+          acaoSecundaria={{ rotulo: "Como funciona", href: "#como-funciona" }}
           aviso={
             <>
-              <p id="aviso-login" className="text-pequeno text-white/70">
+              <p id="aviso-login" className="text-xs text-white/70">
                 No GitHub, escolha &quot;All repositories&quot; ao instalar o app: uma jam pode criar um
                 repositório novo, e ele já precisa estar coberto.
               </p>
@@ -66,10 +60,26 @@ export default function PaginaInicial({ searchParams }: PageProps<"/">) {
               </Suspense>
             </>
           }
-          passosId="como-funciona"
-          passosTitulo="Como funciona"
-          passos={PASSOS}
+          faixaTitulo="Da família de aplicativos do Grupo RAM"
+          faixa={APLICATIVOS_GRUPO_RAM}
         />
+
+        <section id="como-funciona" aria-labelledby="como-funciona-titulo" className="px-6 py-24">
+          <div className="mx-auto max-w-5xl">
+            <h2 id="como-funciona-titulo" className="font-instrument-serif text-center text-4xl tracking-tight sm:text-5xl">
+              Como funciona
+            </h2>
+            <ol className="mt-12 grid gap-8 md:grid-cols-3">
+              {PASSOS.map((passo, i) => (
+                <li key={passo.titulo} className="border-t border-white/10 pt-6">
+                  <span className="font-mono text-sm text-white/60">0{i + 1}</span>
+                  <h3 className="mt-3 text-lg font-medium">{passo.titulo}</h3>
+                  <p className="mt-2 text-sm text-white/70">{passo.texto}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
       </main>
     </>
   );

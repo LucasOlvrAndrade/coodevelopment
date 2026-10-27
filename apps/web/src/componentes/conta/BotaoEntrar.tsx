@@ -3,8 +3,36 @@
 import { useState } from "react";
 import { clienteAuth } from "./cliente-auth";
 
-export function BotaoEntrar() {
+// Os dois botões da faixa da página inicial (V1): o translúcido do meio e o
+// branco do menu, com as classes do componente original.
+const VARIANTES = {
+  principal: {
+    rotulo: "Entrar com GitHub",
+    classes:
+      "inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 text-sm font-medium text-white ring-1 ring-white/15 transition-colors hover:bg-white/15 disabled:opacity-60",
+    icone: (
+      <>
+        <path d="M5 12h14" />
+        <path d="m12 5 7 7-7 7" />
+      </>
+    ),
+  },
+  menu: {
+    rotulo: "Entrar",
+    classes:
+      "inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-2 text-sm font-medium text-neutral-900 transition-colors hover:bg-white/90 disabled:opacity-60",
+    icone: (
+      <>
+        <path d="M7 7h10v10" />
+        <path d="M7 17 17 7" />
+      </>
+    ),
+  },
+};
+
+export function BotaoEntrar({ variante = "principal" }: { variante?: keyof typeof VARIANTES }) {
   const [indo, setIndo] = useState(false);
+  const { rotulo, classes, icone } = VARIANTES[variante];
 
   async function entrar() {
     setIndo(true);
@@ -17,17 +45,10 @@ export function BotaoEntrar() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={entrar}
-      disabled={indo}
-      aria-describedby="aviso-login"
-      className="inline-flex items-center gap-2 rounded-full bg-primaria px-5 py-3 text-corpo font-medium text-sobre-primaria ring-1 ring-white/15 transition-[filter] hover:brightness-110 disabled:opacity-60"
-    >
-      {indo ? "Indo para o GitHub..." : "Entrar com GitHub"}
+    <button type="button" onClick={entrar} disabled={indo} aria-describedby="aviso-login" className={classes}>
+      {indo ? "Indo para o GitHub..." : rotulo}
       <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-        <path d="M5 12h14" />
-        <path d="m12 5 7 7-7 7" />
+        {icone}
       </svg>
     </button>
   );
