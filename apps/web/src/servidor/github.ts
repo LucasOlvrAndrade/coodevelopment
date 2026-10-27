@@ -5,6 +5,7 @@ import { auth } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { account } from "@/servidor/db/schema";
 import type { GithubRepositorios } from "@/servidor/dominio/jam";
+import type { GithubColaboracao, GithubConvites } from "@/servidor/dominio/participantes";
 import { POR_PAGINA, type GithubMutuos } from "@/servidor/dominio/sugestoes";
 import { ErroApp } from "@/servidor/erros";
 
@@ -144,6 +145,34 @@ export function githubRepositorios(octokit: Octokit): GithubRepositorios {
       const { data } = await octokit.rest.apps.listInstallationsForAuthenticatedUser({ per_page: 100 });
       const daConta = data.installations.find((i) => i.account?.id === githubId);
       return daConta ? { id: daConta.id, selecao: daConta.repository_selection } : { id: null, selecao: null };
+    },
+  };
+}
+
+// Colaborador no repositório da jam, com o token do criador (Story 2.3).
+// 201 traz o convite; 204 quando a pessoa já é colaboradora.
+export function githubColaboracao(octokit: Octokit): GithubColaboracao {
+  return {
+    async adicionarColaborador(owner, repo, login) {
+      const resposta = await octokit.rest.repos.addCollaborator({ owner, repo, username: login, permission: "push" });
+      return { conviteId: resposta.status === 201 && resposta.data ? resposta.data.id : null };
+    },
+  };
+}
+
+// Aceite do convite com o token do amigo. Se o GitHub não deixar (token de
+// GitHub App sem esse acesso, convite que sumiu), devolve false e o amigo
+// aceita pelo link; outro erro sobe.
+export function githubConvites(octokit: Octokit): GithubConvites {
+  return {
+    async aceitarConvite(conviteId) {
+      try {
+        await octokit.rest.repos.acceptInvitationForAuthenticatedUser({ invitation_id: conviteId });
+        return true;
+      } catch (e) {
+        if ([401, 403, 404, 409].includes((e as { status?: number }).status ?? 0)) return false;
+        throw e;
+      }
     },
   };
 }

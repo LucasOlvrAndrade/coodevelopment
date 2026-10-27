@@ -9,7 +9,7 @@ vi.mock("@/servidor/db", () => {
   return { db: () => ({ select: () => consulta }) };
 });
 
-const { githubDoUsuario, githubMutuos, githubRepositorios, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
+const { githubColaboracao, githubConvites, githubDoUsuario, githubMutuos, githubRepositorios, tokenDoUsuario, appInstaladoNaConta } = await import("@/servidor/github");
 
 beforeEach(() => {
   getAccessToken.mockReset();
@@ -222,5 +222,44 @@ describe("githubRepositorios: criar e instalação (Story 2.2)", () => {
     expect(await github.instalacao(1000)).toEqual({ id: 7, selecao: "selected" });
     expect(await github.instalacao(123)).toEqual({ id: null, selecao: null });
     fetchFalso.mockRestore();
+  });
+});
+
+describe("githubColaboracao e githubConvites (Story 2.3)", () => {
+  function comResposta(responder: (url: URL, init?: RequestInit) => Response) {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_x" });
+    const pedidos: string[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const u = new URL(String(url));
+      pedidos.push(`${init?.method ?? "GET"} ${u.pathname} ${init?.body ?? ""}`.trim());
+      return responder(u, init);
+    });
+    return { octokit: githubDoUsuario("u1"), pedidos, fetchFalso };
+  }
+
+  it("adiciona com permissão push; 201 traz o id do convite e 204 não", async () => {
+    const convite = comResposta(() => Response.json({ id: 42 }, { status: 201 }));
+    expect(await githubColaboracao(convite.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({ conviteId: 42 });
+    expect(convite.pedidos).toEqual(['PUT /repos/lucas/projeto/collaborators/pai-dev {"permission":"push"}']);
+    convite.fetchFalso.mockRestore();
+    const jaEra = comResposta(() => new Response(null, { status: 204 }));
+    expect(await githubColaboracao(jaEra.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({ conviteId: null });
+    jaEra.fetchFalso.mockRestore();
+  });
+
+  it("aceitar: 204 é sim; 403 ou 404 é não (fica o link); 500 sobe", async () => {
+    const { octokit, pedidos, fetchFalso } = comResposta((u) => {
+      if (u.pathname.endsWith("/42")) return new Response(null, { status: 204 });
+      if (u.pathname.endsWith("/43")) return Response.json({ message: "Resource not accessible by integration" }, { status: 403 });
+      if (u.pathname.endsWith("/44")) return Response.json({ message: "Not Found" }, { status: 404 });
+      return Response.json({ message: "erro" }, { status: 500 });
+    });
+    const convites = githubConvites(octokit);
+    expect(await convites.aceitarConvite(42)).toBe(true);
+    expect(await convites.aceitarConvite(43)).toBe(false);
+    expect(await convites.aceitarConvite(44)).toBe(false);
+    await expect(convites.aceitarConvite(45)).rejects.toMatchObject({ status: 500 });
+    fetchFalso.mockRestore();
+    expect(pedidos[0]).toBe("PATCH /user/repository_invitations/42");
   });
 });

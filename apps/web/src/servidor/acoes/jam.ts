@@ -1,12 +1,14 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { z } from "zod";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { normalizarLogin } from "@/servidor/dominio/amizade";
 import * as regras from "@/servidor/dominio/jam";
+import * as participantes from "@/servidor/dominio/participantes";
 import { ErroApp, executar } from "@/servidor/erros";
-import { githubDoUsuario, githubRepositorios } from "@/servidor/github";
+import { githubColaboracao, githubConvites, githubDoUsuario, githubRepositorios } from "@/servidor/github";
 
 // Server Actions de jam (Story 2.1). Quem cria vem da sessão; o repositório
 // escolhido é conferido no GitHub dentro da regra.
@@ -40,5 +42,52 @@ export async function criarJamComRepositorio(nome: string, privado: boolean) {
       nome: entrada(z.string().min(1).max(100), nome),
       privado: entrada(z.boolean(), privado),
     });
+  });
+}
+
+// Story 2.3: chamar amigos (no máximo 2) depois de criar a jam, e tentar de
+// novo quem ficou de fora do repositório. A vaga vem primeiro (regra no banco);
+// o GitHub vem depois, com o token do criador para o colaborador e o do amigo
+// para aceitar o convite em nome dele (FR5).
+const idJam = z.string().min(1).max(20);
+const idUsuario = z.string().min(1).max(100);
+
+async function colocar(eu: string, jamId: string, amigoId: string) {
+  const { daJam, amigo } = await participantes.dadosParaColocar(db(), eu, jamId, amigoId);
+  return participantes.colocarNoRepositorio(
+    db(),
+    daJam,
+    amigo,
+    githubColaboracao(githubDoUsuario(eu)),
+    githubConvites(githubDoUsuario(amigoId)),
+  );
+}
+
+export async function chamarAmigos(jamId: string, amigoIds: string[]) {
+  return executar(async () => {
+    const eu = await exigirSessao();
+    const jam = entrada(idJam, jamId);
+    const ids = entrada(z.array(idUsuario).max(2), amigoIds);
+    const resultados: { amigoId: string; estado?: participantes.EstadoColaborador; erro?: string }[] = [];
+    for (const amigoId of ids) {
+      try {
+        await participantes.chamarAmigo(db(), eu.id, jam, amigoId);
+        resultados.push({ amigoId, estado: await colocar(eu.id, jam, amigoId) });
+      } catch (e) {
+        if (!(e instanceof ErroApp)) throw e;
+        resultados.push({ amigoId, erro: e.message });
+      }
+    }
+    refresh();
+    return resultados;
+  });
+}
+
+export async function tentarDeNovo(jamId: string, amigoId: string) {
+  return executar(async () => {
+    const eu = await exigirSessao();
+    const estado = await colocar(eu.id, entrada(idJam, jamId), entrada(idUsuario, amigoId));
+    refresh();
+    return estado;
   });
 }

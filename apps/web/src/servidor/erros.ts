@@ -21,6 +21,12 @@ const MENSAGENS: Record<string, string> = {
   nome_repositorio_invalido: "Use só letras, números, ponto, hífen e sublinhado, com até 100 caracteres.",
   repositorio_ja_existe: "Você já tem um repositório com esse nome no GitHub. Escolha outro nome ou importe esse.",
   instalacao_ausente: "O Coodevelopment não está instalado na sua conta do GitHub. Saia e entre de novo para instalar.",
+  // Chamar amigos (Story 2.3)
+  jam_nao_encontrada: "Essa jam não existe ou não é sua.",
+  jam_fechada: "Essa jam está fechada.",
+  so_amigos: "Só dá para chamar amigos para a jam.",
+  ja_participa: "Essa pessoa já está na jam.",
+  jam_cheia: "A jam já tem 3 pessoas, o máximo por enquanto.",
 };
 
 export class ErroApp extends Error {
