@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { DropdownMenu } from "radix-ui";
+import { useState } from "react";
 import { Avatar } from "@/componentes/ui/Avatar";
 import { clienteAuth } from "./cliente-auth";
 
@@ -9,14 +10,28 @@ type Props = { nome: string; login: string; foto?: string | null };
 
 export function MenuConta({ nome, login, foto }: Props) {
   const router = useRouter();
+  const [falhouSair, setFalhouSair] = useState(false);
 
   async function sair() {
-    await clienteAuth.signOut();
+    setFalhouSair(false);
+    // Sem rede o signOut devolve erro (ou lança); a sessão continua e voltar
+    // para / só traria de volta ao Início, então avisa e fica.
+    const resultado = await clienteAuth.signOut().catch(() => ({ error: true }));
+    if (resultado?.error) {
+      setFalhouSair(true);
+      return;
+    }
     router.replace("/");
     router.refresh();
   }
 
   return (
+    <div className="flex items-center gap-3">
+      {falhouSair && (
+        <p role="alert" className="text-pequeno text-erro">
+          Não deu para sair. Confira a conexão e tente de novo.
+        </p>
+      )}
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         aria-label={`Conta de ${nome}`}
@@ -44,5 +59,6 @@ export function MenuConta({ nome, login, foto }: Props) {
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+    </div>
   );
 }
