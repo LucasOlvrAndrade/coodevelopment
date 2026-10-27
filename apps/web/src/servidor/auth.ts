@@ -75,6 +75,9 @@ function criarAuth() {
     //   navegador. Nome, foto e login vêm sempre do GitHub.
     // - devolver ou mexer no token do GitHub: ele nunca sai do servidor (NFR8).
     disabledPaths: [...ROTAS_DESLIGADAS],
+    // Falhas antes do login (state inválido, voltar no navegador, segunda aba)
+    // caem no aviso da página inicial, não na página em inglês do Better Auth.
+    onAPIError: { errorURL: `${e.BETTER_AUTH_URL}/?erro=github` },
     user: {
       additionalFields: {
         githubId: { type: "number", required: true },

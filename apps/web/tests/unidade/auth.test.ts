@@ -36,6 +36,16 @@ describe("vinculação de contas", () => {
   });
 });
 
+describe("erro na volta do GitHub", () => {
+  it("sem state válido, cai no aviso da página inicial", async () => {
+    envDeTeste();
+    const { auth } = await import("@/servidor/auth");
+    const resposta = await auth().handler(new Request("http://localhost:3000/api/auth/callback/github?code=x"));
+    expect(resposta.status).toBe(302);
+    expect(resposta.headers.get("location")).toMatch(/^http:\/\/localhost:3000\/\?erro=github&error=/);
+  });
+});
+
 describe("rotas HTTP do Better Auth desligadas", () => {
   it("as que gravam o usuário ou devolvem o token do GitHub respondem 404", async () => {
     envDeTeste();
