@@ -1,0 +1,48 @@
+schema: 1
+story: '1.4'
+story_title: 'Sugestões de mútuos do GitHub'
+gate: CONCERNS
+status_reason: 'Os 4 ACs estão cobertos: a conferência um a um vai na direção certa, o casamento é pelo github_id, ficam fora quem não tem conta, amigos e pedidos, e o token não sai do servidor. Falta aguentar o custo: cada ação na tela refaz as chamadas ao GitHub e segura a página até ele responder.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente'
+reviewed_revision: 'commit:25d0e87'
+updated: '2026-10-27T00:00:00Z'
+
+top_issues:
+  - id: 'PERF-001'
+    severity: medium
+    finding: 'Cada refresh() (aceitar, recusar, desfazer, pedir) re-renderiza SugestoesMutuos, e o React só troca a página quando o GitHub responde. Com uma lista menor de 3.000 contas, são cerca de 35 chamadas por ação: segundos de espera e o limite de 5.000 por hora. É essa espera que abre as janelas de REL-002 e A11Y-002 da 1.3.'
+    suggested_action: 'Guardar por usuário, por alguns minutos, só a parte do GitHub; o filtro de amigos e pedidos continua vindo do banco.'
+  - id: 'REL-001'
+    severity: low
+    finding: 'As conferências um a um saem todas juntas num Promise.all; um erro que não seja 404 (limite secundário do GitHub com muitas contas) derruba a área inteira.'
+    suggested_action: 'Lotes de 5 e Promise.allSettled, descartando só as que falharam.'
+  - id: 'PROD-001'
+    severity: low
+    finding: 'Quem acabou de desfazer a amizade volta como sugestão: desfazer não deixa registro, e a regra de não insistir em quem já disse não só cobre a recusa.'
+    suggested_action: 'Decidir. Proposta: desfazer conta como recusa de quem desfez (mesma regra da A10).'
+  - id: 'TEST-001'
+    severity: low
+    finding: 'A Task 3 diz que o componente tem teste de erro, mas o ramo de erro de SugestoesMutuos (reautenticar, erro genérico, unstable_rethrow) não tem.'
+    suggested_action: 'Mover para componentes/amigos e testar os três casos.'
+
+evidence:
+  tests_reviewed: 13
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (125 no app); code-review à mão, com revisor independente'
+  production: 'depende da conta do Lucas: os usuários de teste não têm conta no GitHub (a área cai no aviso de falha, conferido)'
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Chamadas em nome de quem está logado, com o token renovado; nada do token sai do servidor.'
+  performance:
+    status: CONCERNS
+    notes: 'PERF-001.'
+  reliability:
+    status: CONCERNS
+    notes: 'REL-001.'
+  maintainability:
+    status: PASS
+    notes: 'GitHub por interface, testado sem rede.'
