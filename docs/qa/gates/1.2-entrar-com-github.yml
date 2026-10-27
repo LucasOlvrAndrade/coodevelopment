@@ -1,0 +1,81 @@
+schema: 1
+story: '1.2'
+story_title: 'Entrar com o GitHub'
+gate: FAIL
+status_reason: 'A vinculação implícita por e-mail do Better Auth permite tomar a conta de outra pessoa, e a renovação do token falha calada (AC 6). As duas correções são pequenas.'
+reviewer: 'Aria (@architect), via Claude, com revisor independente'
+reviewed_revision: 'commit:f561087'
+updated: '2026-10-27T00:00:00Z'
+
+top_issues:
+  - id: 'SEC-001'
+    severity: high
+    finding: 'accountLinking continua ligado. Uma conta do GitHub nova com e-mail verificado igual ao de um usuário existente é vinculada a ele (better-auth/dist/oauth2/link-account.mjs:141 e 161), e overrideUserInfoOnSignIn grava githubId e login dela por cima. Quem controlar um e-mail antigo de um usuário entra como ele.'
+    suggested_action: 'account.accountLinking.enabled: false (há um provedor só) e teste que garanta isso.'
+  - id: 'REL-001'
+    severity: medium
+    finding: 'refreshAccessToken (@better-auth/core oauth2/refresh-access-token.mjs) não confere data.error, e o GitHub responde 200 com {"error":"bad_refresh_token"}. Nesse caso getValidAccessToken (account.mjs:395) devolve o token vencido sem erro. Acontece na corrida entre instâncias e com o refresh revogado ou vencido: a chamada ao GitHub dá 401 e ninguém pede para entrar de novo.'
+    suggested_action: 'refreshAccessToken próprio no provedor github que lance exceção quando a resposta trouxer error. Em tokenDoUsuario, ErroApp("reautenticar", 401) se o accessTokenExpiresAt devolvido já tiver passado.'
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Testes marcados como feitos que não existem ou não testam o que dizem: a renovação (getAccessToken mockado), a linha de account sem token em texto puro (Task 3 com [x], mas as Completion Notes dizem que falta) e a saudação do Início (o Suspense mostra o fallback). E2E instável: getByRole("alert") também encontra o __next-route-announcer__ e falhou numa das execuções locais.'
+    suggested_action: 'Testar a renovação contra fetch simulado (sucesso, 200 com error, refresh vencido). Desmarcar ou escrever o teste de cifra. Aguardar a Saudacao no teste do Início. No E2E, filtrar o alerta pelo texto.'
+  - id: 'TEST-002'
+    severity: low
+    finding: 'O teste das rotas desligadas manda POST para /account-info, que é GET, então o 404 viria mesmo sem disabledPaths.'
+    suggested_action: 'Usar o método de cada rota.'
+  - id: 'MNT-001'
+    severity: low
+    finding: 'A tabela account não tem índice único em (provider_id, account_id), e buscarToken usa .limit(1) sem ordem.'
+    suggested_action: 'Índice único como defesa junto com SEC-001.'
+  - id: 'REL-002'
+    severity: low
+    finding: 'Sem onAPIError.errorURL, um state inválido (voltar no navegador, segunda aba) cai em /api/auth/error, página em inglês do Better Auth, e não em /?erro=github.'
+    suggested_action: 'onAPIError: { errorURL: "/?erro=github" }.'
+  - id: 'REL-003'
+    severity: low
+    finding: 'MenuConta ignora o erro do signOut: sem rede, volta a / e é levado de novo para /inicio sem aviso.'
+    suggested_action: 'Conferir o error retornado e avisar.'
+  - id: 'ARCH-001'
+    severity: low
+    finding: '/api/conta/continuar não passa pelo rota(); um erro de banco vira 500 cru. O modelo Usuario em packages/protocolo/src/modelos.ts, pedido nas Dev Notes, não foi criado.'
+    suggested_action: 'Envolver com rota() (já chama unstable_rethrow) e criar o modelo ou registrar por que ficou para depois.'
+  - id: 'DOC-001'
+    severity: low
+    finding: 'A sessão cai 7 dias depois do login mesmo com uso: a renovação acontece em Server Component, sem nextCookies, e o Set-Cookie se perde. O comentário do playwright.config.ts diz que nada grava no banco, mas /sign-in/social cria linha em verification.'
+    suggested_action: 'Registrar a validade de 7 dias como decisão ou renovar por rota com nextCookies; corrigir o comentário.'
+
+evidence:
+  tests_reviewed: 28
+  e2e: '7 testes; 6 passaram e 1 falhou de forma instável (TEST-001)'
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (46 no monorepo), CI verde (run 40350081012); code-review à mão, com revisor independente'
+  production: 'rotas de token 404; CSP img-src no ar; /inicio sem sessão não mostra dados'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: [6]
+
+nfr_validation:
+  security:
+    status: FAIL
+    notes: 'SEC-001. Token fora do servidor: nada encontrado (rotas desligadas, list-accounts tira os tokens, disabledPaths sem desvio por URL). Cifra XChaCha20 conforme A8. Sem open redirect.'
+  performance:
+    status: PASS
+    notes: 'Nada relevante para 2 ou 3 pessoas.'
+  reliability:
+    status: CONCERNS
+    notes: 'REL-001, REL-002, REL-003.'
+  maintainability:
+    status: CONCERNS
+    notes: 'TEST-001, ARCH-001.'
+
+recommendations:
+  immediate:
+    - action: 'Desligar accountLinking'
+      refs: ['apps/web/src/servidor/auth.ts']
+    - action: 'Renovação que falha com erro, e testes da renovação'
+      refs: ['apps/web/src/servidor/auth.ts', 'apps/web/src/servidor/github.ts']
+    - action: 'Corrigir os testes de TEST-001 e TEST-002'
+      refs: ['apps/web/tests/', 'apps/web/e2e/login.spec.ts']
+  future:
+    - action: 'Itens baixos MNT-001, REL-002, REL-003, ARCH-001 e DOC-001: corrigir agora se forem baratos'
+      refs: []
