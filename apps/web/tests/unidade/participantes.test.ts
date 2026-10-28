@@ -144,6 +144,7 @@ describe("colocar no repositório (AC 2 e 4)", () => {
     falha?: Error;
     aceita?: boolean | Error;
     colaborador?: boolean;
+    cancelamento?: Error;
   };
 
   function github(opcoes: Opcoes = {}) {
@@ -160,6 +161,7 @@ describe("colocar no repositório (AC 2 e 4)", () => {
       },
       cancelarConvite: async (_o, _r, id) => {
         chamadas.push(`cancelar ${id}`);
+        if (opcoes.cancelamento) throw opcoes.cancelamento;
       },
       ehColaborador: async (_o, _r, login) => {
         chamadas.push(`confere ${login}`);
@@ -195,6 +197,17 @@ describe("colocar no repositório (AC 2 e 4)", () => {
     expect(resultado.motivo).toContain("foi para outra conta");
     expect(chamadas).toContain("cancelar 42");
     expect(chamadas).not.toContain("aceitar 42");
+    log.mockRestore();
+  });
+
+  it("convite errado que não deu para cancelar: fica no log com o id e a mensagem pede para cancelar à mão (SEC-003)", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { criador, convidado } = github({ convite: { conviteId: 42, convidadoId: 9999 }, cancelamento: new Error("GitHub fora") });
+    const resultado = await colocarNoRepositorio(banco(), daJam, pai, criador, convidado);
+    expect(resultado.estado).toBe("falhou");
+    expect(resultado.motivo).toContain("não deu para cancelar");
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('"evento":"convite_errado_nao_cancelado"'));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('"conviteId":42'));
     log.mockRestore();
   });
 

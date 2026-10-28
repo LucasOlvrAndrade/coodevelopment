@@ -122,8 +122,22 @@ export async function colocarNoRepositorio(
     if (!login) throw Object.assign(new Error("conta do GitHub não encontrada"), { status: 404 });
     const { conviteId, convidadoId } = await criador.adicionarColaborador(daJam.repoOwner, daJam.repoNome, login);
     if (conviteId !== null && convidadoId !== amigo.githubId) {
-      await criador.cancelarConvite(daJam.repoOwner, daJam.repoNome, conviteId).catch(() => {});
-      throw new ErroApp("convite_para_outra_conta", 409, "O convite do GitHub foi para outra conta e foi cancelado. Tente de novo.");
+      // Se o cancelamento falhar, o convite errado continua no GitHub: fica no
+      // log com o id e a mensagem pede para cancelar à mão (gate da 2.3, SEC-003).
+      const cancelado = await criador.cancelarConvite(daJam.repoOwner, daJam.repoNome, conviteId).then(
+        () => true,
+        (e: unknown) => {
+          console.error(JSON.stringify({ nivel: "erro", evento: "convite_errado_nao_cancelado", jam: daJam.id, conviteId, erro: String(e) }));
+          return false;
+        },
+      );
+      throw new ErroApp(
+        "convite_para_outra_conta",
+        409,
+        cancelado
+          ? "O convite do GitHub foi para outra conta e foi cancelado. Tente de novo."
+          : "O convite do GitHub foi para outra conta e não deu para cancelar. Cancele em Settings > Collaborators do repositório e tente de novo.",
+      );
     }
     if (conviteId === null) {
       resultado = { estado: "ok" };

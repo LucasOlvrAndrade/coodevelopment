@@ -5,8 +5,7 @@ import { botaoPrincipalGrande, botaoSecundarioGrande, painel, tituloPagina, titu
 import { exigirSessao, obterSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarJams } from "@/servidor/dominio/jam";
-import { sincronizarPendentes } from "@/servidor/dominio/participantes";
-import { githubColaboracao, githubDoUsuario } from "@/servidor/github";
+import { sincronizarComPrazo } from "@/servidor/sincronizar-pendentes";
 
 export async function Saudacao() {
   const sessao = await obterSessao();
@@ -18,11 +17,8 @@ export async function Saudacao() {
 // "Criar jam" e "Adicionar amigos" (front-end spec, Início).
 export async function JamsDoUsuario({ busca }: { busca: Promise<{ nova?: string | string[] }> }) {
   const eu = await exigirSessao();
-  // Quem aceitou o convite pelo link do GitHub aparece como dentro do
-  // repositório (gate da 2.3, REL-001). Falha do GitHub não segura o Início.
-  await sincronizarPendentes(db(), eu.id, (criadorId) => githubColaboracao(githubDoUsuario(criadorId))).catch((e) =>
-    console.error(JSON.stringify({ nivel: "erro", evento: "sincronizar_pendentes", erro: String(e) })),
-  );
+  // Quem aceitou o convite pelo link vira "no repositório", com prazo (gate da 2.3).
+  await sincronizarComPrazo(eu.id);
   const [{ nova }, jams] = await Promise.all([busca, listarJams(db(), eu.id)]);
   if (jams.length === 0) {
     return (
