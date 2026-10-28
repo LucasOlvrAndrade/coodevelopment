@@ -1,6 +1,7 @@
 import { Avatar } from "@/componentes/ui/Avatar";
 import { link, painel } from "@/componentes/ui/estilo";
 import type { JamCompleta } from "@/servidor/dominio/jam";
+import { MarcaOnline } from "./PresencaDaJam";
 import { TentarDeNovo } from "./TentarDeNovo";
 
 // Cor de cada participante pela vaga, no anel da foto (front-end spec: a cor
@@ -24,9 +25,13 @@ export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }
               <Avatar nome={p.nome} foto={p.foto} tamanho={40} />
             </span>
             <div className="min-w-0">
-              <p className="truncate font-medium">
-                {p.nome}
-                {p.id === eu && <span className="font-normal text-texto-suave"> (você)</span>}
+              <p className="flex min-w-0 flex-wrap items-center gap-x-2 font-medium">
+                <span className="truncate">
+                  {p.nome}
+                  {p.id === eu && <span className="font-normal text-texto-suave"> (você)</span>}
+                </span>
+                {/* Ao vivo, pela sala da jam (Story 2.5). */}
+                <MarcaOnline usuarioId={p.id} />
               </p>
               <p className="truncate font-mono text-pequeno text-texto-suave">
                 @{p.login} · {p.papel === "criador" ? "criou a jam" : "convidado"}

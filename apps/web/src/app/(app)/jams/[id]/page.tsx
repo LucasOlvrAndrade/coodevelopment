@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ChamarMaisAmigos } from "@/componentes/jams/ChamarMaisAmigos";
 import { ExcluirJam } from "@/componentes/jams/ExcluirJam";
 import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
+import { PresencaDaJam } from "@/componentes/jams/PresencaDaJam";
 import { ResultadoDaAcao } from "@/componentes/jams/ResultadoDaAcao";
 import { link, painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
@@ -19,7 +20,7 @@ const MAXIMO_NA_JAM = 3;
 
 // Página da jam (Story 2.4): repositório, quem está nela e, para o criador,
 // chamar mais amigos, tentar de novo e excluir. Só para participantes (AC 3).
-// A presença ao vivo chega na Story 2.5 (sala na Cloudflare).
+// Quem está com a página aberta aparece ao vivo pela sala (Story 2.5).
 export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, eu] = await Promise.all([params, exigirSessao()]);
   // Id fora do formato nem vai ao banco (gate da 2.4, REL-001).
@@ -72,10 +73,12 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
         <h2 id="titulo-quem" className={tituloSecao}>
           Quem está na jam
         </h2>
-        <ResultadoDaAcao>
-          <ParticipantesDaJam jam={jam} eu={eu.id} />
-          {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
-        </ResultadoDaAcao>
+        <PresencaDaJam jamId={jam.id}>
+          <ResultadoDaAcao>
+            <ParticipantesDaJam jam={jam} eu={eu.id} />
+            {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
+          </ResultadoDaAcao>
+        </PresencaDaJam>
       </section>
 
       <section aria-labelledby="titulo-claude" className={`${painel} flex flex-col gap-3 p-6`}>
