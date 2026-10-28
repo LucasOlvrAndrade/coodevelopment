@@ -8,6 +8,7 @@ const banco = { banco: "de teste" };
 const github = { github: "do usuário" };
 const criarJam = vi.fn(async () => ({ id: "k7m2-rbq9" }));
 const criarJamComRepositorioNovo = vi.fn(async () => ({ id: "abcd-efgh" }));
+const excluirJamRegra = vi.fn(async () => undefined);
 
 vi.mock("@/servidor/auth", () => ({ exigirSessao }));
 vi.mock("@/servidor/db", () => ({ db: () => banco }));
@@ -15,6 +16,7 @@ vi.mock("@/servidor/dominio/jam", async (original) => ({
   ...(await original<typeof import("@/servidor/dominio/jam")>()),
   criarJam,
   criarJamComRepositorioNovo,
+  excluirJam: excluirJamRegra,
 }));
 const refresh = vi.fn();
 const chamarAmigo = vi.fn(async () => ({ vaga: 2 }));
@@ -33,7 +35,7 @@ vi.mock("@/servidor/github", () => ({
   githubConvites: (octokit: { token: string }) => ({ convitesDe: octokit.token }),
 }));
 
-const { chamarAmigos, criarJamComRepositorio, criarJamImportando, tentarDeNovo } = await import("@/servidor/acoes/jam");
+const { chamarAmigos, criarJamComRepositorio, criarJamImportando, excluirJam, tentarDeNovo } = await import("@/servidor/acoes/jam");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -123,5 +125,17 @@ describe("chamarAmigos e tentarDeNovo (Story 2.3)", () => {
     expect(await tentarDeNovo("k7m2-rbq9", "pai")).toEqual({ ok: true, dados: { estado: "falhou", motivo: "O GitHub recusou." } });
     expect(dadosParaColocar).toHaveBeenCalledWith(banco, "eu", "k7m2-rbq9", "pai");
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("excluirJam (Story 2.4)", () => {
+  it("exclui com quem está na sessão", async () => {
+    expect(await excluirJam("k7m2-rbq9")).toEqual({ ok: true, dados: undefined });
+    expect(excluirJamRegra).toHaveBeenCalledWith(banco, "eu", "k7m2-rbq9");
+  });
+
+  it("id fora do formato é entrada inválida", async () => {
+    expect(await excluirJam("x".repeat(30))).toMatchObject({ ok: false, erro: { codigo: "entrada_invalida" } });
+    expect(excluirJamRegra).not.toHaveBeenCalled();
   });
 });

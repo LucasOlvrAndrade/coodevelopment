@@ -94,3 +94,11 @@ export async function tentarDeNovo(jamId: string, amigoId: string) {
     return estado;
   });
 }
+
+// Story 2.4: o criador exclui a jam (A13). O repositório no GitHub não muda.
+export async function excluirJam(jamId: string) {
+  return executar(async () => {
+    const eu = await exigirSessao();
+    await regras.excluirJam(db(), eu.id, entrada(idJam, jamId));
+  });
+}

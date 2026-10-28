@@ -5,10 +5,12 @@ import { ErroApp } from "@/servidor/erros";
 import {
   criarJam,
   criarJamComRepositorioNovo,
+  excluirJam,
   gerarIdJam,
   listarJams,
   listarRepositorios,
   nomeDeRepositorioValido,
+  obterJam,
   type GithubRepositorios,
   type Repositorio,
 } from "@/servidor/dominio/jam";
@@ -309,5 +311,43 @@ describe("criar jam com repositório novo (Story 2.2)", () => {
     expect(criados).toEqual(["sem-commit:privado"]);
     expect(await banco().select().from(jam)).toEqual([]);
     log.mockRestore();
+  });
+});
+
+describe("página da jam (Story 2.4)", () => {
+  async function jamComPai() {
+    const { github } = githubFalso([projeto]);
+    const { id } = await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
+    await banco().insert(participante).values({ jamId: id, usuarioId: "pai", papel: "convidado", colaborador: "pendente", vaga: 2 });
+    return id;
+  }
+
+  it("quem participa vê a jam com os participantes pela vaga (AC 1)", async () => {
+    const id = await jamComPai();
+    const doPai = await obterJam(banco(), "pai", id);
+    expect(doPai).toMatchObject({ id, repoOwner: "LucasOlvrAndrade", repoNome: "projeto", branch: "main", estado: "aberta", criadorId: "lucas" });
+    expect(doPai?.participantes.map((p) => [p.id, p.papel, p.colaborador, p.vaga])).toEqual([
+      ["lucas", "criador", "ok", 1],
+      ["pai", "convidado", "pendente", 2],
+    ]);
+  });
+
+  it("quem não participa recebe o mesmo que uma jam que não existe (AC 3)", async () => {
+    const id = await jamComPai();
+    await criarUsuario(banco(), "estranho", "estranho", "Estranho", 1009);
+    expect(await obterJam(banco(), "estranho", id)).toBeNull();
+    expect(await obterJam(banco(), "lucas", "nao-existe")).toBeNull();
+  });
+
+  it("só o criador exclui; a jam some para todos, e o repositório aceita outra (AC 5, A13)", async () => {
+    const id = await jamComPai();
+    expect(await erroDe(excluirJam(banco(), "pai", id))).toEqual({ codigo: "jam_nao_encontrada", status: 404 });
+    await excluirJam(banco(), "lucas", id);
+    expect(await obterJam(banco(), "lucas", id)).toBeNull();
+    expect(await listarJams(banco(), "pai")).toEqual([]);
+    expect(await banco().select().from(participante)).toEqual([]);
+    const { github } = githubFalso([projeto]);
+    await criarJam(banco(), LUCAS, github, { owner: "LucasOlvrAndrade", repo: "projeto" });
+    expect(await erroDe(excluirJam(banco(), "lucas", id))).toEqual({ codigo: "jam_nao_encontrada", status: 404 });
   });
 });

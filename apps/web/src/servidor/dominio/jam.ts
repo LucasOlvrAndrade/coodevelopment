@@ -214,3 +214,65 @@ export async function criarJamComRepositorioNovo(
     );
   }
 }
+
+export type ParticipanteDaJam = Pessoa & {
+  papel: "criador" | "convidado";
+  colaborador: "ok" | "pendente" | "falhou";
+  vaga: number;
+};
+
+export type JamCompleta = {
+  id: string;
+  nome: string;
+  repoOwner: string;
+  repoNome: string;
+  branch: string;
+  estado: "aberta" | "fechando" | "fechada";
+  criadorId: string;
+  participantes: ParticipanteDaJam[];
+};
+
+// A página da jam (Story 2.4): só para quem participa (AC 3). Para quem não
+// participa, null, igual a uma jam que não existe (a 404 não diz qual é).
+export async function obterJam(banco: Banco, eu: string, jamId: string): Promise<JamCompleta | null> {
+  const [daJam] = await banco
+    .select({
+      id: jam.id,
+      nome: jam.nome,
+      repoOwner: jam.repoOwner,
+      repoNome: jam.repoNome,
+      branch: jam.branch,
+      estado: jam.estado,
+      criadorId: jam.criadorId,
+    })
+    .from(jam)
+    .where(and(eq(jam.id, jamId), sql`exists (select 1 from ${participante} p where p.jam_id = ${jam.id} and p.usuario_id = ${eu})`))
+    .limit(1);
+  if (!daJam) return null;
+
+  const participantes = await banco
+    .select({
+      papel: participante.papel,
+      colaborador: participante.colaborador,
+      vaga: participante.vaga,
+      id: user.id,
+      login: user.login,
+      nome: user.name,
+      foto: user.image,
+    })
+    .from(participante)
+    .innerJoin(user, eq(user.id, participante.usuarioId))
+    .where(eq(participante.jamId, jamId))
+    .orderBy(asc(participante.vaga));
+  return { ...daJam, participantes };
+}
+
+// Excluir a jam (A13): só o criador. Sai a jam e, em cascata, os
+// participantes; nada muda no GitHub (o repositório e os colaboradores ficam).
+export async function excluirJam(banco: Banco, eu: string, jamId: string): Promise<void> {
+  const apagadas = await banco
+    .delete(jam)
+    .where(and(eq(jam.id, jamId), eq(jam.criadorId, eu)))
+    .returning({ id: jam.id });
+  if (apagadas.length === 0) throw new ErroApp("jam_nao_encontrada", 404);
+}
