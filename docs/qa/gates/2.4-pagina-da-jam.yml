@@ -1,77 +1,43 @@
 schema: 1
 story: '2.4'
 story_title: 'Página da jam'
-gate: CONCERNS
-status_reason: 'Gate de 28/10, com revisor independente. Acesso certo: só participante abre a página, a 404 não distingue "não existe" de "não participa" (mesma consulta, mesma tela), só o criador exclui e a exclusão não chama o GitHub (a regra nem recebe GitHub). A troca de estilo do f773e81 não mudou comportamento. Ficam dois médios: o resultado de "Chamar mais amigos" se perde no caminho mais comum (A11Y-001) e o AC 4 (celular) sem evidência (TEST-001); e baixos de validação, tela e testes.'
-reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:939f3e5 (implementação em c2506e8 e f52a7dc; estilo em f773e81)'
+gate: PASS
+status_reason: 'Reavaliação de 28/10: os 12 achados corrigidos (7887538, 115b99e), com testes. O resultado de "Chamar mais amigos" e de "Tentar de novo" fica numa região que sobrevive à volta do servidor, e o foco vai para ela quando o botão some (A11Y-001, provado com a página renderizada de novo). AC 4 com evidência em produção: axe sem violações e sem rolagem lateral em 1280, 375, 360 e 320 px, com o diálogo de excluir (TEST-001). Id no formato do gerarIdJam antes do banco; excluir com replace e jam já excluída tratada; pendentes conferidos na página com prazo; diálogo que não fecha enquanto exclui; selo, links e linhas legíveis no celular; textos neutros. Gate original (CONCERNS): acesso certo, só participante vê, a 404 não revela a jam, só o criador exclui e a exclusão não toca o GitHub.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente no gate original'
+reviewed_revision: 'commit:115b99e (gate original CONCERNS em 939f3e5)'
 updated: '2026-10-28T00:00:00Z'
 
-top_issues:
-  - id: 'A11Y-001'
-    severity: medium
-    finding: 'O refresh() da ação traz a página de volta do servidor: se o amigo chamado era o último disponível, ChamarMaisAmigos cai no retorno antecipado, e se a jam completou ele é desmontado. Nos dois casos somem "foi chamado" e o alerta com o motivo do GitHub, e o foco vai para o body. O mesmo com "Tentar de novo" que dá certo (o botão some).'
-    suggested_action: 'Mensagem numa região que sobrevive ao refresh e foco nela quando o botão some; teste com a página renderizada de novo depois da ação.'
-  - id: 'TEST-001'
-    severity: medium
-    finding: 'AC 4 (celular) sem teste nem registro: o Playwright só tem Desktop Chrome e não há E2E de /jams/[id].'
-    suggested_action: 'Registrar a conferência em 320 e 375 px, com o diálogo de excluir e axe; projeto Playwright de celular quando houver a branch de teste do Neon.'
-  - id: 'REL-001'
-    severity: low
-    finding: 'O id da rota vai direto ao banco, e o idJam das ações só confere o tamanho (um id com caractere de controle deve virar erro 22021 do Postgres, logado como inesperado; suspeita, não executada).'
-    suggested_action: 'Validador no formato do gerarIdJam, usado na página (notFound antes do banco) e nas ações.'
-  - id: 'REL-002'
-    severity: low
-    finding: 'Jam excluída em outra aba: "Excluir jam" e "Tentar de novo" mostram "não existe ou não é sua" e a página fica onde está; o router.push deixa a jam excluída no histórico; exclusão que passou com a resposta perdida, ao repetir, dá erro.'
-    suggested_action: 'router.replace, jam_nao_encontrada ao excluir como exclusão feita e router.refresh no tentar de novo.'
-  - id: 'REL-003'
-    severity: low
-    finding: 'A página da jam não confere os convites pendentes no GitHub: mostra "falta aceitar" até alguém abrir o Início (achado do revisor da reavaliação da 2.3).'
-    suggested_action: 'A mesma conferência do Início, com prazo.'
-  - id: 'UX-002'
-    severity: low
-    finding: 'Cancelar e Esc continuam ativos durante "Excluindo...": o diálogo fecha, mas a jam é excluída e a página vai para o Início; o erro de uma tentativa anterior reaparece ao reabrir.'
-    suggested_action: 'Ignorar o fechamento enquanto exclui, Cancelar desabilitado e erro limpo ao abrir.'
-  - id: 'A11Y-002'
-    severity: low
-    finding: 'ul com role="alert" deixa os li sem lista (regra listitem do axe).'
-    suggested_action: 'div role="alert" com a ul dentro.'
-  - id: 'A11Y-003'
-    severity: low
-    finding: 'Veio do f773e81: no selo, "Aberta" e "branch" ficaram grudados no texto ("Abertabranch main").'
-    suggested_action: 'Separador sr-only ou visível.'
-  - id: 'UX-003'
-    severity: low
-    finding: 'Celular, por cálculo: em 320 px o selo corta o código; @usuário longo é cortado nas linhas de amigo (sem min-w-0); o diálogo não tem altura máxima nem rolagem.'
-    suggested_action: 'Selo mais curto, linhas que quebram e max-h com rolagem no diálogo.'
-  - id: 'UX-004'
-    severity: low
-    finding: 'Texto com gênero fixo: "Ana foi chamado para a jam."'
-    suggested_action: 'Frase neutra.'
-  - id: 'UX-005'
-    severity: low
-    finding: 'Veio do f773e81: no Início, o nome do repositório perdeu a cor de link e não tem sublinhado; no celular nada indica que abre a jam (caminho do AC 1).'
-    suggested_action: 'A classe link.'
-  - id: 'TEST-002'
-    severity: low
-    finding: 'Sem teste da 404 renderizada, de nome, usuário e foto, de Cancelar e erro no diálogo, nem de que excluir não chama o GitHub; o teste "id fora do formato" só confere o tamanho.'
-    suggested_action: 'Esses testes.'
+top_issues: []
+
+resolved_issues:
+  - { id: 'A11Y-001', severity: medium, fix: 'ResultadoDaAcao: região que fica na tela e recebe o foco quando o botão some; ChamarMaisAmigos montado enquanto a jam está aberta' }
+  - { id: 'TEST-001', severity: medium, fix: 'evidência em produção em 320, 360, 375 e 1280 px com axe; Playwright de celular espera a branch de teste do Neon' }
+  - { id: 'REL-001', severity: low, fix: 'idDeJamValido na página, nas ações e na rota da sala' }
+  - { id: 'REL-002', severity: low, fix: 'router.replace, jam_nao_encontrada como exclusão feita, refresh no tentar de novo' }
+  - { id: 'REL-003', severity: low, fix: 'sincronizarComPrazo na página da jam' }
+  - { id: 'UX-002', severity: low, fix: 'diálogo não fecha enquanto exclui, Cancelar desabilitado, erro limpo ao abrir' }
+  - { id: 'A11Y-002', severity: low, fix: 'alerta com a lista dentro' }
+  - { id: 'A11Y-003', severity: low, fix: 'separador para leitor de tela no selo' }
+  - { id: 'UX-003', severity: low, fix: 'selo só com o código, linhas que quebram, título que quebra no hífen, diálogo com rolagem' }
+  - { id: 'UX-004', severity: low, fix: 'textos sem gênero' }
+  - { id: 'UX-005', severity: low, fix: 'link do repositório sublinhado no Início' }
+  - { id: 'TEST-002', severity: low, fix: 'testes da 404, nome e usuário, diálogo, GitHub não chamado e formato do id' }
 
 evidence:
-  tests_reviewed: 22
-  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (223 no app), CI verde; code-review à mão, com revisor independente (Next 16.4.3 e axe-core 4.14 conferidos no node_modules)'
-  production: 'telas com usuários de teste temporários em 28/10, depois do f773e81: axe sem violações em /jams/[id] e no diálogo de excluir, em 1280 e 360 px'
+  tests_reviewed: 33
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (249 no app), CI verde; code-review à mão, com revisor independente no gate original'
+  production: 'usuários de teste temporários em 28/10 (apagados no fim): axe sem violações e sem rolagem lateral em 1280, 375, 360 e 320 px em /jams/[id], no diálogo de excluir, no Início, em Amigos, na Nova jam e na 404'
   trace:
-    ac_covered: [1, 2, 3, 5]
-    ac_gaps: [4]
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
 
 nfr_validation:
   security:
     status: PASS
-    notes: 'Só participante vê; só o criador exclui; a 404 não revela a jam; excluir não toca o GitHub.'
+    notes: 'Só participante vê; só o criador exclui; a 404 não revela a jam; excluir não toca o GitHub; id conferido antes do banco.'
   reliability:
-    status: CONCERNS
-    notes: 'REL-001, REL-002 e REL-003 (baixos).'
+    status: PASS
+    notes: 'Jam excluída em outra aba tratada; pendentes conferidos com prazo.'
   accessibility:
-    status: CONCERNS
-    notes: 'A11Y-001 (médio), A11Y-002 e A11Y-003.'
+    status: PASS
+    notes: 'Resultado anunciado e foco preservado quando o controle sai da tela; axe limpo em quatro larguras.'
