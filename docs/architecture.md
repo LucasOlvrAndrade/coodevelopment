@@ -196,7 +196,7 @@ outubro e entram nas Stories 1.2 e 4.x.
 | Monitoring | Vercel Observability + Cloudflare Workers Logs | n/a | Erros e latência | Incluídos nos planos |
 | Logging | `console` estruturado (JSON) nas três partes de servidor; arquivo de log rotativo no conector | n/a | Diagnóstico | Lido pelo modo de diagnóstico do conector |
 | CSS Framework | Tailwind CSS com tokens em CSS | 4.3.3 (MIT) | Visual da front-end spec | Tokens da paleta escura da spec (V3) e classes em `componentes/ui/estilo.ts` |
-| Realtime | PartyServer + `partysocket` (Cloudflare) | PartyServer 0.5.10 (ISC); `partysocket` fixar ao instalar, 1.3.0 em 26/10/2026 (MIT) | Sala da jam e clientes | Ver Platform Choice |
+| Realtime | PartyServer + `partysocket` (Cloudflare) | PartyServer 0.5.10 (ISC); `partysocket` 1.3.0 (MIT), fixado na Story 2.5 | Sala da jam e clientes | Ver Platform Choice |
 | MCP | `@modelcontextprotocol/server` (SDK v2) | 2.3.x (2.3.1 em 05/10/2026) | Servidor MCP `anunciar` | Linha estável atual; a v1 só recebe correções |
 | Watcher | `@parcel/watcher` | fixar ao instalar; 2.6.0 em 26/10/2026 (MIT) | Vigiar a pasta do projeto | Nativo (ReadDirectoryChangesW no Windows), CPU baixa parada (NFR6) |
 | Merge | `node-diff3` | fixar ao instalar; 3.2.1 em 26/10/2026 (MIT) | Merge de três vias na sala | Pequeno e sem dependência |
@@ -1367,9 +1367,12 @@ COODEV_URL=
   `lucas-andrade.dev` está na Vercel (`ns1.vercel-dns.com`, conferido em
   23/10/2026), e a Cloudflare só liga domínio próprio a um Worker quando a
   zona DNS está nela; mover a zona inteira não vale a pena só para isso. O
-  endereço da sala fica numa variável (`SALA_HOST`), então trocar depois é
+  endereço da sala fica numa variável (`NEXT_PUBLIC_SALA_HOST`), então trocar depois é
   configuração, não código.
-- **Build Command:** `pnpm --filter sala deploy` (`wrangler deploy`)
+- **Build Command:** `pnpm --filter sala deploy` (`wrangler deploy`); no CI,
+  `wrangler deploy --secrets-file` com o `SEGREDO_SALA`, que serve também
+  para a primeira publicação (com `secrets.required` no `wrangler.jsonc`, o
+  Worker novo não aceita `wrangler secret put` antes de existir)
 - **Deployment Method:** Vercel pela integração Git na `main`; sala e
   conector por GitHub Actions na `main`
 
@@ -1400,6 +1403,15 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+
+  publicar-sala:       # Story 2.5; o arquivo completo é .github/workflows/ci.yaml
+    needs: testes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Sem CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID e SEGREDO_SALA nos
+    # segredos do repositório, os passos são pulados. Com eles:
+    # pnpm install --filter sala... e wrangler deploy --secrets-file
+    # (arquivo temporário com o SEGREDO_SALA, apagado depois).
 ```
 
 ### Environments

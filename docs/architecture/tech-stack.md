@@ -35,7 +35,7 @@ outubro e entram nas Stories 1.2 e 4.x.
 | Monitoring | Vercel Observability + Cloudflare Workers Logs | n/a | Erros e latência | Incluídos nos planos |
 | Logging | `console` estruturado (JSON) nas três partes de servidor; arquivo de log rotativo no conector | n/a | Diagnóstico | Lido pelo modo de diagnóstico do conector |
 | CSS Framework | Tailwind CSS com tokens em CSS | 4.3.3 (MIT) | Visual da front-end spec | Tokens da paleta escura da spec (V3) e classes em `componentes/ui/estilo.ts` |
-| Realtime | PartyServer + `partysocket` (Cloudflare) | PartyServer 0.5.10 (ISC); `partysocket` fixar ao instalar, 1.3.0 em 26/10/2026 (MIT) | Sala da jam e clientes | Ver Platform Choice |
+| Realtime | PartyServer + `partysocket` (Cloudflare) | PartyServer 0.5.10 (ISC); `partysocket` 1.3.0 (MIT), fixado na Story 2.5 | Sala da jam e clientes | Ver Platform Choice |
 | MCP | `@modelcontextprotocol/server` (SDK v2) | 2.3.x (2.3.1 em 05/10/2026) | Servidor MCP `anunciar` | Linha estável atual; a v1 só recebe correções |
 | Watcher | `@parcel/watcher` | fixar ao instalar; 2.6.0 em 26/10/2026 (MIT) | Vigiar a pasta do projeto | Nativo (ReadDirectoryChangesW no Windows), CPU baixa parada (NFR6) |
 | Merge | `node-diff3` | fixar ao instalar; 3.2.1 em 26/10/2026 (MIT) | Merge de três vias na sala | Pequeno e sem dependência |
