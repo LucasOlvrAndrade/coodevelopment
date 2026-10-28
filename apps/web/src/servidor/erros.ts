@@ -27,6 +27,9 @@ const MENSAGENS: Record<string, string> = {
   so_amigos: "Só dá para chamar amigos para a jam.",
   ja_participa: "Essa pessoa já está na jam.",
   jam_cheia: "A jam já tem 3 pessoas, o máximo por enquanto.",
+  // Sala da jam (Story 2.5)
+  sala_indisponivel: "A presença ao vivo não está disponível agora.",
+  nao_participa: "Você não participa dessa jam.",
 };
 
 export class ErroApp extends Error {
