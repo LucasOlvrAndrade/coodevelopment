@@ -1,4 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // WebCrypto, TextEncoder e base64 do token da sala: existem no Node, no
+    // navegador e no Worker, e o WebWorker é o lib que tem só eles.
+    "lib": ["ES2023", "WebWorker"]
+  },
   "include": ["src", "tests"]
 }
