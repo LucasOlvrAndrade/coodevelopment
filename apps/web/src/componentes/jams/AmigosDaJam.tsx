@@ -1,26 +1,78 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { Avatar } from "@/componentes/ui/Avatar";
+import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { chamarAmigos } from "@/servidor/acoes/jam";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 
 const MAXIMO = 2;
 
-type Escolha = { escolhidos: string[]; alternar: (id: string) => void };
+type Escolhido = { id: string; nome: string };
+type Escolha = { escolhidos: Escolhido[]; alternar: (amigo: Escolhido) => void };
 const Contexto = createContext<Escolha>({ escolhidos: [], alternar: () => {} });
 
 // Amigos escolhidos na nova jam (Story 2.3), lidos pelos dois jeitos de criar
 // (importar e criar repositório) na hora de chamar depois que a jam existe.
 export function AmigosDaJam({ children }: { children: ReactNode }) {
-  const [escolhidos, setEscolhidos] = useState<string[]>([]);
-  function alternar(id: string) {
-    setEscolhidos((atual) => (atual.includes(id) ? atual.filter((x) => x !== id) : atual.length < MAXIMO ? [...atual, id] : atual));
+  const [escolhidos, setEscolhidos] = useState<Escolhido[]>([]);
+  function alternar(amigo: Escolhido) {
+    setEscolhidos((atual) =>
+      atual.some((a) => a.id === amigo.id) ? atual.filter((a) => a.id !== amigo.id) : atual.length < MAXIMO ? [...atual, amigo] : atual,
+    );
   }
   return <Contexto.Provider value={{ escolhidos, alternar }}>{children}</Contexto.Provider>;
 }
 
-export function useAmigosEscolhidos() {
-  return useContext(Contexto).escolhidos;
+// Depois de criar a jam: chama os escolhidos e vai ao Início. Se algum não
+// entrou (regra, GitHub, falta de rede), mostra o que houve antes de sair da
+// tela, com o link para o Início, onde dá para tentar de novo (gate da 2.3, UX-001).
+export function useFinalizarCriacao() {
+  const router = useRouter();
+  const { escolhidos } = useContext(Contexto);
+  const [depois, setDepois] = useState<{ jamId: string; problemas: string[] } | null>(null);
+
+  async function finalizar(jamId: string) {
+    const destino = `/inicio?nova=${encodeURIComponent(jamId)}`;
+    if (escolhidos.length === 0) {
+      router.push(destino);
+      return;
+    }
+    const resultado = await semQuebrar(() => chamarAmigos(jamId, escolhidos.map((a) => a.id)));
+    const nomeDe = (id: string) => escolhidos.find((a) => a.id === id)?.nome ?? "Alguém";
+    const problemas = !resultado.ok
+      ? [`A jam foi criada, mas ninguém foi chamado: ${resultado.erro.mensagem}`]
+      : resultado.dados.flatMap((r) =>
+          "erro" in r
+            ? [`${nomeDe(r.amigoId)}: ${r.erro}`]
+            : r.estado === "falhou"
+              ? [`${nomeDe(r.amigoId)} não entrou no repositório. ${r.motivo ?? ""}`.trim()]
+              : [],
+        );
+    if (problemas.length === 0) router.push(destino);
+    else setDepois({ jamId, problemas });
+  }
+
+  const painel = depois && (
+    <div role="alert" className="flex flex-col gap-3 rounded-controle border border-alerta p-4">
+      <p className="font-medium">A jam foi criada, mas nem todo mundo entrou.</p>
+      <ul className="list-disc pl-5 text-corpo">
+        {depois.problemas.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+      <div>
+        <Link href={`/inicio?nova=${encodeURIComponent(depois.jamId)}`} className={`${botaoPrincipal} inline-block px-4 py-3`}>
+          Ir para o Início
+        </Link>
+      </div>
+    </div>
+  );
+
+  return { finalizar, painel };
 }
 
 // Só amigos aparecem, no máximo 2 (FR5, FR6), com o contador "0 de 2" (front-end spec).
@@ -37,7 +89,7 @@ export function EscolherAmigos({ amigos }: { amigos: Pessoa[] }) {
       </legend>
       <ul className="flex flex-col gap-1">
         {amigos.map((amigo) => {
-          const marcado = escolhidos.includes(amigo.id);
+          const marcado = escolhidos.some((a) => a.id === amigo.id);
           return (
             <li key={amigo.id}>
               <label className={`flex items-center gap-3 rounded-controle px-2 py-2 ${!marcado && cheio ? "opacity-60" : "cursor-pointer"}`}>
@@ -45,7 +97,7 @@ export function EscolherAmigos({ amigos }: { amigos: Pessoa[] }) {
                   type="checkbox"
                   checked={marcado}
                   disabled={!marcado && cheio}
-                  onChange={() => alternar(amigo.id)}
+                  onChange={() => alternar({ id: amigo.id, nome: amigo.nome })}
                   className="accent-primaria"
                 />
                 <Avatar nome={amigo.nome} foto={amigo.foto} tamanho={24} />

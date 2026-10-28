@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { botaoPrincipal } from "@/componentes/ui/botoes";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
-import { chamarAmigos, criarJamImportando } from "@/servidor/acoes/jam";
+import { criarJamImportando } from "@/servidor/acoes/jam";
 import type { Repositorio } from "@/servidor/dominio/jam";
-import { useAmigosEscolhidos } from "./AmigosDaJam";
+import { useFinalizarCriacao } from "./AmigosDaJam";
 
 const MAX_NA_TELA = 100;
 // Fuso fixo: o servidor formata em UTC e o navegador em Brasília, e a data do
@@ -16,8 +15,7 @@ const dataCurta = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-d
 // Importar repositório (Story 2.1, AC 1 e 2): a lista dos repositórios da conta
 // com busca, e "Criar jam" só com um escolhido (front-end spec, Nova jam).
 export function EscolherRepositorio({ repositorios }: { repositorios: Repositorio[] }) {
-  const router = useRouter();
-  const amigos = useAmigosEscolhidos();
+  const { finalizar, painel } = useFinalizarCriacao();
   const [filtro, setFiltro] = useState("");
   const [escolhido, setEscolhido] = useState<Repositorio | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -37,9 +35,7 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
         setErro(resultado.erro.mensagem);
         return;
       }
-      // A jam já existe: quem não entrar no repositório aparece no Início com o estado.
-      if (amigos.length > 0) await semQuebrar(() => chamarAmigos(resultado.dados.id, amigos));
-      router.push(`/inicio?nova=${encodeURIComponent(resultado.dados.id)}`);
+      await finalizar(resultado.dados.id);
     });
   }
 
@@ -119,6 +115,7 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
         </p>
       </fieldset>
 
+      {painel}
       {erro && (
         <p role="alert" className="text-pequeno text-erro">
           {erro}

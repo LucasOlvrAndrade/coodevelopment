@@ -9,6 +9,9 @@ vi.mock("@/servidor/auth", () => ({ obterSessao, exigirSessao }));
 vi.mock("@/servidor/db", () => ({ db: () => ({}) }));
 vi.mock("@/servidor/dominio/jam", () => ({ listarJams }));
 vi.mock("@/servidor/acoes/jam", () => ({ tentarDeNovo: vi.fn() }));
+const sincronizarPendentes = vi.fn(async () => 0);
+vi.mock("@/servidor/dominio/participantes", () => ({ sincronizarPendentes }));
+vi.mock("@/servidor/github", () => ({ githubColaboracao: vi.fn(), githubDoUsuario: vi.fn() }));
 
 const { JamsDoUsuario, Saudacao } = await import("@/app/(app)/inicio/page");
 
@@ -43,6 +46,16 @@ describe("Início", () => {
     expect(within(quem).getByText("Lucas Andrade")).toBeInTheDocument();
     expect(within(quem).getByText("Pai")).toBeInTheDocument();
     expect(listarJams).toHaveBeenCalledWith({}, "lucas");
+    // Antes de listar, quem aceitou o convite pelo link vira ok (gate da 2.3, REL-001).
+    expect(sincronizarPendentes).toHaveBeenCalledWith({}, "lucas", expect.any(Function));
+  });
+
+  it("falha ao sincronizar com o GitHub não segura o Início", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    sincronizarPendentes.mockRejectedValueOnce(new Error("GitHub fora"));
+    render(await JamsDoUsuario({ busca: Promise.resolve({}) }));
+    expect(screen.getByText("Você ainda não tem nenhuma jam.")).toBeInTheDocument();
+    log.mockRestore();
   });
 
   it("não usa travessão no texto", async () => {

@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { botaoPrincipal } from "@/componentes/ui/botoes";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
-import { chamarAmigos, criarJamComRepositorio } from "@/servidor/acoes/jam";
-import { useAmigosEscolhidos } from "./AmigosDaJam";
+import { criarJamComRepositorio } from "@/servidor/acoes/jam";
+import { useFinalizarCriacao } from "./AmigosDaJam";
 
 // Mesma regra do servidor (dominio/jam.ts): o GitHub aceita até 100 caracteres
 // de letras, números, ponto, hífen e sublinhado, sem ser "." nem "..".
@@ -16,8 +15,7 @@ const ERROS_DO_NOME = new Set(["nome_repositorio_invalido", "repositorio_ja_exis
 // Criar repositório (Story 2.2): nome e visibilidade, e a jam ligada a ele.
 // Erro de nome aparece no próprio campo (front-end spec, Nova jam).
 export function CriarRepositorio() {
-  const router = useRouter();
-  const amigos = useAmigosEscolhidos();
+  const { finalizar, painel } = useFinalizarCriacao();
   const [nome, setNome] = useState("");
   const [privado, setPrivado] = useState(true);
   const [erroDoNome, setErroDoNome] = useState<string | null>(null);
@@ -40,8 +38,7 @@ export function CriarRepositorio() {
         else setErro(resultado.erro.mensagem);
         return;
       }
-      if (amigos.length > 0) await semQuebrar(() => chamarAmigos(resultado.dados.id, amigos));
-      router.push(`/inicio?nova=${encodeURIComponent(resultado.dados.id)}`);
+      await finalizar(resultado.dados.id);
     });
   }
 
@@ -90,6 +87,7 @@ export function CriarRepositorio() {
         </label>
       </fieldset>
 
+      {painel}
       {erro && (
         <p role="alert" className="text-pequeno text-erro">
           {erro}

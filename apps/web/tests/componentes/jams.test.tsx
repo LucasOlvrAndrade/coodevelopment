@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Repositorio } from "@/servidor/dominio/jam";
 
 const criarJamImportando = vi.fn();
 const criarJamComRepositorio = vi.fn();
 const chamarAmigos = vi.fn(async () => ({ ok: true, dados: [] }));
-const tentarDeNovo = vi.fn(async () => ({ ok: true, dados: "ok" }));
+const tentarDeNovo = vi.fn(async (): Promise<unknown> => ({ ok: true, dados: { estado: "ok" } }));
 vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando, criarJamComRepositorio, chamarAmigos, tentarDeNovo }));
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -198,6 +198,48 @@ describe("chamar amigos (Story 2.3)", () => {
     expect(chamarAmigos).toHaveBeenCalledWith("k7m2-rbq9", ["pai"]);
   });
 
+  it("quem não entrou aparece antes de sair da tela, com o motivo e o link do Início (gate da 2.3, UX-001)", async () => {
+    criarJamImportando.mockResolvedValueOnce({ ok: true, dados: { id: "k7m2-rbq9" } });
+    chamarAmigos.mockResolvedValueOnce({
+      ok: true,
+      dados: [
+        { amigoId: "pai", estado: "falhou", motivo: "O GitHub recusou." },
+        { amigoId: "ana", erro: "A jam já tem 3 pessoas, o máximo por enquanto." },
+      ],
+    } as never);
+    render(
+      <AmigosDaJam>
+        <EscolherAmigos amigos={AMIGOS} />
+        <EscolherRepositorio repositorios={[repo("projeto")]} />
+      </AmigosDaJam>,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pai/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Ana/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
+    const painel = await screen.findByRole("alert");
+    expect(painel).toHaveTextContent("A jam foi criada, mas nem todo mundo entrou.");
+    expect(painel).toHaveTextContent("Pai não entrou no repositório. O GitHub recusou.");
+    expect(painel).toHaveTextContent("Ana: A jam já tem 3 pessoas");
+    expect(within(painel).getByRole("link", { name: "Ir para o Início" })).toHaveAttribute("href", "/inicio?nova=k7m2-rbq9");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("se a ação de chamar falhar inteira, avisa que ninguém foi chamado", async () => {
+    criarJamImportando.mockResolvedValueOnce({ ok: true, dados: { id: "k7m2-rbq9" } });
+    chamarAmigos.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(
+      <AmigosDaJam>
+        <EscolherAmigos amigos={AMIGOS} />
+        <EscolherRepositorio repositorios={[repo("projeto")]} />
+      </AmigosDaJam>,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /Pai/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /projeto/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar jam com projeto" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("A jam foi criada, mas ninguém foi chamado");
+  });
+
   it("sem ninguém escolhido, não chama", async () => {
     criarJamImportando.mockResolvedValueOnce({ ok: true, dados: { id: "k7m2-rbq9" } });
     render(
@@ -224,6 +266,16 @@ describe("estado do convidado no Início (AC 3 e 4)", () => {
       { id: "lucas", login: "lucas", nome: "Lucas", foto: null, papel: "criador" as const, colaborador: "ok" as const },
       { id: "pai", login: "pai-dev", nome: "Pai", foto: null, papel: "convidado" as const, colaborador },
     ],
+  });
+
+  it("tentar de novo diz o motivo quando ainda não deu, ou que falta aceitar", async () => {
+    tentarDeNovo.mockResolvedValueOnce({ ok: true, dados: { estado: "falhou", motivo: "O GitHub recusou." } });
+    render(<ListaJams jams={[jam("falhou")]} eu="lucas" />);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("O GitHub recusou.");
+    tentarDeNovo.mockResolvedValueOnce({ ok: true, dados: { estado: "pendente" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
+    expect(await screen.findByText("Convite enviado: falta Pai aceitar no GitHub.")).toBeInTheDocument();
   });
 
   it("o criador vê quem não entrou no repositório e pode tentar de novo", async () => {
