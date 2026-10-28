@@ -12,3 +12,43 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+
+  # Publica a sala na Cloudflare (Story 2.5) depois dos testes, só na main. Sem
+  # os segredos da Cloudflare (ação do Lucas), os passos são pulados e o app
+  # segue sem a presença. O segredo vai por --secrets-file, que também serve
+  # para a primeira publicação, quando o Worker ainda não existe.
+  publicar-sala:
+    needs: testes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - id: cloudflare
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SEGREDO: ${{ secrets.SEGREDO_SALA }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$CONTA" ] && [ -n "$SEGREDO" ]; then
+            echo "pronta=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Sala não publicada: faltam CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID ou SEGREDO_SALA nos segredos do repositório."
+          fi
+      - if: steps.cloudflare.outputs.pronta == 'sim'
+        uses: actions/checkout@v4
+      - if: steps.cloudflare.outputs.pronta == 'sim'
+        uses: pnpm/action-setup@v4
+      - if: steps.cloudflare.outputs.pronta == 'sim'
+        uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - if: steps.cloudflare.outputs.pronta == 'sim'
+        run: pnpm install --frozen-lockfile --filter sala...
+      - if: steps.cloudflare.outputs.pronta == 'sim'
+        working-directory: apps/sala
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SEGREDO_SALA: ${{ secrets.SEGREDO_SALA }}
+        run: |
+          printf 'SEGREDO_SALA=%s\n' "$SEGREDO_SALA" > "$RUNNER_TEMP/segredos-sala.env"
+          pnpm exec wrangler deploy --secrets-file "$RUNNER_TEMP/segredos-sala.env"
+          rm "$RUNNER_TEMP/segredos-sala.env"
