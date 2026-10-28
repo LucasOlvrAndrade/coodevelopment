@@ -1,45 +1,59 @@
 schema: 1
 story: '2.3'
 story_title: 'Chamar amigos para a jam'
-gate: FAIL
-status_reason: 'A vaga (A12) aguenta a concorrência em READ COMMITTED (conferido pelo revisor) e só o criador chama. Mas o convite usa o login guardado, que pode ter passado para outra pessoa no GitHub, e "tentar de novo" não reconfere amizade nem jam aberta; o estado pendente nunca vira ok sozinho e os erros somem na tela.'
+gate: CONCERNS
+status_reason: 'Reavaliação de 28/10, com revisor independente: os cinco achados do gate FAIL estão corrigidos e testados. SEC-001: login atual pelo githubId e convidado conferido pelo invitee.id, com o convite errado cancelado; o revisor tentou quebrar (troca de login entre o GET e o PUT, 201 sem invitee, 204) e não conseguiu. SEC-002: jam aberta e amizade reconferidas antes e dentro do insert, também no tentar de novo. REL-001: participante nasce falhou, erro num amigo não para o outro, pendente vira ok no Início. UX-001: resultado de cada amigo antes de sair da tela e motivo no tentar de novo. TEST-001: 23505 simulado e log do aceite. Fica um médio novo (PERF-001: o Início espera o GitHub sem prazo) e baixos.'
 reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:c67b9c6'
-updated: '2026-10-27T00:00:00Z'
+reviewed_revision: 'commit:95416ee (correções; gate original FAIL em c67b9c6)'
+updated: '2026-10-28T00:00:00Z'
 
 top_issues:
-  - id: 'SEC-001'
-    severity: high
-    finding: 'O PUT de colaborador usa user.login, que o próprio schema admite ficar velho: o amigo troca o nome no GitHub, outra pessoa registra o nome antigo e é convidada para o repositório (talvez privado); "Tentar de novo" convida o estranho de novo.'
-    suggested_action: 'Buscar o login atual pelo githubId (GET /user/{account_id}) antes do PUT e conferir invitee.id na resposta; se não bater, apagar o convite e marcar falhou.'
-  - id: 'SEC-002'
+  - id: 'PERF-001'
     severity: medium
-    finding: 'tentarDeNovo (dadosParaColocar) só confere criador e papel: depois que o amigo desfaz a amizade (A10, conta como recusa), o criador ainda o convida de novo e aceita com o token dele; vale até em jam fechada. A conferência de amizade em chamarAmigo também tem uma janela até o insert.'
-    suggested_action: 'Exigir amizade e jam aberta em dadosParaColocar e dentro do insert de chamarAmigo.'
-  - id: 'REL-001'
-    severity: medium
-    finding: 'A linha nasce pendente antes do GitHub; um erro que não é ErroApp depois da vaga relança, o amigo fica pendente sem convite, o segundo amigo nem é chamado e o refresh não roda. E quando o amigo aceita pelo link, nada leva pendente a ok (o caminho principal, já que o token do amigo provavelmente não alcança o repositório antes de aceitar).'
-    suggested_action: 'Estado inicial que diga "não adicionado"; erro por amigo sem parar os outros; conferir o colaborador no GitHub ao abrir o Início.'
-  - id: 'UX-001'
-    severity: medium
-    finding: 'O resultado de chamarAmigos é ignorado nas duas telas de criar (so_amigos, jam_cheia, falha da ação somem), o motivo do falhou só vai para o log e TentarDeNovo não avisa quando volta falhou.'
-    suggested_action: 'Mostrar o resultado de cada amigo antes de ir ao Início; motivo do GitHub traduzido no tentar de novo.'
-  - id: 'TEST-001'
+    finding: 'A lista de jams do Início espera sincronizarPendentes: para cada pendente, dois pedidos em série ao GitHub com o token do criador, sem timeout (nenhum AbortSignal, e o Octokit não tem padrão). Com o GitHub lento, "Carregando suas jams..." fica até o limite da função; repete em toda visita enquanto houver pendente, e qualquer participante gasta o limite de API do criador.'
+    suggested_action: 'Orçamento curto (cerca de 1,5 s) com o resto em after(), e limitar a frequência por linha.'
+  - id: 'REL-002'
     severity: low
-    finding: 'O teste da corrida não passa pelo 23505 (PGlite tem uma conexão só); faltam testes de SEC-002 e REL-001; o "500 sobe" do aceite não muda nada porque colocarNoRepositorio engole o erro sem log.'
-    suggested_action: 'Simular o 23505 no execute; testes dos itens novos; log do erro inesperado no aceite.'
+    finding: 'Convite recusado ou vencido deixa o participante pendente para sempre: o link "Aceite o convite" leva a uma página sem convite e a sincronização continua consultando o GitHub.'
+    suggested_action: 'Quando não for colaborador, conferir o convite pelo invitee.id e voltar para falhou com o motivo.'
+  - id: 'SEC-003'
+    severity: low
+    finding: 'Se o DELETE do convite errado falha, o erro é engolido sem log, e a mensagem diz que foi cancelado (raríssimo: troca de login no meio do pedido e falha do DELETE).'
+    suggested_action: 'Logar com o id do convite, tentar de novo e orientar o criador a cancelar no GitHub.'
+  - id: 'SEC-004'
+    severity: low
+    finding: 'desfazerAmizade não mexe em participante: o ex-amigo pendente continua na jam, ocupa a vaga e pode aceitar o convite. Sair e tirar participante estão fora do escopo do Epic 2.'
+    suggested_action: 'Registrar na A10 ou A13, ou cancelar o convite pendente ao desfazer a amizade numa story futura.'
+  - id: 'UX-002'
+    severity: low
+    finding: 'Depois do painel de resultado, o formulário de criar continua ativo (clicar de novo dá jam_ja_existe, ou cria outra jam com outro nome); em falha de rede o painel diz que ninguém foi chamado, mas a ação pode ter rodado; "Tentar de novo" aparece em jam fechada e sempre falha.'
+    suggested_action: 'Trocar o formulário pelo painel, dizer "confira no Início" na falha de rede e esconder o botão em jam que não está aberta.'
+  - id: 'TEST-002'
+    severity: low
+    finding: 'A guarda dentro do insert não tem teste próprio; a simulação do 23505 não prova a vaga seguinte com a anterior ocupada; sem teste para a falha do cancelamento e os motivos 404, 422 e reautenticar; inicio.test.tsx confere só expect.any(Function) na fábrica do GitHub.'
+    suggested_action: 'Testes desses ramos.'
+  - id: 'PERF-002'
+    severity: low
+    finding: 'O refresh() da ação re-renderiza /jams/nova (com a lista de repositórios do GitHub) logo antes do router.push.'
+    suggested_action: 'Não atualizar a nova jam quando a tela vai sair dela.'
+
+resolved_issues: ['SEC-001', 'SEC-002', 'REL-001', 'UX-001', 'TEST-001']
 
 evidence:
-  tests_reviewed: 25
-  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (198 no app), CI verde; code-review à mão, com revisor independente'
+  tests_reviewed: 31
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (223 no app), CI verde; code-review à mão, com revisor independente (participantes.test.ts 15 de 15 contra o PGlite)'
   trace:
-    ac_covered: [1, 2, 3]
-    ac_gaps: [4]
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+    notes: 'AC 2 pelo caminho do link do convite quando o token do amigo não aceita; a prova com duas contas reais continua como ação do Lucas.'
 
 nfr_validation:
   security:
-    status: FAIL
-    notes: 'SEC-001 (alto, raro) e SEC-002.'
+    status: CONCERNS
+    notes: 'SEC-003 e SEC-004 (baixos). SEC-001 e SEC-002 corrigidos.'
   reliability:
     status: CONCERNS
-    notes: 'REL-001.'
+    notes: 'REL-002 (baixo). REL-001 corrigido.'
+  performance:
+    status: CONCERNS
+    notes: 'PERF-001 (médio) e PERF-002 (baixo).'
