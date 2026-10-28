@@ -90,3 +90,21 @@ banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 **28/10:** o Lucas criou as primeiras jams (importando e com repositório novo funcionaram) e não conseguia abrir nem gerenciar. A antiga 2.4 foi dividida: **Story 2.4 (página da jam)** feita e no ar, em InReview: `/jams/[id]` com repositório, participantes e situação, chamar mais amigos, tentar de novo e **excluir jam** (A13, o GitHub não é tocado); itens do Início viram links; 404 em português. **Story 2.5** (presença ao vivo, sala na Cloudflare) espera o `wrangler login`. Gate da 2.3 ainda pendente de reavaliação. 223 testes.
 
 **28/10 (tarde): o app inteiro no visual da página inicial (V3),** a pedido do Lucas ("quero tudo com o design da home"). No ar (`f773e81`, docs `6197948`): uma paleta só, sempre escura (`#09090b`, texto `#fafafa`; o tema claro e o verde da V2 saíram, junto com o token `--destaque` e os raios `--radius-*`); Inter, Instrument Serif e Plex Mono carregadas no layout raiz (o layout de `(publico)` foi apagado); a foto da página inicial no alto das telas internas a 60%; cabeçalho com a marca em serifa e a navegação numa pílula translúcida (no celular, pílula flutuante embaixo); ações em pílula, listas em painéis translúcidos, diálogos com o fundo desfocado, selo "Aberta" na página da jam e anel com a cor da vaga na foto de cada participante. As classes ficam em `componentes/ui/estilo.ts` (o `botoes.ts` saiu); o vidro é `texto/5`, `/10` e `/15`, dentro da regra de cor só dos tokens. Front-end spec 0.5 e decisão V3. Conferido em produção com usuários de teste (script `telas-v3.mjs` no scratchpad; em https o cookie é `__Secure-better-auth.session_token`): axe sem violações em todas as telas, em 1280 e 360 px. **Armadilha:** o `next dev` local (no ar desde 27/10, 1,9 GB livres) dá 500 em `/jams/[id]` com "Jest worker encountered 2 child process exceptions"; em produção a página abre, então é o servidor local sem memória, não o código. Reavaliação do gate da 2.3 e gate da 2.4 rodando com revisores independentes.
+
+**28/10 (fim da tarde): 2.3 e 2.4 Done, 2.5 adormecida no ar.**
+- **Story 2.3 Done.** A reavaliação deu CONCERNS, com revisor independente: os 5 achados do FAIL foram corrigidos.
+  - O médio novo (PERF-001, o Início esperava o GitHub sem prazo) e o SEC-003 foram corrigidos logo depois (`06720a9`). `servidor/sincronizar-pendentes.ts` dá 1,5 s e termina o resto com `after()`.
+  - Ficam baixos: convite recusado fica pendente para sempre; ex-amigo continua na jam; formulário ativo depois do painel.
+- **Story 2.4 Done.** O gate deu CONCERNS, com revisor independente; os 12 achados foram corrigidos (`7887538`, `115b99e`) e a reavaliação deu PASS.
+  - `ResultadoDaAcao`: o resultado das ações fica na tela e recebe o foco quando o botão some.
+  - `idDeJamValido` no formato do `gerarIdJam`, conferido antes do banco.
+  - Excluir com `router.replace`; textos neutros; selo e links legíveis.
+  - AC 4 com evidência em produção: axe em 1280, 375, 360 e 320 px.
+- **Story 2.5 InProgress, adormecida no ar.**
+  - Feito: token HS256 pela WebCrypto no `packages/protocolo`, sala com presença (testes no workerd), rota `token-sala` (503 sem a sala), "online agora" na página pelo `partysocket` 1.3.0, e job `publicar-sala` no CI (pulado sem os segredos; usa `--secrets-file` por causa do `secrets.required`).
+  - `SEGREDO_SALA` gravado na Vercel (sensível) e nos segredos do GitHub. O escopo `workflow` do gh já está liberado.
+  - **Ação do Lucas:** conta na Cloudflare com o `workers.dev` registrado, e os segredos `CLOUDFLARE_API_TOKEN` (editar Workers) e `CLOUDFLARE_ACCOUNT_ID` no repositório (`gh secret set`). Depois disso, o próximo push publica, e eu ponho o `NEXT_PUBLIC_SALA_HOST` na Vercel e confiro a presença.
+- **Pendências:**
+  - CSP completa (`connect-src` e nonce): saiu da 2.5 como item de segurança próprio.
+  - Playwright de celular e E2E com sessão: esperam a branch de teste do Neon.
+- **Teste de tela:** o script `telas-v3.mjs` do scratchpad usa ids no formato novo (`test-jamz`).
