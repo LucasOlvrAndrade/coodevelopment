@@ -2,46 +2,45 @@ schema: 1
 story: '2.3'
 story_title: 'Chamar amigos para a jam'
 gate: CONCERNS
-status_reason: 'Reavaliação de 28/10, com revisor independente: os cinco achados do gate FAIL estão corrigidos e testados. SEC-001: login atual pelo githubId e convidado conferido pelo invitee.id, com o convite errado cancelado; o revisor tentou quebrar (troca de login entre o GET e o PUT, 201 sem invitee, 204) e não conseguiu. SEC-002: jam aberta e amizade reconferidas antes e dentro do insert, também no tentar de novo. REL-001: participante nasce falhou, erro num amigo não para o outro, pendente vira ok no Início. UX-001: resultado de cada amigo antes de sair da tela e motivo no tentar de novo. TEST-001: 23505 simulado e log do aceite. Fica um médio novo (PERF-001: o Início espera o GitHub sem prazo) e baixos.'
+status_reason: 'Reavaliação de 28/10, com revisor independente: os cinco achados do gate FAIL estão corrigidos e testados. SEC-001: login atual pelo githubId e convidado conferido pelo invitee.id, com o convite errado cancelado; o revisor tentou quebrar (troca de login entre o GET e o PUT, 201 sem invitee, 204) e não conseguiu. SEC-002: jam aberta e amizade reconferidas antes e dentro do insert, também no tentar de novo. REL-001: participante nasce falhou, erro num amigo não para o outro, pendente vira ok no Início. UX-001: resultado de cada amigo antes de sair da tela e motivo no tentar de novo. TEST-001: 23505 simulado e log do aceite. Depois da reavaliação, no mesmo dia: o médio novo (PERF-001) e o SEC-003 corrigidos em 06720a9, e o UX-002 em parte em 7887538. Ficam só baixos.'
 reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:95416ee (correções; gate original FAIL em c67b9c6)'
+reviewed_revision: 'commit:95416ee (correções; gate original FAIL em c67b9c6); adendo em 06720a9'
 updated: '2026-10-28T00:00:00Z'
 
 top_issues:
-  - id: 'PERF-001'
-    severity: medium
-    finding: 'A lista de jams do Início espera sincronizarPendentes: para cada pendente, dois pedidos em série ao GitHub com o token do criador, sem timeout (nenhum AbortSignal, e o Octokit não tem padrão). Com o GitHub lento, "Carregando suas jams..." fica até o limite da função; repete em toda visita enquanto houver pendente, e qualquer participante gasta o limite de API do criador.'
-    suggested_action: 'Orçamento curto (cerca de 1,5 s) com o resto em after(), e limitar a frequência por linha.'
   - id: 'REL-002'
     severity: low
     finding: 'Convite recusado ou vencido deixa o participante pendente para sempre: o link "Aceite o convite" leva a uma página sem convite e a sincronização continua consultando o GitHub.'
     suggested_action: 'Quando não for colaborador, conferir o convite pelo invitee.id e voltar para falhou com o motivo.'
-  - id: 'SEC-003'
-    severity: low
-    finding: 'Se o DELETE do convite errado falha, o erro é engolido sem log, e a mensagem diz que foi cancelado (raríssimo: troca de login no meio do pedido e falha do DELETE).'
-    suggested_action: 'Logar com o id do convite, tentar de novo e orientar o criador a cancelar no GitHub.'
   - id: 'SEC-004'
     severity: low
     finding: 'desfazerAmizade não mexe em participante: o ex-amigo pendente continua na jam, ocupa a vaga e pode aceitar o convite. Sair e tirar participante estão fora do escopo do Epic 2.'
     suggested_action: 'Registrar na A10 ou A13, ou cancelar o convite pendente ao desfazer a amizade numa story futura.'
   - id: 'UX-002'
     severity: low
-    finding: 'Depois do painel de resultado, o formulário de criar continua ativo (clicar de novo dá jam_ja_existe, ou cria outra jam com outro nome); em falha de rede o painel diz que ninguém foi chamado, mas a ação pode ter rodado; "Tentar de novo" aparece em jam fechada e sempre falha.'
-    suggested_action: 'Trocar o formulário pelo painel, dizer "confira no Início" na falha de rede e esconder o botão em jam que não está aberta.'
+    finding: 'Depois do painel de resultado, o formulário de criar continua ativo (clicar de novo dá jam_ja_existe, ou cria outra jam com outro nome); em falha de rede o painel diz que ninguém foi chamado, mas a ação pode ter rodado. Corrigido em 7887538: "Tentar de novo" não aparece mais em jam que não está aberta.'
+    suggested_action: 'Trocar o formulário pelo painel e dizer "confira no Início" na falha de rede.'
   - id: 'TEST-002'
     severity: low
-    finding: 'A guarda dentro do insert não tem teste próprio; a simulação do 23505 não prova a vaga seguinte com a anterior ocupada; sem teste para a falha do cancelamento e os motivos 404, 422 e reautenticar; inicio.test.tsx confere só expect.any(Function) na fábrica do GitHub.'
+    finding: 'A guarda dentro do insert não tem teste próprio; a simulação do 23505 não prova a vaga seguinte com a anterior ocupada; sem teste para os motivos 404, 422 e reautenticar. Corrigido em 06720a9: a fábrica do GitHub (o do criador de cada jam) e a falha do cancelamento têm teste.'
     suggested_action: 'Testes desses ramos.'
   - id: 'PERF-002'
     severity: low
     finding: 'O refresh() da ação re-renderiza /jams/nova (com a lista de repositórios do GitHub) logo antes do router.push.'
     suggested_action: 'Não atualizar a nova jam quando a tela vai sair dela.'
 
-resolved_issues: ['SEC-001', 'SEC-002', 'REL-001', 'UX-001', 'TEST-001']
+resolved_issues:
+  - { id: 'SEC-001', severity: high, fix: '65fb893' }
+  - { id: 'SEC-002', severity: medium, fix: '65fb893' }
+  - { id: 'REL-001', severity: medium, fix: '65fb893' }
+  - { id: 'UX-001', severity: medium, fix: '95416ee' }
+  - { id: 'TEST-001', severity: low, fix: '65fb893' }
+  - { id: 'PERF-001', severity: medium, fix: '06720a9: a conferência dos pendentes tem 1,5 s para entrar na página; o resto termina depois da resposta (after), valendo na próxima visita' }
+  - { id: 'SEC-003', severity: low, fix: '06720a9: falha ao cancelar o convite errado fica no log com o id, e a mensagem pede para cancelar à mão' }
 
 evidence:
   tests_reviewed: 31
-  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (223 no app), CI verde; code-review à mão, com revisor independente (participantes.test.ts 15 de 15 contra o PGlite)'
+  tools: 'pnpm lint ok, pnpm typecheck ok, pnpm test ok (223 no app na reavaliação, 249 depois do adendo), CI verde; code-review à mão, com revisor independente (participantes.test.ts 15 de 15 contra o PGlite)'
   trace:
     ac_covered: [1, 2, 3, 4]
     ac_gaps: []
@@ -50,10 +49,10 @@ evidence:
 nfr_validation:
   security:
     status: CONCERNS
-    notes: 'SEC-003 e SEC-004 (baixos). SEC-001 e SEC-002 corrigidos.'
+    notes: 'SEC-004 (baixo, decisão de produto). SEC-001, SEC-002 e SEC-003 corrigidos.'
   reliability:
     status: CONCERNS
     notes: 'REL-002 (baixo). REL-001 corrigido.'
   performance:
     status: CONCERNS
-    notes: 'PERF-001 (médio) e PERF-002 (baixo).'
+    notes: 'PERF-002 (baixo). PERF-001 corrigido.'
