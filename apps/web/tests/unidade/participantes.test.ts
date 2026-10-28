@@ -1,17 +1,17 @@
 // @vitest-environment node
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { jam, participante } from "@/servidor/db/schema";
-import { aceitarPedido, pedirAmizade } from "@/servidor/dominio/amizade";
+import { jam, participante, pedidoAmizade } from "@/servidor/db/schema";
+import { aceitarPedido, desfazerAmizade, pedirAmizade } from "@/servidor/dominio/amizade";
 import { listarJams } from "@/servidor/dominio/jam";
 import {
   chamarAmigo,
   colocarNoRepositorio,
   dadosParaColocar,
+  sincronizarPendentes,
   type GithubColaboracao,
   type GithubConvites,
 } from "@/servidor/dominio/participantes";
-import { pedidoAmizade } from "@/servidor/db/schema";
 import { criarBancoDeTeste, criarUsuario } from "../apoio/banco-teste";
 
 let teste: Awaited<ReturnType<typeof criarBancoDeTeste>>;
@@ -28,15 +28,20 @@ afterAll(async () => {
 
 async function amigos(a: string, b: string) {
   await pedirAmizade(banco(), a, b);
-  const [pedido] = await banco().select().from(pedidoAmizade).where(eq(pedidoAmizade.para, b));
+  const [pedido] = await banco().select().from(pedidoAmizade).where(and(eq(pedidoAmizade.de, a), eq(pedidoAmizade.para, b)));
   await aceitarPedido(banco(), b, pedido!.id);
 }
 
 beforeEach(async () => {
   await teste.limpar();
-  for (const [id, login] of [["lucas", "lucas"], ["pai", "pai-dev"], ["ana", "ana"], ["beto", "beto"], ["estranho", "estranho"]]) {
-    await criarUsuario(banco(), id!, login!);
-  }
+  const contas: [string, string, number][] = [
+    ["lucas", "lucas", 1000],
+    ["pai", "pai-dev", 1001],
+    ["ana", "ana", 1002],
+    ["beto", "beto", 1003],
+    ["estranho", "estranho", 1004],
+  ];
+  for (const [id, login, githubId] of contas) await criarUsuario(banco(), id, login, id, githubId);
   await banco().insert(jam).values({
     id: JAM,
     nome: "projeto",
@@ -60,15 +65,21 @@ async function erroDe(promessa: Promise<unknown>) {
   );
 }
 
+async function estadoDe(usuarioId: string) {
+  const [linha] = await banco().select({ c: participante.colaborador }).from(participante).where(eq(participante.usuarioId, usuarioId));
+  return linha?.c;
+}
+
 describe("chamar amigo (AC 1)", () => {
-  it("o amigo entra como convidado pendente, na próxima vaga, e a jam aparece no Início dele (AC 3)", async () => {
+  it("o amigo entra na próxima vaga como não adicionado, e a jam aparece no Início dele (AC 3)", async () => {
     expect(await chamarAmigo(banco(), "lucas", JAM, "pai")).toEqual({ vaga: 2 });
     expect(await chamarAmigo(banco(), "lucas", JAM, "ana")).toEqual({ vaga: 3 });
     const [doPai] = await listarJams(banco(), "pai");
+    // Nasce "falhou" (não adicionado) até o GitHub responder (gate da 2.3, REL-001).
     expect(doPai?.participantes.map((p) => [p.id, p.papel, p.colaborador])).toEqual([
       ["lucas", "criador", "ok"],
-      ["pai", "convidado", "pendente"],
-      ["ana", "convidado", "pendente"],
+      ["pai", "convidado", "falhou"],
+      ["ana", "convidado", "falhou"],
     ]);
   });
 
@@ -78,11 +89,27 @@ describe("chamar amigo (AC 1)", () => {
     expect(await erroDe(chamarAmigo(banco(), "lucas", JAM, "beto"))).toEqual({ codigo: "jam_cheia", status: 409 });
   });
 
-  it("dois chamados ao mesmo tempo não passam de 3 (A12)", async () => {
-    await chamarAmigo(banco(), "lucas", JAM, "pai");
-    const resultados = await Promise.allSettled([chamarAmigo(banco(), "lucas", JAM, "ana"), chamarAmigo(banco(), "lucas", JAM, "beto")]);
-    expect(resultados.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(await banco().select().from(participante)).toHaveLength(3);
+  it("vaga pega por outro chamado ao mesmo tempo: o índice recusa e a regra tenta a próxima (A12)", async () => {
+    // O PGlite roda uma instrução por vez; a corrida é simulada com o 23505
+    // que o Postgres devolve quando dois inserts calculam a mesma vaga.
+    const real = banco().execute.bind(banco());
+    const textoDe = (consulta: unknown) =>
+      ((consulta as { queryChunks?: unknown[] }).queryChunks ?? [])
+        .map((pedaco) => (pedaco && Array.isArray((pedaco as { value?: unknown }).value) ? (pedaco as { value: string[] }).value.join("") : ""))
+        .join("");
+    let inserts = 0;
+    const execute = vi.spyOn(banco(), "execute").mockImplementation((async (consulta: Parameters<typeof real>[0]) => {
+      if (textoDe(consulta).includes("insert into") && inserts++ === 0) {
+        throw Object.assign(new Error("duplicate key"), { cause: { code: "23505", constraint: "participante_jam_vaga" } });
+      }
+      return real(consulta);
+    }) as typeof real);
+    try {
+      expect(await chamarAmigo(banco(), "lucas", JAM, "pai")).toEqual({ vaga: 2 });
+      expect(inserts).toBe(2);
+    } finally {
+      execute.mockRestore();
+    }
   });
 
   it("vaga que vagou é usada de novo", async () => {
@@ -109,15 +136,34 @@ describe("chamar amigo (AC 1)", () => {
 
 describe("colocar no repositório (AC 2 e 4)", () => {
   const daJam = { id: JAM, repoOwner: "lucas", repoNome: "projeto" };
-  const pai = { id: "pai", login: "pai-dev" };
+  const pai = { id: "pai", githubId: 1001 };
 
-  function github(opcoes: { conviteId?: number | null; falha?: Error; aceita?: boolean | Error }) {
+  type Opcoes = {
+    login?: string | null;
+    convite?: { conviteId: number | null; convidadoId: number | null };
+    falha?: Error;
+    aceita?: boolean | Error;
+    colaborador?: boolean;
+  };
+
+  function github(opcoes: Opcoes = {}) {
     const chamadas: string[] = [];
     const criador: GithubColaboracao = {
+      loginAtual: async (id) => {
+        chamadas.push(`login ${id}`);
+        return opcoes.login === undefined ? "pai-dev" : opcoes.login;
+      },
       adicionarColaborador: async (owner, repo, login) => {
         chamadas.push(`colaborador ${owner}/${repo} ${login}`);
         if (opcoes.falha) throw opcoes.falha;
-        return { conviteId: opcoes.conviteId === undefined ? 42 : opcoes.conviteId };
+        return opcoes.convite ?? { conviteId: 42, convidadoId: 1001 };
+      },
+      cancelarConvite: async (_o, _r, id) => {
+        chamadas.push(`cancelar ${id}`);
+      },
+      ehColaborador: async (_o, _r, login) => {
+        chamadas.push(`confere ${login}`);
+        return opcoes.colaborador ?? false;
       },
     };
     const convidado: GithubConvites = {
@@ -130,48 +176,92 @@ describe("colocar no repositório (AC 2 e 4)", () => {
     return { criador, convidado, chamadas };
   }
 
-  async function estadoDoPai() {
-    const [linha] = await banco().select({ c: participante.colaborador }).from(participante).where(eq(participante.usuarioId, "pai"));
-    return linha?.c;
-  }
-
   beforeEach(async () => {
     await chamarAmigo(banco(), "lucas", JAM, "pai");
   });
 
-  it("convite aceito em nome do amigo: ok", async () => {
-    const { criador, convidado, chamadas } = github({});
-    expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toBe("ok");
-    expect(chamadas).toEqual(["colaborador lucas/projeto pai-dev", "aceitar 42"]);
-    expect(await estadoDoPai()).toBe("ok");
+  it("convite para o login atual (pelo id), aceito em nome do amigo: ok", async () => {
+    const { criador, convidado, chamadas } = github({ login: "pai-novo" });
+    expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toEqual({ estado: "ok" });
+    expect(chamadas).toEqual(["login 1001", "colaborador lucas/projeto pai-novo", "aceitar 42"]);
+    expect(await estadoDe("pai")).toBe("ok");
   });
 
-  it("já era colaborador (204): ok, sem convite para aceitar", async () => {
-    const { criador, convidado, chamadas } = github({ conviteId: null });
-    expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toBe("ok");
-    expect(chamadas).toEqual(["colaborador lucas/projeto pai-dev"]);
-  });
-
-  it("o GitHub não deixa aceitar por ele (ou o token dele venceu): pendente", async () => {
-    for (const aceita of [false, new Error("reautenticar")]) {
-      const { criador, convidado } = github({ aceita });
-      expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toBe("pendente");
-      expect(await estadoDoPai()).toBe("pendente");
-    }
-  });
-
-  it("erro do GitHub ao adicionar: falhou, e o participante fica com estado claro (AC 4)", async () => {
+  it("convite que foi para outra conta é cancelado e fica não adicionado (SEC-001)", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { criador, convidado } = github({ falha: Object.assign(new Error("limite"), { status: 403 }) });
-    expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toBe("falhou");
-    expect(await estadoDoPai()).toBe("falhou");
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("colaborador_falhou"));
+    const { criador, convidado, chamadas } = github({ convite: { conviteId: 42, convidadoId: 9999 } });
+    const resultado = await colocarNoRepositorio(banco(), daJam, pai, criador, convidado);
+    expect(resultado.estado).toBe("falhou");
+    expect(resultado.motivo).toContain("foi para outra conta");
+    expect(chamadas).toContain("cancelar 42");
+    expect(chamadas).not.toContain("aceitar 42");
     log.mockRestore();
   });
 
-  it("os dados para tentar de novo só saem para o criador", async () => {
-    expect(await dadosParaColocar(banco(), "lucas", JAM, "pai")).toEqual({ daJam, amigo: pai, colaborador: "pendente" });
+  it("conta do amigo que sumiu do GitHub: não adicionado, sem convidar ninguém", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { criador, convidado, chamadas } = github({ login: null });
+    expect((await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).estado).toBe("falhou");
+    expect(chamadas).toEqual(["login 1001"]);
+    log.mockRestore();
+  });
+
+  it("já era colaborador (204): ok, sem convite para aceitar", async () => {
+    const { criador, convidado, chamadas } = github({ convite: { conviteId: null, convidadoId: null } });
+    expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toEqual({ estado: "ok" });
+    expect(chamadas).not.toContain("aceitar 42");
+  });
+
+  it("o GitHub não deixa aceitar por ele (ou o token dele venceu): pendente", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const aceita of [false, new Error("reautenticar")]) {
+      const { criador, convidado } = github({ aceita });
+      expect(await colocarNoRepositorio(banco(), daJam, pai, criador, convidado)).toEqual({ estado: "pendente" });
+      expect(await estadoDe("pai")).toBe("pendente");
+    }
+    aviso.mockRestore();
+  });
+
+  it("erro do GitHub ao adicionar: não adicionado, com o motivo traduzido (AC 4)", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { criador, convidado } = github({ falha: Object.assign(new Error("limite"), { status: 403 }) });
+    const resultado = await colocarNoRepositorio(banco(), daJam, pai, criador, convidado);
+    expect(resultado.estado).toBe("falhou");
+    expect(resultado.motivo).toContain("O GitHub recusou");
+    expect(await estadoDe("pai")).toBe("falhou");
+    log.mockRestore();
+  });
+
+  it("tentar de novo reconfere: só o criador, jam aberta e ainda amigos (SEC-002)", async () => {
+    expect(await dadosParaColocar(banco(), "lucas", JAM, "pai")).toEqual({ daJam, amigo: pai, colaborador: "falhou" });
     expect(await erroDe(dadosParaColocar(banco(), "pai", JAM, "pai"))).toEqual({ codigo: "jam_nao_encontrada", status: 404 });
-    expect(await erroDe(dadosParaColocar(banco(), "lucas", JAM, "lucas"))).toEqual({ codigo: "jam_nao_encontrada", status: 404 });
+    await desfazerAmizade(banco(), "pai", "lucas");
+    expect(await erroDe(dadosParaColocar(banco(), "lucas", JAM, "pai"))).toEqual({ codigo: "so_amigos", status: 403 });
+    await amigos("lucas", "pai");
+    await banco().update(jam).set({ estado: "fechada" });
+    expect(await erroDe(dadosParaColocar(banco(), "lucas", JAM, "pai"))).toEqual({ codigo: "jam_fechada", status: 409 });
+  });
+
+  it("quem aceitou pelo link vira ok na próxima visita ao Início (REL-001)", async () => {
+    await banco().update(participante).set({ colaborador: "pendente" }).where(eq(participante.usuarioId, "pai"));
+    const aindaNao = github({ colaborador: false });
+    expect(await sincronizarPendentes(banco(), "pai", () => aindaNao.criador)).toBe(0);
+    expect(await estadoDe("pai")).toBe("pendente");
+    const aceitou = github({ colaborador: true, login: "pai-dev" });
+    expect(await sincronizarPendentes(banco(), "pai", () => aceitou.criador)).toBe(1);
+    expect(await estadoDe("pai")).toBe("ok");
+    expect(aceitou.chamadas).toEqual(["login 1001", "confere pai-dev"]);
+  });
+
+  it("a sincronização só olha as jams de quem abre o Início, e erro do GitHub não muda nada", async () => {
+    await banco().update(participante).set({ colaborador: "pendente" }).where(eq(participante.usuarioId, "pai"));
+    const { criador } = github({ colaborador: true });
+    expect(await sincronizarPendentes(banco(), "estranho", () => criador)).toBe(0);
+    const quebrado = github();
+    quebrado.criador.ehColaborador = async () => {
+      throw new Error("GitHub fora");
+    };
+    expect(await sincronizarPendentes(banco(), "lucas", () => quebrado.criador)).toBe(0);
+    expect(await estadoDe("pai")).toBe("pendente");
   });
 });

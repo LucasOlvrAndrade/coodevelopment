@@ -63,19 +63,22 @@ async function colocar(eu: string, jamId: string, amigoId: string) {
   );
 }
 
+// Cada amigo à parte: erro com um não impede o outro, e a página sempre volta
+// atualizada (gate da 2.3, REL-001). Quem pegou a vaga e caiu no meio fica
+// "não adicionado", com tentar de novo no Início.
 export async function chamarAmigos(jamId: string, amigoIds: string[]) {
   return executar(async () => {
     const eu = await exigirSessao();
     const jam = entrada(idJam, jamId);
     const ids = entrada(z.array(idUsuario).max(2), amigoIds);
-    const resultados: { amigoId: string; estado?: participantes.EstadoColaborador; erro?: string }[] = [];
+    const resultados: ({ amigoId: string } & (participantes.ResultadoColocar | { erro: string }))[] = [];
     for (const amigoId of ids) {
       try {
         await participantes.chamarAmigo(db(), eu.id, jam, amigoId);
-        resultados.push({ amigoId, estado: await colocar(eu.id, jam, amigoId) });
+        resultados.push({ amigoId, ...(await colocar(eu.id, jam, amigoId)) });
       } catch (e) {
-        if (!(e instanceof ErroApp)) throw e;
-        resultados.push({ amigoId, erro: e.message });
+        if (!(e instanceof ErroApp)) console.error(JSON.stringify({ nivel: "erro", evento: "chamar_amigo", erro: String(e) }));
+        resultados.push({ amigoId, erro: e instanceof ErroApp ? e.message : "Algo deu errado ao chamar essa pessoa." });
       }
     }
     refresh();

@@ -152,11 +152,35 @@ export function githubRepositorios(octokit: Octokit): GithubRepositorios {
 // Colaborador no repositório da jam, com o token do criador (Story 2.3).
 // 201 traz o convite; 204 quando a pessoa já é colaboradora.
 export function githubColaboracao(octokit: Octokit): GithubColaboracao {
+  async function simOuNao(chamada: Promise<unknown>) {
+    try {
+      await chamada;
+      return true;
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) return false;
+      throw e;
+    }
+  }
   return {
+    // O login muda; o id não. Gate da 2.3, SEC-001.
+    async loginAtual(githubId) {
+      try {
+        const { data } = await octokit.request("GET /user/{account_id}", { account_id: githubId });
+        return (data as { login: string }).login;
+      } catch (e) {
+        if ((e as { status?: number }).status === 404) return null;
+        throw e;
+      }
+    },
     async adicionarColaborador(owner, repo, login) {
       const resposta = await octokit.rest.repos.addCollaborator({ owner, repo, username: login, permission: "push" });
-      return { conviteId: resposta.status === 201 && resposta.data ? resposta.data.id : null };
+      if (resposta.status !== 201 || !resposta.data) return { conviteId: null, convidadoId: null };
+      return { conviteId: resposta.data.id, convidadoId: resposta.data.invitee?.id ?? null };
     },
+    async cancelarConvite(owner, repo, conviteId) {
+      await octokit.rest.repos.deleteInvitation({ owner, repo, invitation_id: conviteId });
+    },
+    ehColaborador: (owner, repo, login) => simOuNao(octokit.rest.repos.checkCollaborator({ owner, repo, username: login })),
   };
 }
 

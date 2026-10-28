@@ -237,13 +237,19 @@ describe("githubColaboracao e githubConvites (Story 2.3)", () => {
     return { octokit: githubDoUsuario("u1"), pedidos, fetchFalso };
   }
 
-  it("adiciona com permissão push; 201 traz o id do convite e 204 não", async () => {
-    const convite = comResposta(() => Response.json({ id: 42 }, { status: 201 }));
-    expect(await githubColaboracao(convite.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({ conviteId: 42 });
+  it("adiciona com permissão push; 201 traz o id do convite e quem foi convidado; 204 não", async () => {
+    const convite = comResposta(() => Response.json({ id: 42, invitee: { id: 1001 } }, { status: 201 }));
+    expect(await githubColaboracao(convite.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({
+      conviteId: 42,
+      convidadoId: 1001,
+    });
     expect(convite.pedidos).toEqual(['PUT /repos/lucas/projeto/collaborators/pai-dev {"permission":"push"}']);
     convite.fetchFalso.mockRestore();
     const jaEra = comResposta(() => new Response(null, { status: 204 }));
-    expect(await githubColaboracao(jaEra.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({ conviteId: null });
+    expect(await githubColaboracao(jaEra.octokit).adicionarColaborador("lucas", "projeto", "pai-dev")).toEqual({
+      conviteId: null,
+      convidadoId: null,
+    });
     jaEra.fetchFalso.mockRestore();
   });
 
@@ -261,5 +267,45 @@ describe("githubColaboracao e githubConvites (Story 2.3)", () => {
     await expect(convites.aceitarConvite(45)).rejects.toMatchObject({ status: 500 });
     fetchFalso.mockRestore();
     expect(pedidos[0]).toBe("PATCH /user/repository_invitations/42");
+  });
+});
+
+describe("githubColaboracao: login pelo id, cancelar e conferir (gate da 2.3)", () => {
+  function comResposta(responder: (url: URL) => Response) {
+    getAccessToken.mockResolvedValue({ accessToken: "ghu_x" });
+    const pedidos: string[] = [];
+    const fetchFalso = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const u = new URL(String(url));
+      pedidos.push(`${init?.method ?? "GET"} ${u.pathname}`);
+      return responder(u);
+    });
+    return { github: githubColaboracao(githubDoUsuario("u1")), pedidos, fetchFalso };
+  }
+
+  it("acha o login atual pelo id; conta que não existe vira null", async () => {
+    const { github, pedidos, fetchFalso } = comResposta((u) =>
+      u.pathname === "/user/1001" ? Response.json({ id: 1001, login: "pai-novo" }) : Response.json({ message: "Not Found" }, { status: 404 }),
+    );
+    expect(await github.loginAtual(1001)).toBe("pai-novo");
+    expect(await github.loginAtual(5)).toBeNull();
+    fetchFalso.mockRestore();
+    expect(pedidos).toEqual(["GET /user/1001", "GET /user/5"]);
+  });
+
+  it("cancela o convite e confere colaborador (204 sim, 404 não)", async () => {
+    const { github, pedidos, fetchFalso } = comResposta((u) => {
+      if (u.pathname.endsWith("/collaborators/pai-dev")) return new Response(null, { status: 204 });
+      if (u.pathname.includes("/invitations/")) return new Response(null, { status: 204 });
+      return Response.json({ message: "Not Found" }, { status: 404 });
+    });
+    await github.cancelarConvite("lucas", "projeto", 42);
+    expect(await github.ehColaborador("lucas", "projeto", "pai-dev")).toBe(true);
+    expect(await github.ehColaborador("lucas", "projeto", "estranho")).toBe(false);
+    fetchFalso.mockRestore();
+    expect(pedidos).toEqual([
+      "DELETE /repos/lucas/projeto/invitations/42",
+      "GET /repos/lucas/projeto/collaborators/pai-dev",
+      "GET /repos/lucas/projeto/collaborators/estranho",
+    ]);
   });
 });

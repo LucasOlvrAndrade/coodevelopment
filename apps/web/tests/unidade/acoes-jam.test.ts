@@ -18,10 +18,10 @@ vi.mock("@/servidor/dominio/jam", async (original) => ({
 }));
 const refresh = vi.fn();
 const chamarAmigo = vi.fn(async () => ({ vaga: 2 }));
-const colocarNoRepositorio = vi.fn(async () => "ok" as const);
+const colocarNoRepositorio = vi.fn(async (): Promise<{ estado: "ok" | "pendente" | "falhou"; motivo?: string }> => ({ estado: "ok" }));
 const dadosParaColocar = vi.fn(async (_b: unknown, _eu: string, jamId: string, amigoId: string) => ({
   daJam: { id: jamId, repoOwner: "lucas", repoNome: "projeto" },
-  amigo: { id: amigoId, login: `${amigoId}-dev` },
+  amigo: { id: amigoId, githubId: 1001 },
   colaborador: "pendente" as const,
 }));
 vi.mock("next/cache", () => ({ refresh }));
@@ -80,11 +80,25 @@ describe("chamarAmigos e tentarDeNovo (Story 2.3)", () => {
     expect(colocarNoRepositorio).toHaveBeenCalledWith(
       banco,
       { id: "k7m2-rbq9", repoOwner: "lucas", repoNome: "projeto" },
-      { id: "pai", login: "pai-dev" },
+      { id: "pai", githubId: 1001 },
       { colaboracaoDe: "eu" },
       { convitesDe: "pai" },
     );
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("erro inesperado num amigo também não impede o outro, e a página atualiza (REL-001)", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    chamarAmigo.mockRejectedValueOnce(new Error("Neon fora"));
+    expect(await chamarAmigos("k7m2-rbq9", ["pai", "ana"])).toEqual({
+      ok: true,
+      dados: [
+        { amigoId: "pai", erro: "Algo deu errado ao chamar essa pessoa." },
+        { amigoId: "ana", estado: "ok" },
+      ],
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    log.mockRestore();
   });
 
   it("erro de regra num amigo não impede o outro, e volta com a mensagem", async () => {
@@ -105,8 +119,8 @@ describe("chamarAmigos e tentarDeNovo (Story 2.3)", () => {
   });
 
   it("tentar de novo refaz o GitHub de quem ficou de fora", async () => {
-    colocarNoRepositorio.mockResolvedValueOnce("pendente" as never);
-    expect(await tentarDeNovo("k7m2-rbq9", "pai")).toEqual({ ok: true, dados: "pendente" });
+    colocarNoRepositorio.mockResolvedValueOnce({ estado: "falhou", motivo: "O GitHub recusou." });
+    expect(await tentarDeNovo("k7m2-rbq9", "pai")).toEqual({ ok: true, dados: { estado: "falhou", motivo: "O GitHub recusou." } });
     expect(dadosParaColocar).toHaveBeenCalledWith(banco, "eu", "k7m2-rbq9", "pai");
     expect(refresh).toHaveBeenCalledTimes(1);
   });
