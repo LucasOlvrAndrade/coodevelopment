@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { painel } from "@/componentes/ui/estilo";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 import { AcaoPessoa } from "./AcaoPessoa";
 import { LinhaPessoa } from "./LinhaPessoa";
@@ -27,7 +28,7 @@ export function Sugestoes({ sugestoes }: { sugestoes: Pessoa[] }) {
       {sugestoes.length === 0 ? (
         <p className="text-texto-suave">Nenhum dos seus mútuos do GitHub usa o Coodevelopment ainda. Busque pelo usuário abaixo.</p>
       ) : (
-        <ul aria-label="Sugestões do GitHub" className="divide-y divide-divisoria">
+        <ul aria-label="Sugestões do GitHub" className={`${painel} divide-y divide-divisoria`}>
           {sugestoes.map((pessoa) => (
             <li key={pessoa.id}>
               <LinhaPessoa nome={pessoa.nome} login={pessoa.login} foto={pessoa.foto}>

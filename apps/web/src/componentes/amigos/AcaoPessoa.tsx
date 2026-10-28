@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
+import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { aceitarPedido, pedirAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";

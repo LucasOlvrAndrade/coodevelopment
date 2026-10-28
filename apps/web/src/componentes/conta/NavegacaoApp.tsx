@@ -28,9 +28,9 @@ function contagemPara(caminho: string): Promise<number | null> {
   return ultimaContagem.total;
 }
 
-// Navegação principal (front-end spec): no computador fica na barra de cima;
-// no celular, "Jams" e "Amigos" viram uma barra inferior. "Amigos" mostra
-// quantos pedidos esperam resposta.
+// Navegação principal (front-end spec): no computador fica na pílula do
+// cabeçalho; no celular, "Jams" e "Amigos" viram uma pílula flutuante embaixo
+// (V3). "Amigos" mostra quantos pedidos esperam resposta.
 export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
   const caminho = usePathname();
   const noTopo = posicao === "topo";
@@ -63,7 +63,7 @@ export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
       className={
         noTopo
           ? "hidden items-center gap-1 md:flex"
-          : "fixed inset-x-0 bottom-0 z-10 grid grid-cols-2 border-t border-divisoria bg-fundo md:hidden"
+          : "fixed inset-x-4 bottom-4 z-20 grid grid-cols-2 gap-1 rounded-full bg-superficie/80 p-1 ring-1 ring-divisoria backdrop-blur md:hidden"
       }
     >
       {ITENS.map((item) => {
@@ -74,14 +74,14 @@ export function NavegacaoApp({ pedidosRecebidos, posicao }: Props) {
             key={item.href}
             href={item.href}
             aria-current={atual ? "page" : undefined}
-            className={`inline-flex items-center justify-center gap-2 text-corpo transition-colors ${
-              noTopo ? "rounded-controle px-3 py-2" : "min-h-14 px-3 py-3"
-            } ${atual ? "font-medium text-texto" + (noTopo ? " bg-superficie" : "") : "text-texto-suave hover:text-texto"}`}
+            className={`inline-flex items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-colors ${
+              noTopo ? "py-2" : "min-h-12"
+            } ${atual ? "bg-texto/10 text-texto" : "text-texto/80 hover:text-texto"}`}
           >
             {item.rotulo}
             {contador > 0 && (
               <>
-                <span aria-hidden className="min-w-5 rounded-full bg-primaria px-1.5 text-center text-pequeno font-medium text-sobre-primaria">
+                <span aria-hidden className="min-w-5 rounded-full bg-primaria px-1.5 text-center text-xs leading-5 font-medium text-sobre-primaria">
                   {contador}
                 </span>
                 <span className="sr-only">, {contador === 1 ? "1 pedido recebido" : `${contador} pedidos recebidos`}</span>

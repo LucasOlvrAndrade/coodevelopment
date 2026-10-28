@@ -5,6 +5,7 @@ import { AlternarNovaJam } from "@/componentes/jams/AlternarNovaJam";
 import { AmigosDaJam, EscolherAmigos } from "@/componentes/jams/AmigosDaJam";
 import { CriarRepositorio } from "@/componentes/jams/CriarRepositorio";
 import { EscolherRepositorio } from "@/componentes/jams/EscolherRepositorio";
+import { tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarAmigos } from "@/servidor/dominio/amizade";
@@ -47,12 +48,14 @@ async function AmigosParaChamar() {
 // repositório, importado (2.1) ou novo (2.2).
 export default function NovaJam() {
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="text-h1 font-semibold">Nova jam</h1>
-      <p className="text-texto-suave">A jam fica ligada a um repositório, e o commit vai para a branch padrão dele quando alguém fechar a jam.</p>
+    <div className="flex max-w-2xl flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <h1 className={tituloPagina}>Nova jam</h1>
+        <p className="text-texto-suave">A jam fica ligada a um repositório, e o commit vai para a branch padrão dele quando alguém fechar a jam.</p>
+      </div>
       <AmigosDaJam>
-        <section aria-labelledby="titulo-quem" className="flex flex-col gap-3">
-          <h2 id="titulo-quem" className="text-h2 font-semibold">
+        <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
+          <h2 id="titulo-quem" className={tituloSecao}>
             Quem vem com você
           </h2>
           <Suspense fallback={<p className="text-texto-suave">Carregando seus amigos...</p>}>
@@ -61,8 +64,8 @@ export default function NovaJam() {
         </section>
         <AlternarNovaJam
           importar={
-            <section aria-labelledby="titulo-importar" className="flex flex-col gap-3">
-              <h2 id="titulo-importar" className="text-h2 font-semibold">
+            <section aria-labelledby="titulo-importar" className="flex flex-col gap-4">
+              <h2 id="titulo-importar" className={tituloSecao}>
                 Importar um repositório seu
               </h2>
               <Suspense fallback={<p className="text-texto-suave">Buscando seus repositórios no GitHub...</p>}>
@@ -71,8 +74,8 @@ export default function NovaJam() {
             </section>
           }
           criar={
-            <section aria-labelledby="titulo-criar" className="flex flex-col gap-3">
-              <h2 id="titulo-criar" className="text-h2 font-semibold">
+            <section aria-labelledby="titulo-criar" className="flex flex-col gap-4">
+              <h2 id="titulo-criar" className={tituloSecao}>
                 Criar um repositório novo
               </h2>
               <CriarRepositorio />

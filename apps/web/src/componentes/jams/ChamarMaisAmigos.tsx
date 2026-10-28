@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { Avatar } from "@/componentes/ui/Avatar";
-import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { botaoPrincipal, painel } from "@/componentes/ui/estilo";
 import { chamarAmigos } from "@/servidor/acoes/jam";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 
@@ -53,18 +53,20 @@ export function ChamarMaisAmigos({ jamId, amigos, vagas }: { jamId: string; amig
   return (
     <div className="flex flex-col gap-3">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-corpo font-medium">
+        <legend className="mb-3 text-corpo font-medium">
           Chamar mais amigos{" "}
           <span className="font-normal text-texto-suave">
             ({escolhidos.length} de {vagas} {vagas === 1 ? "vaga" : "vagas"})
           </span>
         </legend>
-        <ul className="flex flex-col gap-1">
+        <ul className={`${painel} divide-y divide-divisoria overflow-hidden`}>
           {amigos.map((amigo) => {
             const marcado = escolhidos.includes(amigo.id);
             return (
               <li key={amigo.id}>
-                <label className={`flex items-center gap-3 rounded-controle px-2 py-2 ${!marcado && cheio ? "opacity-60" : "cursor-pointer"}`}>
+                <label
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${!marcado && cheio ? "opacity-60" : "cursor-pointer hover:bg-texto/5"}`}
+                >
                   <input
                     type="checkbox"
                     checked={marcado}

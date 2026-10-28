@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { botaoPrincipalGrande, campo, painel } from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { criarJamImportando } from "@/servidor/acoes/jam";
 import type { Repositorio } from "@/servidor/dominio/jam";
@@ -15,7 +15,7 @@ const dataCurta = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-d
 // Importar repositório (Story 2.1, AC 1 e 2): a lista dos repositórios da conta
 // com busca, e "Criar jam" só com um escolhido (front-end spec, Nova jam).
 export function EscolherRepositorio({ repositorios }: { repositorios: Repositorio[] }) {
-  const { finalizar, painel } = useFinalizarCriacao();
+  const { finalizar, aviso } = useFinalizarCriacao();
   const [filtro, setFiltro] = useState("");
   const [escolhido, setEscolhido] = useState<Repositorio | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
           autoComplete="off"
           spellCheck={false}
           aria-controls={idLista}
-          className="rounded-controle border border-borda-controle bg-superficie px-3 py-2 font-mono text-corpo"
+          className={`${campo} font-mono`}
         />
       </div>
 
@@ -71,14 +71,14 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
         {/* A lista fica sempre na página (o campo de busca aponta para ela); vazia, some. */}
         <ul
           id={idLista}
-          className={naTela.length === 0 ? "hidden" : "max-h-[28rem] divide-y divide-divisoria overflow-y-auto rounded-controle border border-divisoria"}
+          className={naTela.length === 0 ? "hidden" : `${painel} max-h-[28rem] divide-y divide-divisoria overflow-y-auto`}
         >
             {naTela.map((r) => {
               const chave = `${r.owner}/${r.nome}`;
               const marcado = escolhido?.owner === r.owner && escolhido.nome === r.nome;
               return (
                 <li key={chave}>
-                  <label className={`flex cursor-pointer items-start gap-3 px-3 py-3 ${marcado ? "bg-superficie" : ""}`}>
+                  <label className={`flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors ${marcado ? "bg-texto/10" : "hover:bg-texto/5"}`}>
                     <input
                       type="radio"
                       name="repositorio"
@@ -91,7 +91,7 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="truncate font-mono text-corpo font-medium">{r.nome}</span>
                         {r.privado && (
-                          <span className="rounded-controle border border-divisoria px-1.5 text-pequeno text-texto-suave">privado</span>
+                          <span className="rounded-full px-2 text-pequeno text-texto-suave ring-1 ring-divisoria">privado</span>
                         )}
                       </span>
                       {r.descricao && <span className="text-pequeno text-texto-suave">{r.descricao}</span>}
@@ -115,14 +115,14 @@ export function EscolherRepositorio({ repositorios }: { repositorios: Repositori
         </p>
       </fieldset>
 
-      {painel}
+      {aviso}
       {erro && (
         <p role="alert" className="text-pequeno text-erro">
           {erro}
         </p>
       )}
       <div>
-        <button type="button" disabled={!escolhido || criando} onClick={criar} className={`${botaoPrincipal} px-4 py-3`}>
+        <button type="button" disabled={!escolhido || criando} onClick={criar} className={botaoPrincipalGrande}>
           {/* O nome no botão: a escolha continua valendo mesmo escondida pelo filtro (UX-001). */}
           {criando ? "Criando a jam..." : escolhido ? `Criar jam com ${escolhido.nome}` : "Criar jam"}
         </button>

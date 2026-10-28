@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
-import { botaoSecundario } from "@/componentes/ui/botoes";
+import { botaoSecundarioPequeno } from "@/componentes/ui/estilo";
 import { tentarDeNovo } from "@/servidor/acoes/jam";
 
 // Para o criador, quando um amigo não entrou no repositório (front-end spec:
@@ -26,7 +26,7 @@ export function TentarDeNovo({ jamId, amigoId, nome }: { jamId: string; amigoId:
 
   return (
     <>
-      <button type="button" disabled={indo} onClick={tentar} aria-label={`Tentar de novo com ${nome}`} className={`${botaoSecundario} py-1 text-pequeno`}>
+      <button type="button" disabled={indo} onClick={tentar} aria-label={`Tentar de novo com ${nome}`} className={botaoSecundarioPequeno}>
         {indo ? "Tentando..." : "Tentar de novo"}
       </button>
       {erro && (

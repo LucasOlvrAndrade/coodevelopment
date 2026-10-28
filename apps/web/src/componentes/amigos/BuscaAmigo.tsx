@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
-import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { botaoPrincipalGrande, campo, painel } from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { buscarAmigo } from "@/servidor/acoes/amizade";
 import type { Pessoa, Relacao } from "@/servidor/dominio/amizade";
@@ -73,10 +73,10 @@ export function BuscaAmigo({ versao }: { versao: string }) {
             placeholder="@usuario"
             aria-invalid={erro ? true : undefined}
             aria-describedby={erro ? "busca-dica busca-erro" : "busca-dica"}
-            className="rounded-controle border border-borda-controle bg-superficie px-3 py-2 font-mono text-corpo"
+            className={`${campo} font-mono`}
           />
         </div>
-        <button type="submit" disabled={buscando} className={botaoPrincipal}>
+        <button type="submit" disabled={buscando} className={botaoPrincipalGrande}>
           {buscando ? "Buscando..." : "Buscar"}
         </button>
       </form>
@@ -93,7 +93,7 @@ export function BuscaAmigo({ versao }: { versao: string }) {
         {aviso}
       </p>
       {achados && achados.length > 0 && (
-        <ul aria-label="Resultado da busca" className="divide-y divide-divisoria">
+        <ul aria-label="Resultado da busca" className={`${painel} divide-y divide-divisoria`}>
           {achados.map((achado) => (
             <li key={`${rodada}:${achado.id}`}>
               <LinhaPessoa nome={achado.nome} login={achado.login} foto={achado.foto}>

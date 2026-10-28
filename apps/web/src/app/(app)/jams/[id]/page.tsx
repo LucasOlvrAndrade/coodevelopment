@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ChamarMaisAmigos } from "@/componentes/jams/ChamarMaisAmigos";
 import { ExcluirJam } from "@/componentes/jams/ExcluirJam";
 import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
+import { link, painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarAmigos } from "@/servidor/dominio/amizade";
@@ -35,23 +36,30 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
 
   return (
     <>
-      <header className="flex flex-col gap-2">
-        <Link href="/inicio" className="text-pequeno text-texto-suave hover:text-texto">
+      <header className="flex flex-col items-start gap-4">
+        <Link
+          href="/inicio"
+          className="inline-flex items-center gap-2 rounded-full bg-texto/5 px-3 py-1.5 text-sm text-texto-suave ring-1 ring-divisoria transition-colors hover:text-texto"
+        >
           ← Jams
         </Link>
-        <h1 className="font-mono text-h1 font-semibold break-all">{repositorio}</h1>
-        <p className="text-texto-suave">
-          {aberta ? "Aberta" : jam.estado === "fechando" ? "Fechando" : "Fechada"} · branch {jam.branch} · código {jam.id}
+        {/* O selo da página inicial: a situação no chip branco, branch e código ao lado. */}
+        <p className="inline-flex max-w-full items-center gap-3 rounded-full bg-texto/10 px-2.5 py-2 ring-1 ring-texto/15 backdrop-blur">
+          <span className="inline-flex shrink-0 items-center rounded-full bg-primaria/90 px-2 py-0.5 text-xs font-medium text-sobre-primaria">
+            {aberta ? "Aberta" : jam.estado === "fechando" ? "Fechando" : "Fechada"}
+          </span>
+          <span className="truncate text-sm font-medium text-texto/90">
+            branch {jam.branch} · código {jam.id}
+          </span>
         </p>
-        <p>
-          <a href={`https://github.com/${repositorio}`} className="font-medium text-destaque underline underline-offset-2">
-            Abrir o repositório no GitHub
-          </a>
-        </p>
+        <h1 className={`${tituloPagina} break-all`}>{repositorio}</h1>
+        <a href={`https://github.com/${repositorio}`} className={link}>
+          Abrir o repositório no GitHub
+        </a>
       </header>
 
-      <section aria-labelledby="titulo-quem" className="flex flex-col gap-3">
-        <h2 id="titulo-quem" className="text-h2 font-semibold">
+      <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
+        <h2 id="titulo-quem" className={tituloSecao}>
           Quem está na jam
         </h2>
         <ParticipantesDaJam jam={jam} eu={eu.id} />
@@ -59,8 +67,8 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
         {souCriador && vagas <= 0 && <p className="text-pequeno text-texto-suave">A jam está completa: até 3 pessoas por enquanto.</p>}
       </section>
 
-      <section aria-labelledby="titulo-claude" className="flex flex-col gap-2">
-        <h2 id="titulo-claude" className="text-h2 font-semibold">
+      <section aria-labelledby="titulo-claude" className={`${painel} flex flex-col gap-3 p-6`}>
+        <h2 id="titulo-claude" className={tituloSecao}>
           Trabalhar junto
         </h2>
         <p className="text-texto-suave">
@@ -71,8 +79,8 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
       </section>
 
       {souCriador && (
-        <section aria-labelledby="titulo-gerenciar" className="flex flex-col items-start gap-2 border-t border-divisoria pt-6">
-          <h2 id="titulo-gerenciar" className="text-h3 font-semibold">
+        <section aria-labelledby="titulo-gerenciar" className="flex flex-col items-start gap-3 border-t border-divisoria pt-8">
+          <h2 id="titulo-gerenciar" className="text-h3 font-medium">
             Gerenciar
           </h2>
           <ExcluirJam jamId={jam.id} repositorio={repositorio} />
@@ -84,7 +92,7 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
 
 export default function PaginaDaJam({ params }: PageProps<"/jams/[id]">) {
   return (
-    <div className="flex max-w-3xl flex-col gap-8">
+    <div className="flex max-w-3xl flex-col gap-10">
       <Suspense fallback={<p className="text-texto-suave">Abrindo a jam...</p>}>
         <ConteudoDaJam params={params} />
       </Suspense>

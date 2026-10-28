@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/componentes/ui/Avatar";
+import { link, painel } from "@/componentes/ui/estilo";
 import type { JamDoInicio } from "@/servidor/dominio/jam";
 import { TentarDeNovo } from "./TentarDeNovo";
 
@@ -9,16 +10,16 @@ import { TentarDeNovo } from "./TentarDeNovo";
 // pode tentar de novo, e o amigo vê o link do convite do GitHub.
 export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string; nova?: string }) {
   return (
-    <ul aria-label="Suas jams" className="w-full divide-y divide-divisoria">
+    <ul aria-label="Suas jams" className={`${painel} w-full divide-y divide-divisoria overflow-hidden`}>
       {jams.map((jam) => {
         const destaque = jam.id === nova;
         const souCriador = jam.criadorId === eu;
         const foraDoRepositorio = jam.participantes.filter((p) => p.papel === "convidado" && p.colaborador !== "ok");
         return (
-          <li key={jam.id} className={`flex flex-col gap-2 py-3 ${destaque ? "bg-superficie px-3" : ""}`}>
+          <li key={jam.id} className={`flex flex-col gap-2 px-4 py-4 ${destaque ? "bg-texto/5" : ""}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <Link href={`/jams/${jam.id}`} className="block truncate font-mono text-corpo font-medium text-destaque underline-offset-2 hover:underline">
+                <Link href={`/jams/${jam.id}`} className="block truncate font-mono text-corpo font-medium underline-offset-4 hover:underline">
                   {jam.repoOwner}/{jam.repoNome}
                 </Link>
                 <p className="text-pequeno text-texto-suave">
@@ -41,10 +42,7 @@ export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string;
                   <li key={p.id} className="flex flex-wrap items-center gap-2 text-pequeno">
                     {p.id === eu ? (
                       p.colaborador === "pendente" ? (
-                        <a
-                          href={`https://github.com/${jam.repoOwner}/${jam.repoNome}/invitations`}
-                          className="font-medium text-destaque underline underline-offset-2"
-                        >
+                        <a href={`https://github.com/${jam.repoOwner}/${jam.repoNome}/invitations`} className={link}>
                           Aceite o convite do repositório no GitHub
                         </a>
                       ) : (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { botaoPrincipal, botaoSecundario } from "@/componentes/ui/botoes";
+import { botaoPrincipal, botaoSecundario, painel, tituloSecao } from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { aceitarPedido, recusarPedido } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
@@ -49,11 +49,11 @@ export function PedidosRecebidos({ pedidos }: { pedidos: Pedido[] }) {
   return (
     <div className="flex flex-col gap-2">
       {pedidos.length > 0 && (
-        <section aria-labelledby="titulo-recebidos" className="flex flex-col gap-1">
-          <h2 id="titulo-recebidos" className="text-h2 font-semibold">
+        <section aria-labelledby="titulo-recebidos" className="flex flex-col gap-4">
+          <h2 id="titulo-recebidos" className={tituloSecao}>
             Pedidos recebidos
           </h2>
-          <ul className="divide-y divide-divisoria">
+          <ul className={`${painel} divide-y divide-divisoria`}>
             {pedidos.map((pedido) => (
               <li key={pedido.pedidoId}>
                 <LinhaPessoa nome={pedido.nome} login={pedido.login} foto={pedido.foto}>

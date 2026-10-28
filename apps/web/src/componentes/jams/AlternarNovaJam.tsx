@@ -15,16 +15,17 @@ export function AlternarNovaJam({ importar, criar }: { importar: ReactNode; cria
   ];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div role="group" aria-label="Repositório da jam" className="inline-flex w-fit rounded-controle border border-borda-controle p-1">
+    <div className="flex flex-col gap-6">
+      {/* A pílula da navegação da página inicial, com a opção escolhida em branco. */}
+      <div role="group" aria-label="Repositório da jam" className="inline-flex w-fit max-w-full rounded-full bg-texto/5 p-1 ring-1 ring-divisoria">
         {opcoes.map((opcao) => (
           <button
             key={opcao.modo}
             type="button"
             aria-pressed={modo === opcao.modo}
             onClick={() => setModo(opcao.modo)}
-            className={`rounded-controle px-3 py-2 text-corpo transition-colors ${
-              modo === opcao.modo ? "bg-primaria font-medium text-sobre-primaria" : "text-texto-suave hover:text-texto"
+            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              modo === opcao.modo ? "bg-primaria text-sobre-primaria" : "text-texto/80 hover:text-texto"
             }`}
           >
             {opcao.rotulo}

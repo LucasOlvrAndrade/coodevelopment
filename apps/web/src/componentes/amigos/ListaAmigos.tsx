@@ -2,7 +2,15 @@
 
 import { AlertDialog } from "radix-ui";
 import { useRef, useState, useTransition } from "react";
-import { botaoSecundario } from "@/componentes/ui/botoes";
+import {
+  botaoPerigo,
+  botaoPerigoConfirmar,
+  botaoSecundario,
+  dialogo,
+  dialogoFundo,
+  dialogoTitulo,
+  painel,
+} from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { desfazerAmizade } from "@/servidor/acoes/amizade";
 import type { Pessoa } from "@/servidor/dominio/amizade";
@@ -24,7 +32,7 @@ export function ListaAmigos({ amigos }: { amigos: Pessoa[] }) {
       {amigos.length === 0 ? (
         <p className="text-texto-suave">Você ainda não tem amigos aqui. Busque alguém pelo usuário do GitHub.</p>
       ) : (
-        <ul className="divide-y divide-divisoria">
+        <ul className={`${painel} divide-y divide-divisoria`}>
           {amigos.map((amigo) => (
             <li key={amigo.id}>
               <LinhaPessoa nome={amigo.nome} login={amigo.login} foto={amigo.foto}>
@@ -73,15 +81,15 @@ function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () 
     <AlertDialog.Root open={aberto} onOpenChange={setAberto}>
       <AlertDialog.Trigger
         disabled={desfeita}
-        className={`${botaoSecundario} text-erro`}
+        className={botaoPerigo}
         aria-label={`Desfazer amizade com ${amigo.nome}`}
       >
         Desfazer amizade
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-dialogo border border-divisoria bg-superficie p-6 text-texto shadow-lg">
-          <AlertDialog.Title className="text-h3 font-semibold">Desfazer amizade com {amigo.nome}?</AlertDialog.Title>
+        <AlertDialog.Overlay className={dialogoFundo} />
+        <AlertDialog.Content className={dialogo}>
+          <AlertDialog.Title className={dialogoTitulo}>Desfazer amizade com {amigo.nome}?</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-texto-suave">
             Vocês deixam de ser amigos e não podem mais chamar um ao outro para uma jam. Para voltar, um dos dois manda
             outro pedido.
@@ -98,7 +106,7 @@ function DesfazerAmizade({ amigo, aoDesfazer }: { amigo: Pessoa; aoDesfazer: () 
               type="button"
               disabled={indo}
               onClick={confirmar}
-              className="rounded-controle bg-erro px-3 py-2 text-corpo font-medium text-fundo transition-[filter] hover:brightness-110 disabled:opacity-60"
+              className={botaoPerigoConfirmar}
             >
               {indo ? "Desfazendo..." : "Desfazer amizade"}
             </button>

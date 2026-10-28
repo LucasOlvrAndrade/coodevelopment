@@ -5,6 +5,7 @@ import { LinhaPessoa } from "@/componentes/amigos/LinhaPessoa";
 import { ListaAmigos } from "@/componentes/amigos/ListaAmigos";
 import { PedidosRecebidos } from "@/componentes/amigos/PedidosRecebidos";
 import { SugestoesMutuos } from "@/componentes/amigos/SugestoesMutuos";
+import { painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarAmigos, listarPedidos } from "@/servidor/dominio/amizade";
@@ -24,21 +25,23 @@ async function ConteudoAmigos() {
     <>
       <PedidosRecebidos pedidos={recebidos.map((p) => ({ ...pessoa(p), pedidoId: p.pedidoId }))} />
 
-      <section aria-labelledby="titulo-adicionar" className="flex flex-col gap-3">
-        <h2 id="titulo-adicionar" className="text-h2 font-semibold">
+      <section aria-labelledby="titulo-adicionar" className="flex flex-col gap-6">
+        <h2 id="titulo-adicionar" className={tituloSecao}>
           Adicionar
         </h2>
-        <section aria-labelledby="titulo-sugestoes" className="flex flex-col gap-1">
-          <h3 id="titulo-sugestoes" className="text-h3 font-semibold">
-            Sugestões do GitHub
-          </h3>
-          <p className="text-pequeno text-texto-suave">Quem você segue e te segue de volta, e já usa o Coodevelopment.</p>
-          <Suspense fallback={<p className="py-3 text-texto-suave">Procurando seus mútuos do GitHub...</p>}>
+        <section aria-labelledby="titulo-sugestoes" className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h3 id="titulo-sugestoes" className="text-h3 font-medium">
+              Sugestões do GitHub
+            </h3>
+            <p className="text-pequeno text-texto-suave">Quem você segue e te segue de volta, e já usa o Coodevelopment.</p>
+          </div>
+          <Suspense fallback={<p className="text-texto-suave">Procurando seus mútuos do GitHub...</p>}>
             <SugestoesMutuos />
           </Suspense>
         </section>
-        <section aria-labelledby="titulo-busca" className="flex flex-col gap-2">
-          <h3 id="titulo-busca" className="text-h3 font-semibold">
+        <section aria-labelledby="titulo-busca" className="flex flex-col gap-3">
+          <h3 id="titulo-busca" className="text-h3 font-medium">
             Buscar
           </h3>
           <BuscaAmigo versao={versao} />
@@ -46,11 +49,11 @@ async function ConteudoAmigos() {
       </section>
 
       {enviados.length > 0 && (
-        <section aria-labelledby="titulo-enviados" className="flex flex-col gap-1">
-          <h2 id="titulo-enviados" className="text-h2 font-semibold">
+        <section aria-labelledby="titulo-enviados" className="flex flex-col gap-4">
+          <h2 id="titulo-enviados" className={tituloSecao}>
             Enviados
           </h2>
-          <ul className="divide-y divide-divisoria">
+          <ul className={`${painel} divide-y divide-divisoria`}>
             {enviados.map((p) => (
               <li key={p.pedidoId}>
                 <LinhaPessoa nome={p.nome} login={p.login} foto={p.foto}>
@@ -62,8 +65,8 @@ async function ConteudoAmigos() {
         </section>
       )}
 
-      <section aria-labelledby="titulo-amigos" className="flex flex-col gap-1">
-        <h2 id="titulo-amigos" className="text-h2 font-semibold">
+      <section aria-labelledby="titulo-amigos" className="flex flex-col gap-4">
+        <h2 id="titulo-amigos" className={tituloSecao}>
           Seus amigos
         </h2>
         <ListaAmigos amigos={amigos.map(pessoa)} />
@@ -74,8 +77,8 @@ async function ConteudoAmigos() {
 
 export default function PaginaAmigos() {
   return (
-    <div className="flex max-w-2xl flex-col gap-8">
-      <h1 className="text-h1 font-semibold">Amigos</h1>
+    <div className="flex max-w-2xl flex-col gap-10">
+      <h1 className={tituloPagina}>Amigos</h1>
       <Suspense fallback={<p className="text-texto-suave">Carregando seus amigos...</p>}>
         <ConteudoAmigos />
       </Suspense>

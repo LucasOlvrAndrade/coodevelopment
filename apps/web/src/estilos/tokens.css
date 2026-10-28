@@ -1,55 +1,22 @@
 /* Tokens da front-end spec (Branding & Style Guide). Não usar cor fora daqui.
-   Primária: o verde do Grupo RAM (#0f7433, arquivo oficial da marca), só como
-   preenchimento; texto branco sobre ele dá 5,8:1. Verde em texto usa --destaque. */
-:root {
-  --fundo: #f7f5f0;
-  --superficie: #ffffff;
-  --texto: #1c1b19;
-  --texto-suave: #68645c;
-  --divisoria: #d6d1c6;
-  --borda-controle: #8a8579;
-  --primaria: #0f7433;
-  --sobre-primaria: #ffffff;
-  --destaque: #0f7433;
-  --sucesso: #2d7a4b;
-  --alerta: #9a6410;
-  --erro: #b3362a;
-  --participante-1: #ad4719;
-  --participante-2: #24708f;
-  --participante-3: #7c600f;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fundo: #141413;
-    --superficie: #1e1d1b;
-    --texto: #f2efe8;
-    --texto-suave: #a8a397;
-    --divisoria: #3a3833;
-    --borda-controle: #7a766c;
-    --primaria: #0f7433;
-    --sobre-primaria: #ffffff;
-    --destaque: #4cc27a;
-    --sucesso: #6cc891;
-    --alerta: #e3a74a;
-    --erro: #f07c6e;
-    --participante-1: #f08a5b;
-    --participante-2: #6bb8d6;
-    --participante-3: #d9b44a;
-  }
-}
-
-/* Seções sempre escuras (a faixa da página inicial), nos dois temas. */
+   O app inteiro segue o visual da página inicial (V3, 28/10): fundo quase preto,
+   texto branco, ações em pílula branca e painéis translúcidos (o branco do
+   texto em 5%, 10% e 15%), sempre escuro. A faixa da página inicial também
+   usa .tema-escuro, com os mesmos valores.
+   Contrastes sobre o fundo: texto-suave 7,8:1; erro 7,4:1; alerta 9,4:1;
+   sucesso 9,8:1; borda de controle 3,7:1; texto escuro sobre a primária
+   branca 19:1. */
+:root,
 .tema-escuro {
-  --fundo: #141413;
-  --superficie: #1e1d1b;
-  --texto: #f2efe8;
-  --texto-suave: #a8a397;
-  --divisoria: #3a3833;
-  --borda-controle: #7a766c;
-  --primaria: #0f7433;
-  --sobre-primaria: #ffffff;
-  --destaque: #4cc27a;
+  color-scheme: dark;
+  --fundo: #09090b;
+  --superficie: #131316;
+  --texto: #fafafa;
+  --texto-suave: #a1a1aa;
+  --divisoria: rgb(255 255 255 / 0.1);
+  --borda-controle: rgb(255 255 255 / 0.4);
+  --primaria: #fafafa;
+  --sobre-primaria: #09090b;
   --sucesso: #6cc891;
   --alerta: #e3a74a;
   --erro: #f07c6e;

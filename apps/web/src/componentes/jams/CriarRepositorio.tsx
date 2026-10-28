@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { botaoPrincipalGrande, campo } from "@/componentes/ui/estilo";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { criarJamComRepositorio } from "@/servidor/acoes/jam";
 import { useFinalizarCriacao } from "./AmigosDaJam";
@@ -15,7 +15,7 @@ const ERROS_DO_NOME = new Set(["nome_repositorio_invalido", "repositorio_ja_exis
 // Criar repositório (Story 2.2): nome e visibilidade, e a jam ligada a ele.
 // Erro de nome aparece no próprio campo (front-end spec, Nova jam).
 export function CriarRepositorio() {
-  const { finalizar, painel } = useFinalizarCriacao();
+  const { finalizar, aviso } = useFinalizarCriacao();
   const [nome, setNome] = useState("");
   const [privado, setPrivado] = useState(true);
   const [erroDoNome, setErroDoNome] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function CriarRepositorio() {
           spellCheck={false}
           aria-invalid={erroDoNome ? true : undefined}
           aria-describedby={erroDoNome ? "nome-repositorio-dica nome-repositorio-erro" : "nome-repositorio-dica"}
-          className="rounded-controle border border-borda-controle bg-superficie px-3 py-2 font-mono text-corpo"
+          className={`${campo} font-mono`}
         />
         <p id="nome-repositorio-dica" className="text-pequeno text-texto-suave">
           Letras, números, ponto, hífen e sublinhado. Ele fica na sua conta do GitHub, com um primeiro commit.
@@ -87,14 +87,14 @@ export function CriarRepositorio() {
         </label>
       </fieldset>
 
-      {painel}
+      {aviso}
       {erro && (
         <p role="alert" className="text-pequeno text-erro">
           {erro}
         </p>
       )}
       <div>
-        <button type="submit" disabled={criando} className={`${botaoPrincipal} px-4 py-3`}>
+        <button type="submit" disabled={criando} className={botaoPrincipalGrande}>
           {criando ? "Criando o repositório e a jam..." : "Criar repositório e jam"}
         </button>
       </div>

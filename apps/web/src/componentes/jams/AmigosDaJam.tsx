@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
 import { Avatar } from "@/componentes/ui/Avatar";
-import { botaoPrincipal } from "@/componentes/ui/botoes";
+import { botaoPrincipalGrande, painel } from "@/componentes/ui/estilo";
 import { chamarAmigos } from "@/servidor/acoes/jam";
 import type { Pessoa } from "@/servidor/dominio/amizade";
 
@@ -56,8 +56,8 @@ export function useFinalizarCriacao() {
     else setDepois({ jamId, problemas });
   }
 
-  const painel = depois && (
-    <div role="alert" className="flex flex-col gap-3 rounded-controle border border-alerta p-4">
+  const aviso = depois && (
+    <div role="alert" className="flex flex-col gap-3 rounded-2xl bg-alerta/10 p-5 ring-1 ring-alerta/40">
       <p className="font-medium">A jam foi criada, mas nem todo mundo entrou.</p>
       <ul className="list-disc pl-5 text-corpo">
         {depois.problemas.map((p) => (
@@ -65,14 +65,14 @@ export function useFinalizarCriacao() {
         ))}
       </ul>
       <div>
-        <Link href={`/inicio?nova=${encodeURIComponent(depois.jamId)}`} className={`${botaoPrincipal} inline-block px-4 py-3`}>
+        <Link href={`/inicio?nova=${encodeURIComponent(depois.jamId)}`} className={botaoPrincipalGrande}>
           Ir para o Início
         </Link>
       </div>
     </div>
   );
 
-  return { finalizar, painel };
+  return { finalizar, aviso };
 }
 
 // Só amigos aparecem, no máximo 2 (FR5, FR6), com o contador "0 de 2" (front-end spec).
@@ -84,15 +84,17 @@ export function EscolherAmigos({ amigos }: { amigos: Pessoa[] }) {
   const cheio = escolhidos.length >= MAXIMO;
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1 text-corpo font-medium">
+      <legend className="mb-3 text-corpo font-medium">
         Chamar amigos <span className="font-normal text-texto-suave">(opcional, {escolhidos.length} de {MAXIMO})</span>
       </legend>
-      <ul className="flex flex-col gap-1">
+      <ul className={`${painel} divide-y divide-divisoria overflow-hidden`}>
         {amigos.map((amigo) => {
           const marcado = escolhidos.some((a) => a.id === amigo.id);
           return (
             <li key={amigo.id}>
-              <label className={`flex items-center gap-3 rounded-controle px-2 py-2 ${!marcado && cheio ? "opacity-60" : "cursor-pointer"}`}>
+              <label
+                className={`flex items-center gap-3 px-4 py-3 transition-colors ${!marcado && cheio ? "opacity-60" : "cursor-pointer hover:bg-texto/5"}`}
+              >
                 <input
                   type="checkbox"
                   checked={marcado}

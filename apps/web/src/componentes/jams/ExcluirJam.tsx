@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { AlertDialog } from "radix-ui";
 import { useState, useTransition } from "react";
 import { semQuebrar } from "@/componentes/ui/acao-segura";
-import { botaoSecundario } from "@/componentes/ui/botoes";
+import { botaoPerigo, botaoPerigoConfirmar, botaoSecundario, dialogo, dialogoFundo, dialogoTitulo } from "@/componentes/ui/estilo";
 import { excluirJam } from "@/servidor/acoes/jam";
 
 // Excluir a jam (Story 2.4, AC 5; A13): só o criador, sempre com confirmação.
@@ -26,11 +26,11 @@ export function ExcluirJam({ jamId, repositorio }: { jamId: string; repositorio:
 
   return (
     <AlertDialog.Root open={aberto} onOpenChange={setAberto}>
-      <AlertDialog.Trigger className={`${botaoSecundario} text-erro`}>Excluir jam</AlertDialog.Trigger>
+      <AlertDialog.Trigger className={botaoPerigo}>Excluir jam</AlertDialog.Trigger>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-dialogo border border-divisoria bg-superficie p-6 text-texto shadow-lg">
-          <AlertDialog.Title className="text-h3 font-semibold">Excluir a jam de {repositorio}?</AlertDialog.Title>
+        <AlertDialog.Overlay className={dialogoFundo} />
+        <AlertDialog.Content className={dialogo}>
+          <AlertDialog.Title className={`${dialogoTitulo} break-all`}>Excluir a jam de {repositorio}?</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-texto-suave">
             A jam sai do Coodevelopment para todo mundo que está nela. O repositório no GitHub não muda: o código, os commits e os
             colaboradores continuam lá.
@@ -46,7 +46,7 @@ export function ExcluirJam({ jamId, repositorio }: { jamId: string; repositorio:
               type="button"
               disabled={indo}
               onClick={confirmar}
-              className="rounded-controle bg-erro px-3 py-2 text-corpo font-medium text-fundo transition-[filter] hover:brightness-110 disabled:opacity-60"
+              className={botaoPerigoConfirmar}
             >
               {indo ? "Excluindo..." : "Excluir jam"}
             </button>

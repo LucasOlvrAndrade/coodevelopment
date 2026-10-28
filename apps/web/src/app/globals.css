@@ -10,7 +10,6 @@
   --color-borda-controle: var(--borda-controle);
   --color-primaria: var(--primaria);
   --color-sobre-primaria: var(--sobre-primaria);
-  --color-destaque: var(--destaque);
   --color-sucesso: var(--sucesso);
   --color-alerta: var(--alerta);
   --color-erro: var(--erro);
@@ -18,32 +17,30 @@
   --color-participante-2: var(--participante-2);
   --color-participante-3: var(--participante-3);
 
-  --font-sans: var(--fonte-plex-sans);
-  --font-mono: var(--fonte-plex-mono);
-  /* Só na página inicial (V1); as variáveis vêm do layout de (publico). */
+  /* Fontes da página inicial no app inteiro (V3): Inter no texto, Instrument
+     Serif nos títulos e IBM Plex Mono em código, usuário e caminho. */
+  --font-sans: var(--fonte-inter), system-ui, sans-serif;
+  --font-mono: var(--fonte-plex-mono), ui-monospace, monospace;
   --font-inter: var(--fonte-inter), system-ui, sans-serif;
   --font-instrument-serif: var(--fonte-instrument-serif), Georgia, serif;
 
-  /* Escala de tipo da front-end spec */
-  --text-h1: 28px;
-  --text-h1--line-height: 1.2;
-  --text-h2: 22px;
-  --text-h2--line-height: 1.25;
+  /* Escala de tipo (V3): títulos maiores, porque a serifa é estreita */
+  --text-h1: 40px;
+  --text-h1--line-height: 1.1;
+  --text-h2: 28px;
+  --text-h2--line-height: 1.2;
   --text-h3: 18px;
   --text-h3--line-height: 1.3;
   --text-corpo: 15px;
   --text-corpo--line-height: 1.5;
   --text-pequeno: 13px;
   --text-pequeno--line-height: 1.4;
-
-  --radius-controle: 6px;
-  --radius-dialogo: 10px;
 }
 
 body {
   background: var(--fundo);
   color: var(--texto);
-  font-family: var(--fonte-plex-sans), system-ui, sans-serif;
+  font-family: var(--fonte-inter), system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.5;
 }
