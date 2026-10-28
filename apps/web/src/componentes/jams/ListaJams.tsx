@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { Avatar } from "@/componentes/ui/Avatar";
 import type { JamDoInicio } from "@/servidor/dominio/jam";
 import { TentarDeNovo } from "./TentarDeNovo";
 
-// Jams do Início (FR7): lista simples, abertas primeiro (front-end spec). A
-// página da jam chega na Story 2.4; até lá o item não tem link. Convidado que
+// Jams do Início (FR7): lista simples, abertas primeiro (front-end spec). Cada
+// uma abre a página dela (Story 2.4). Convidado que
 // ainda não está no repositório aparece com o estado (Story 2.3): o criador
 // pode tentar de novo, e o amigo vê o link do convite do GitHub.
 export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string; nova?: string }) {
@@ -17,9 +18,9 @@ export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string;
           <li key={jam.id} className={`flex flex-col gap-2 py-3 ${destaque ? "bg-superficie px-3" : ""}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="truncate font-mono text-corpo font-medium">
+                <Link href={`/jams/${jam.id}`} className="block truncate font-mono text-corpo font-medium text-destaque underline-offset-2 hover:underline">
                   {jam.repoOwner}/{jam.repoNome}
-                </p>
+                </Link>
                 <p className="text-pequeno text-texto-suave">
                   {destaque ? "Jam criada agora · " : ""}
                   {jam.estado === "fechada" ? "Fechada" : "Aberta"} · código {jam.id}

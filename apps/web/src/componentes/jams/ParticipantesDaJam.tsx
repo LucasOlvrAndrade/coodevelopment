@@ -1,0 +1,54 @@
+import { Avatar } from "@/componentes/ui/Avatar";
+import type { JamCompleta } from "@/servidor/dominio/jam";
+import { TentarDeNovo } from "./TentarDeNovo";
+
+// Cor de cada participante pela vaga (front-end spec: a cor dos participantes
+// é o único elemento colorido forte). Classes fixas, para o Tailwind achar.
+const COR_DA_VAGA: Record<number, string> = {
+  1: "border-participante-1",
+  2: "border-participante-2",
+  3: "border-participante-3",
+};
+
+// Quem está na jam e a situação de cada um no repositório (Story 2.4, AC 1 e 2).
+export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }) {
+  const souCriador = jam.criadorId === eu;
+  return (
+    <ul aria-label="Quem está na jam" className="flex flex-col gap-2">
+      {jam.participantes.map((p) => (
+        <li key={p.id} className={`flex flex-col gap-2 border-l-4 bg-superficie px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${COR_DA_VAGA[p.vaga] ?? ""}`}>
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar nome={p.nome} foto={p.foto} tamanho={40} />
+            <div className="min-w-0">
+              <p className="truncate font-medium">
+                {p.nome}
+                {p.id === eu && <span className="font-normal text-texto-suave"> (você)</span>}
+              </p>
+              <p className="truncate font-mono text-pequeno text-texto-suave">
+                @{p.login} · {p.papel === "criador" ? "criou a jam" : "convidado"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-pequeno">
+            {p.colaborador === "ok" && <span className="text-sucesso">No repositório</span>}
+            {p.colaborador === "pendente" &&
+              (p.id === eu ? (
+                <a
+                  href={`https://github.com/${jam.repoOwner}/${jam.repoNome}/invitations`}
+                  className="font-medium text-destaque underline underline-offset-2"
+                >
+                  Aceite o convite do repositório no GitHub
+                </a>
+              ) : (
+                <span className="text-texto-suave">Convite enviado, falta aceitar</span>
+              ))}
+            {p.colaborador === "falhou" && <span className="text-erro">Não entrou no repositório</span>}
+            {souCriador && p.papel === "convidado" && p.colaborador !== "ok" && (
+              <TentarDeNovo jamId={jam.id} amigoId={p.id} nome={p.nome} />
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}

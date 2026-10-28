@@ -274,6 +274,8 @@ describe("estado do convidado no Início (AC 3 e 4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("O GitHub recusou.");
     tentarDeNovo.mockResolvedValueOnce({ ok: true, dados: { estado: "pendente" } });
+    // O botão fica ocupado até a primeira tentativa terminar.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Tentar de novo com Pai" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
     expect(await screen.findByText("Convite enviado: falta Pai aceitar no GitHub.")).toBeInTheDocument();
   });
@@ -298,5 +300,27 @@ describe("estado do convidado no Início (AC 3 e 4)", () => {
     render(<ListaJams jams={[jam("ok")]} eu="lucas" />);
     expect(screen.queryByText(/repositório\./)).toBeNull();
     expect(screen.queryByRole("button", { name: /Tentar de novo/ })).toBeNull();
+  });
+});
+
+describe("Início leva à página da jam (Story 2.4)", () => {
+  it("o nome do repositório abre a jam", () => {
+    render(
+      <ListaJams
+        jams={[
+          {
+            id: "k7m2-rbq9",
+            nome: "projeto",
+            repoOwner: "lucas",
+            repoNome: "projeto",
+            estado: "aberta",
+            criadorId: "lucas",
+            participantes: [{ id: "lucas", login: "lucas", nome: "Lucas", foto: null, papel: "criador", colaborador: "ok" }],
+          },
+        ]}
+        eu="lucas"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "lucas/projeto" })).toHaveAttribute("href", "/jams/k7m2-rbq9");
   });
 });
