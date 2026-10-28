@@ -58,7 +58,8 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
           <span className="sr-only">, </span>
           <span className="text-sm font-medium text-texto/90">código {jam.id}</span>
         </p>
-        <h1 className={`${tituloPagina} break-all`}>{repositorio}</h1>
+        {/* Nome longo quebra no hífen ou na barra, não no meio da palavra (gate da 2.4, UX-003). */}
+        <h1 className={`${tituloPagina} break-words`}>{repositorio}</h1>
         <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-texto-suave">
           <span>
             branch <span className="font-mono text-texto">{jam.branch}</span>

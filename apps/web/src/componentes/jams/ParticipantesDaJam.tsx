@@ -33,7 +33,8 @@ export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }
                 {/* Ao vivo, pela sala da jam (Story 2.5). */}
                 <MarcaOnline usuarioId={p.id} />
               </p>
-              <p className="truncate font-mono text-pequeno text-texto-suave">
+              {/* Quebra de linha no celular em vez de cortar o usuário (gate da 2.4, UX-003). */}
+              <p className="font-mono text-pequeno break-words text-texto-suave">
                 @{p.login} · {p.papel === "criador" ? "criou a jam" : "convidado"}
               </p>
             </div>
