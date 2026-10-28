@@ -36,8 +36,9 @@ export const tituloSecao = "font-instrument-serif text-h2 tracking-tight";
 // Link no meio do texto: branco e sublinhado.
 export const link = "font-medium text-texto underline decoration-texto/40 underline-offset-4 transition-colors hover:decoration-texto";
 
-// Confirmação (AlertDialog do Radix): a tela escurece e o diálogo é um painel.
+// Confirmação (AlertDialog do Radix): a tela escurece e o diálogo é um painel,
+// que rola por dentro quando não cabe (celular deitado, zoom; gate da 2.4, UX-003).
 export const dialogoFundo = "fixed inset-0 z-40 bg-fundo/70 backdrop-blur-sm";
 export const dialogo =
-  "fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-superficie p-6 text-texto shadow-2xl ring-1 ring-divisoria";
+  "fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-superficie p-6 text-texto shadow-2xl ring-1 ring-divisoria";
 export const dialogoTitulo = "font-instrument-serif text-h2 tracking-tight";

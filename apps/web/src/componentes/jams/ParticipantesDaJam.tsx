@@ -44,7 +44,8 @@ export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }
                 <span className="text-texto-suave">Convite enviado, falta aceitar</span>
               ))}
             {p.colaborador === "falhou" && <span className="text-erro">Não entrou no repositório</span>}
-            {souCriador && p.papel === "convidado" && p.colaborador !== "ok" && (
+            {/* Em jam que não está aberta, tentar de novo sempre falharia (gate da 2.3, UX-002). */}
+            {souCriador && jam.estado === "aberta" && p.papel === "convidado" && p.colaborador !== "ok" && (
               <TentarDeNovo jamId={jam.id} amigoId={p.id} nome={p.nome} />
             )}
           </div>

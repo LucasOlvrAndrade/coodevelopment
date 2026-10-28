@@ -103,8 +103,11 @@ export function EscolherAmigos({ amigos }: { amigos: Pessoa[] }) {
                   className="accent-primaria"
                 />
                 <Avatar nome={amigo.nome} foto={amigo.foto} tamanho={24} />
-                <span>{amigo.nome}</span>
-                <span className="font-mono text-pequeno text-texto-suave">@{amigo.login}</span>
+                {/* Nome e usuário quebram de linha no celular em vez de cortar (gate da 2.4, UX-003). */}
+                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <span className="break-words">{amigo.nome}</span>
+                  <span className="font-mono text-pequeno break-all text-texto-suave">@{amigo.login}</span>
+                </span>
               </label>
             </li>
           );

@@ -15,17 +15,27 @@ export function ExcluirJam({ jamId, repositorio }: { jamId: string; repositorio:
   const [erro, setErro] = useState<string | null>(null);
   const [indo, iniciar] = useTransition();
 
+  // Enquanto exclui, o diálogo não fecha (a exclusão já foi para o servidor), e
+  // ao abrir de novo o erro antigo some (gate da 2.4, UX-002).
+  function abrirOuFechar(abrir: boolean) {
+    if (indo) return;
+    if (abrir) setErro(null);
+    setAberto(abrir);
+  }
+
   function confirmar() {
     setErro(null);
     iniciar(async () => {
       const resultado = await semQuebrar(() => excluirJam(jamId));
-      if (resultado.ok) router.push("/inicio");
+      // Jam que já não existe (excluída em outra aba, ou a resposta da primeira
+      // vez se perdeu) dá no mesmo; replace tira a jam do histórico (gate da 2.4, REL-002).
+      if (resultado.ok || resultado.erro.codigo === "jam_nao_encontrada") router.replace("/inicio");
       else setErro(resultado.erro.mensagem);
     });
   }
 
   return (
-    <AlertDialog.Root open={aberto} onOpenChange={setAberto}>
+    <AlertDialog.Root open={aberto} onOpenChange={abrirOuFechar}>
       <AlertDialog.Trigger className={botaoPerigo}>Excluir jam</AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className={dialogoFundo} />
@@ -41,7 +51,9 @@ export function ExcluirJam({ jamId, repositorio }: { jamId: string; repositorio:
             </p>
           )}
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <AlertDialog.Cancel className={botaoSecundario}>Cancelar</AlertDialog.Cancel>
+            <AlertDialog.Cancel disabled={indo} className={botaoSecundario}>
+              Cancelar
+            </AlertDialog.Cancel>
             <button
               type="button"
               disabled={indo}

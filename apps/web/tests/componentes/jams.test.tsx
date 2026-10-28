@@ -8,7 +8,8 @@ const chamarAmigos = vi.fn(async () => ({ ok: true, dados: [] }));
 const tentarDeNovo = vi.fn(async (): Promise<unknown> => ({ ok: true, dados: { estado: "ok" } }));
 vi.mock("@/servidor/acoes/jam", () => ({ criarJamImportando, criarJamComRepositorio, chamarAmigos, tentarDeNovo }));
 const push = vi.fn();
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 const { EscolherRepositorio } = await import("@/componentes/jams/EscolherRepositorio");
 const { CriarRepositorio } = await import("@/componentes/jams/CriarRepositorio");
@@ -282,9 +283,22 @@ describe("estado do convidado no Início (AC 3 e 4)", () => {
 
   it("o criador vê quem não entrou no repositório e pode tentar de novo", async () => {
     render(<ListaJams jams={[jam("falhou")]} eu="lucas" />);
-    expect(screen.getByText("Pai não foi adicionado ao repositório.")).toBeInTheDocument();
+    expect(screen.getByText("Pai não entrou no repositório.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
     await waitFor(() => expect(tentarDeNovo).toHaveBeenCalledWith("k7m2-rbq9", "pai"));
+  });
+
+  it("em jam fechada não há tentar de novo, que sempre falharia (gate da 2.3, UX-002)", () => {
+    render(<ListaJams jams={[{ ...jam("falhou"), estado: "fechada" }]} eu="lucas" />);
+    expect(screen.queryByRole("button", { name: /Tentar de novo/ })).toBeNull();
+  });
+
+  it("tentar de novo numa jam que já foi excluída atualiza a página (gate da 2.4, REL-002)", async () => {
+    tentarDeNovo.mockResolvedValueOnce({ ok: false, erro: { codigo: "jam_nao_encontrada", mensagem: "Essa jam não existe ou não é sua." } });
+    render(<ListaJams jams={[jam("falhou")]} eu="lucas" />);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo com Pai" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Essa jam não existe ou não é sua.");
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("o amigo com convite pendente vê o link do convite do GitHub", () => {

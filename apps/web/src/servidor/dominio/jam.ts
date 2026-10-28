@@ -63,6 +63,14 @@ export function gerarIdJam(): string {
   return `${letras.slice(0, 4)}-${letras.slice(4)}`;
 }
 
+const FORMATO_ID = new RegExp(`^[${ALFABETO}]{4}-[${ALFABETO}]{4}$`);
+
+// O id no formato do gerarIdJam, conferido antes de ir ao banco na página, nas
+// ações e na rota da sala (gate da 2.4, REL-001).
+export function idDeJamValido(id: string): boolean {
+  return FORMATO_ID.test(id);
+}
+
 // Violação de unique do Postgres, venha do neon-http, do PGlite ou embrulhada pelo Drizzle.
 function violacaoUnica(e: unknown): string | null {
   for (let atual = e as { code?: string; constraint?: string; cause?: unknown } | undefined; atual; atual = atual.cause as typeof atual) {

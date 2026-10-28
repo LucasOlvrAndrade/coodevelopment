@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ListaJams } from "@/componentes/jams/ListaJams";
+import { ResultadoDaAcao } from "@/componentes/jams/ResultadoDaAcao";
 import { botaoPrincipalGrande, botaoSecundarioGrande, painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao, obterSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
@@ -37,7 +38,10 @@ export async function JamsDoUsuario({ busca }: { busca: Promise<{ nova?: string 
   }
   return (
     <>
-      <ListaJams jams={jams} eu={eu.id} nova={typeof nova === "string" ? nova : undefined} />
+      {/* O resultado do "Tentar de novo" fica aqui quando o botão some (gate da 2.4, A11Y-001). */}
+      <ResultadoDaAcao>
+        <ListaJams jams={jams} eu={eu.id} nova={typeof nova === "string" ? nova : undefined} />
+      </ResultadoDaAcao>
       <Link href="/jams/nova" className={botaoPrincipalGrande}>
         Criar jam
       </Link>

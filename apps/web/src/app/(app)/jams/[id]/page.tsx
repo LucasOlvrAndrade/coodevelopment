@@ -5,11 +5,13 @@ import { Suspense } from "react";
 import { ChamarMaisAmigos } from "@/componentes/jams/ChamarMaisAmigos";
 import { ExcluirJam } from "@/componentes/jams/ExcluirJam";
 import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
+import { ResultadoDaAcao } from "@/componentes/jams/ResultadoDaAcao";
 import { link, painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarAmigos } from "@/servidor/dominio/amizade";
-import { obterJam } from "@/servidor/dominio/jam";
+import { idDeJamValido, obterJam } from "@/servidor/dominio/jam";
+import { sincronizarComPrazo } from "@/servidor/sincronizar-pendentes";
 
 export const metadata: Metadata = { title: "Jam · Coodevelopment" };
 
@@ -20,6 +22,10 @@ const MAXIMO_NA_JAM = 3;
 // A presença ao vivo chega na Story 2.5 (sala na Cloudflare).
 export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, eu] = await Promise.all([params, exigirSessao()]);
+  // Id fora do formato nem vai ao banco (gate da 2.4, REL-001).
+  if (!idDeJamValido(id)) notFound();
+  // Quem aceitou o convite pelo link aparece como no repositório (gate da 2.4, REL-003).
+  await sincronizarComPrazo(eu.id);
   const jam = await obterJam(db(), eu.id, id);
   if (!jam) notFound();
 
@@ -43,28 +49,33 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
         >
           ← Jams
         </Link>
-        {/* O selo da página inicial: a situação no chip branco, branch e código ao lado. */}
+        {/* O selo da página inicial: a situação no chip branco e o código ao lado. */}
         <p className="inline-flex max-w-full items-center gap-3 rounded-full bg-texto/10 px-2.5 py-2 ring-1 ring-texto/15 backdrop-blur">
           <span className="inline-flex shrink-0 items-center rounded-full bg-primaria/90 px-2 py-0.5 text-xs font-medium text-sobre-primaria">
             {aberta ? "Aberta" : jam.estado === "fechando" ? "Fechando" : "Fechada"}
           </span>
-          <span className="truncate text-sm font-medium text-texto/90">
-            branch {jam.branch} · código {jam.id}
-          </span>
+          <span className="sr-only">, </span>
+          <span className="text-sm font-medium text-texto/90">código {jam.id}</span>
         </p>
         <h1 className={`${tituloPagina} break-all`}>{repositorio}</h1>
-        <a href={`https://github.com/${repositorio}`} className={link}>
-          Abrir o repositório no GitHub
-        </a>
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-texto-suave">
+          <span>
+            branch <span className="font-mono text-texto">{jam.branch}</span>
+          </span>
+          <a href={`https://github.com/${repositorio}`} className={link}>
+            Abrir o repositório no GitHub
+          </a>
+        </p>
       </header>
 
       <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
         <h2 id="titulo-quem" className={tituloSecao}>
           Quem está na jam
         </h2>
-        <ParticipantesDaJam jam={jam} eu={eu.id} />
-        {souCriador && aberta && vagas > 0 && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
-        {souCriador && vagas <= 0 && <p className="text-pequeno text-texto-suave">A jam está completa: até 3 pessoas por enquanto.</p>}
+        <ResultadoDaAcao>
+          <ParticipantesDaJam jam={jam} eu={eu.id} />
+          {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
+        </ResultadoDaAcao>
       </section>
 
       <section aria-labelledby="titulo-claude" className={`${painel} flex flex-col gap-3 p-6`}>

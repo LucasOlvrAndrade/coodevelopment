@@ -49,7 +49,7 @@ export async function criarJamComRepositorio(nome: string, privado: boolean) {
 // novo quem ficou de fora do repositório. A vaga vem primeiro (regra no banco);
 // o GitHub vem depois, com o token do criador para o colaborador e o do amigo
 // para aceitar o convite em nome dele (FR5).
-const idJam = z.string().min(1).max(20);
+const idJam = z.string().refine(regras.idDeJamValido);
 const idUsuario = z.string().min(1).max(100);
 
 async function colocar(eu: string, jamId: string, amigoId: string) {

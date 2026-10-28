@@ -28,8 +28,9 @@ const dadosParaColocar = vi.fn(async (_b: unknown, _eu: string, jamId: string, a
 }));
 vi.mock("next/cache", () => ({ refresh }));
 vi.mock("@/servidor/dominio/participantes", () => ({ chamarAmigo, colocarNoRepositorio, dadosParaColocar }));
+const githubDoUsuario = vi.fn((id: string) => ({ token: id }));
 vi.mock("@/servidor/github", () => ({
-  githubDoUsuario: (id: string) => ({ token: id }),
+  githubDoUsuario,
   githubRepositorios: () => github,
   githubColaboracao: (octokit: { token: string }) => ({ colaboracaoDe: octokit.token }),
   githubConvites: (octokit: { token: string }) => ({ convitesDe: octokit.token }),
@@ -129,13 +130,18 @@ describe("chamarAmigos e tentarDeNovo (Story 2.3)", () => {
 });
 
 describe("excluirJam (Story 2.4)", () => {
-  it("exclui com quem está na sessão", async () => {
+  it("exclui com quem está na sessão, sem chamar o GitHub (A13)", async () => {
     expect(await excluirJam("k7m2-rbq9")).toEqual({ ok: true, dados: undefined });
     expect(excluirJamRegra).toHaveBeenCalledWith(banco, "eu", "k7m2-rbq9");
+    expect(githubDoUsuario).not.toHaveBeenCalled();
   });
 
-  it("id fora do formato é entrada inválida", async () => {
-    expect(await excluirJam("x".repeat(30))).toMatchObject({ ok: false, erro: { codigo: "entrada_invalida" } });
+  it("id fora do formato do gerarIdJam é entrada inválida, sem ir ao banco (gate da 2.4, REL-001)", async () => {
+    for (const id of ["x".repeat(30), "K7M2-RBQ9", "k7m2\u0000rbq9", "k7m2-rbq", "../k7m2-rbq9"]) {
+      expect(await excluirJam(id)).toMatchObject({ ok: false, erro: { codigo: "entrada_invalida" } });
+      expect(await tentarDeNovo(id, "pai")).toMatchObject({ ok: false, erro: { codigo: "entrada_invalida" } });
+    }
     expect(excluirJamRegra).not.toHaveBeenCalled();
+    expect(dadosParaColocar).not.toHaveBeenCalled();
   });
 });

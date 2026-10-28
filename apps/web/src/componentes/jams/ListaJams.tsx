@@ -19,7 +19,8 @@ export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string;
           <li key={jam.id} className={`flex flex-col gap-2 px-4 py-4 ${destaque ? "bg-texto/5" : ""}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <Link href={`/jams/${jam.id}`} className="block truncate font-mono text-corpo font-medium underline-offset-4 hover:underline">
+                {/* Sublinhado, para o celular (sem hover) também mostrar que abre a jam (gate da 2.4, UX-005). */}
+                <Link href={`/jams/${jam.id}`} className={`${link} block truncate font-mono text-corpo`}>
                   {jam.repoOwner}/{jam.repoNome}
                 </Link>
                 <p className="text-pequeno text-texto-suave">
@@ -46,16 +47,16 @@ export function ListaJams({ jams, eu, nova }: { jams: JamDoInicio[]; eu: string;
                           Aceite o convite do repositório no GitHub
                         </a>
                       ) : (
-                        <span className="text-texto-suave">Você ainda não foi adicionado ao repositório; quem criou a jam pode tentar de novo.</span>
+                        <span className="text-texto-suave">Você ainda não entrou no repositório; quem criou a jam pode tentar de novo.</span>
                       )
                     ) : (
                       <>
                         <span className={p.colaborador === "falhou" ? "text-erro" : "text-texto-suave"}>
                           {p.colaborador === "falhou"
-                            ? `${p.nome} não foi adicionado ao repositório.`
+                            ? `${p.nome} não entrou no repositório.`
                             : `${p.nome} ainda não aceitou o convite do repositório.`}
                         </span>
-                        {souCriador && <TentarDeNovo jamId={jam.id} amigoId={p.id} nome={p.nome} />}
+                        {souCriador && jam.estado === "aberta" && <TentarDeNovo jamId={jam.id} amigoId={p.id} nome={p.nome} />}
                       </>
                     )}
                   </li>
