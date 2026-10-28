@@ -51,3 +51,4 @@ development, ensuring a cohesive and user-centered experience.
 | 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Uma (@ux-design-expert), via Claude |
 | 2026-10-23 | 0.3 | Ajustes da validação do @po: instalação do GitHub App no login, tela de confirmar o código do conector, Git no prompt, aviso de aprovar o MCP | Pax (@po), via Claude |
 | 2026-10-27 | 0.4 | Página inicial igual ao `responsive-hero-banner` do 21st.dev, com os aplicativos do Grupo RAM em loop (V1), e primária no verde do Grupo RAM (V2) | Uma (@ux-design-expert), via Claude |
+| 2026-10-28 | 0.5 | O app inteiro no visual da página inicial (V3): sempre escuro, Inter e Instrument Serif, ações em pílula e painéis translúcidos; o verde da V2 saiu | Uma (@ux-design-expert), via Claude |

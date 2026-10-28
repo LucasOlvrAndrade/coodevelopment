@@ -1,7 +1,7 @@
 # Component Library / Design System
 
 **Design System Approach:** sistema próprio e pequeno, em Tailwind com tokens
-CSS (claro e escuro), sobre primitivos acessíveis sem estilo (Radix) para
+CSS (uma paleta escura, V3), sobre primitivos acessíveis sem estilo (Radix) para
 diálogo, menu e seletor **[confirmado]**. Nada de biblioteca pronta com
 aparência padrão. Ícones: poucos, só onde ajudam a reconhecer (copiar,
 fechar, aviso, arquivo, conectado), traço de 1,5 px, sempre com texto ou

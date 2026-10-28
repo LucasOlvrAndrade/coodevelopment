@@ -126,12 +126,13 @@ Detalhes em `docs/architecture.md`; pesquisa em
 
 ## Decisões de design (2026-10-27)
 
-Detalhes na front-end spec 0.4 (Branding & Style Guide).
+Detalhes na front-end spec 0.5 (Branding & Style Guide).
 
 | # | Decisão | Escolha |
 |---|---|---|
-| V1 | Página inicial | O `responsive-hero-banner` do 21st.dev **igual ao prompt** (o Lucas pediu exatamente igual depois de uma primeira adaptação): a foto do componente, servida pelo app (a CSP só libera imagens do app e do GitHub), menu em pílula com o botão branco, botões translúcidos, Instrument Serif e Inter, nas cores do componente. No lugar dos logos de parceiros (seriam falsos), os aplicativos do Grupo RAM (RAM Firewall, Click Fone, RAM Backup, RAM Talk, RAM Vision, CRM) passam em loop, em branco, com botão de pausa (WCAG 2.2.2). O menu do celular abre de verdade (no original o botão não fazia nada). Abaixo da faixa, "Como funciona" com três passos, destino do link do menu e do botão secundário. É exceção às regras sóbrias da spec só na página inicial; as telas internas não mudam |
-| V2 | Cor primária | O verde do Grupo RAM, `#0f7433` (arquivo oficial da marca), nos dois temas, só como preenchimento (texto branco sobre ele dá 5,9:1). Verde em texto usa o token `--destaque`: `#0f7433` no claro (5,4:1 sobre o fundo) e `#4cc27a` no escuro (8,2:1) |
+| V1 | Página inicial | O `responsive-hero-banner` do 21st.dev **igual ao prompt** (o Lucas pediu exatamente igual depois de uma primeira adaptação): a foto do componente, servida pelo app (a CSP só libera imagens do app e do GitHub), menu em pílula com o botão branco, botões translúcidos, Instrument Serif e Inter, nas cores do componente. No lugar dos logos de parceiros (seriam falsos), os aplicativos do Grupo RAM (RAM Firewall, Click Fone, RAM Backup, RAM Talk, RAM Vision, CRM) passam em loop, em branco, com botão de pausa (WCAG 2.2.2). O menu do celular abre de verdade (no original o botão não fazia nada). Abaixo da faixa, "Como funciona" com três passos, destino do link do menu e do botão secundário. Era exceção às regras sóbrias da spec só na página inicial; a V3 levou o visual para o app inteiro |
+| V2 | Cor primária | **Substituída pela V3 em 28/10.** Era o verde do Grupo RAM, `#0f7433` (arquivo oficial da marca), nos dois temas, só como preenchimento, com o token `--destaque` para verde em texto |
+| V3 | O app inteiro no visual da página inicial (28/10) | O Lucas pediu que as telas internas tivessem o mesmo design da página inicial. Uma paleta só, sempre escura (o tema claro saiu): fundo `#09090b`, texto `#fafafa`, ação principal em pílula branca, secundária em pílula translúcida, listas e formulários em painéis translúcidos (o branco do texto em 5%, 10% e 15%), a foto da página inicial no alto de cada tela, marca e títulos em Instrument Serif, texto em Inter e IBM Plex Mono para código e usuário. O verde da V2 e o token `--destaque` saíram. As classes ficam em `componentes/ui/estilo.ts` |
 
 ## Em aberto
 

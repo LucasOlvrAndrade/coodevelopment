@@ -23,7 +23,7 @@ apps/web/src/
 │   └── use-sala.ts                   # hook com useSyncExternalStore
 ├── servidor/                         # só roda no servidor ("server-only")
 │   ├── auth.ts, github.ts, db/, acoes/
-└── estilos/tokens.css                # tokens da front-end spec, claro e escuro
+└── estilos/tokens.css                # tokens da front-end spec, paleta escura (V3)
 ```
 
 ### Component Template

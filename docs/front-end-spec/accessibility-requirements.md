@@ -8,7 +8,7 @@
 
 **Visual:**
 - Color contrast ratios: texto 4,5:1 ou mais, texto grande e controles 3:1 ou
-  mais, nos dois temas (valores conferidos na paleta).
+  mais, na paleta escura da V3 (valores conferidos na paleta).
 - Focus indicators: anel de 2 px na cor primária com 2 px de afastamento,
   sempre visível ao navegar por teclado.
 - Text sizing: legível com zoom de 200% sem rolagem horizontal; tamanhos em

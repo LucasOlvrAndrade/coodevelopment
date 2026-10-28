@@ -60,6 +60,7 @@ development, ensuring a cohesive and user-centered experience.
 | 2026-10-23 | 0.2 | Lucas confirmou todas as suposições | Uma (@ux-design-expert), via Claude |
 | 2026-10-23 | 0.3 | Ajustes da validação do @po: instalação do GitHub App no login, tela de confirmar o código do conector, Git no prompt, aviso de aprovar o MCP | Pax (@po), via Claude |
 | 2026-10-27 | 0.4 | Página inicial igual ao `responsive-hero-banner` do 21st.dev, com os aplicativos do Grupo RAM em loop (V1), e primária no verde do Grupo RAM (V2) | Uma (@ux-design-expert), via Claude |
+| 2026-10-28 | 0.5 | O app inteiro no visual da página inicial (V3): sempre escuro, Inter e Instrument Serif, ações em pílula e painéis translúcidos; o verde da V2 saiu | Uma (@ux-design-expert), via Claude |
 
 ## Information Architecture (IA)
 
@@ -492,7 +493,7 @@ escolhido; amigos são opcionais.
 ## Component Library / Design System
 
 **Design System Approach:** sistema próprio e pequeno, em Tailwind com tokens
-CSS (claro e escuro), sobre primitivos acessíveis sem estilo (Radix) para
+CSS (uma paleta escura, V3), sobre primitivos acessíveis sem estilo (Radix) para
 diálogo, menu e seletor **[confirmado]**. Nada de biblioteca pronta com
 aparência padrão. Ícones: poucos, só onde ajudam a reconhecer (copiar,
 fechar, aviso, arquivo, conectado), traço de 1,5 px, sempre com texto ou
@@ -613,44 +614,56 @@ em Instrument Serif, texto em Inter e entrada com deslize ao carregar, nas
 cores do componente (branco e preto translúcidos, sem a primária). No lugar
 dos logos de parceiros, os aplicativos do Grupo RAM passam em loop, em
 branco. Abaixo da faixa, a seção "Como funciona" com os três passos, no
-mesmo fundo. Esses sinais valem lá de propósito e só lá; as telas internas
-continuam sóbrias como acima.
+mesmo fundo.
+
+**O app inteiro no visual da página inicial (V3, 2026-10-28):** o Lucas pediu
+que as telas internas tivessem o mesmo design da página inicial, e a
+identidade sóbria acima deixou de valer. Agora, em todas as telas: sempre
+escuro (o tema claro saiu), a foto da página inicial no alto, a 60% e sumindo
+no fundo antes do conteúdo, marca e títulos em Instrument Serif, texto em
+Inter, navegação numa pílula translúcida (no celular, uma pílula flutuante
+embaixo), ações em pílula (a principal branca, a secundária translúcida) e
+listas, formulários e avisos em painéis translúcidos. Vidro e brilho de fundo
+(sinais 5, 6 e 9) passam a valer de propósito. Continuam: sem degradê em
+texto, sem emoji, sem fade-in na rolagem, texto à esquerda e a cor dos
+participantes como a única cor forte. As classes ficam em
+`apps/web/src/componentes/ui/estilo.ts`.
 
 ### Color Palette
 
-Contrastes calculados (WCAG) sobre a superfície e sobre o fundo; todos os
-textos passam de 4,5:1 e os controles de 3:1.
+Uma paleta só, sempre escura (V3). Contrastes calculados (WCAG) sobre o
+fundo; todos os textos passam de 4,5:1 e os controles de 3:1.
 
 | Color Type | Hex Code | Usage |
 |---|---|---|
-| Primary | `#0F7433` nos dois temas, o verde do Grupo RAM (V2) | Ação principal e foco, só como preenchimento: texto branco sobre ela dá 5,9:1; como contorno de foco, 5,4:1 no claro e 3,1:1 no escuro |
-| Secondary | Participante 1 `#AD4719` / `#F08A5B`; participante 2 `#24708F` / `#6BB8D6`; participante 3 `#7C600F` / `#D9B44A` | Marca de cada pessoa: faixa, avisos, arquivos dela |
-| Accent | `--destaque`: `#0F7433` (claro) / `#4CC27A` (escuro) | Verde em texto (links, números, a segunda linha do título da página inicial): 5,4:1 sobre o fundo claro e 8,2:1 sobre o escuro. O destaque visual das telas internas continua vindo das cores dos participantes |
-| Success | `#2D7A4B` / `#6CC891` | Conectado, commit feito |
-| Warning | `#9A6410` / `#E3A74A` | Lembrete de trabalho não salvo, "sem aviso", dependências |
-| Error | `#B3362A` / `#F07C6E` | Conflito, erros, ações destrutivas |
-| Neutral | Claro: fundo `#F7F5F0`, superfície `#FFFFFF`, texto `#1C1B19`, secundário `#68645C`, divisória `#D6D1C6`, borda de controle `#8A8579`. Escuro: fundo `#141413`, superfície `#1E1D1B`, texto `#F2EFE8`, secundário `#A8A397`, divisória `#3A3833`, borda de controle `#7A766C` | Texto, bordas, fundos |
+| Primary | `#FAFAFA`, o branco do texto | Ação principal em pílula branca com texto `#09090B` (19:1) e contorno de foco. O verde da V2 saiu |
+| Secondary | Participante 1 `#F08A5B`; participante 2 `#6BB8D6`; participante 3 `#D9B44A` | Marca de cada pessoa: anel da foto, faixa, avisos, arquivos dela. Iniciais do avatar em `#09090B` sobre a cor (8:1) |
+| Accent | O branco do texto em 5% (painéis e campos), 10% (botão secundário, item ativo, divisória) e 15% (contorno das pílulas) | O vidro da página inicial |
+| Success | `#6CC891` (9,8:1) | Conectado, commit feito, "No repositório" |
+| Warning | `#E3A74A` (9,4:1) | Lembrete de trabalho não salvo, "sem aviso", dependências |
+| Error | `#F07C6E` (7,4:1) | Conflito, erros, ações destrutivas |
+| Neutral | Fundo `#09090B`, superfície `#131316` (menus e diálogos), texto `#FAFAFA`, secundário `#A1A1AA` (7,8:1), divisória branco a 10%, borda de controle branco a 40% (3,7:1) | Texto, bordas, fundos |
 
 ### Typography
 
 #### Font Families
 
-- **Primary:** IBM Plex Sans **[confirmado]** (tem cara de ferramenta técnica
-  sem ser a Inter de todo template; boa em português)
-- **Secondary:** a mesma, em pesos diferentes (sem par de fontes)
-- **Monospace:** IBM Plex Mono (comandos, prompts, caminhos de arquivo)
-- **Página inicial (V1):** Inter no texto e Instrument Serif 400 nos
-  títulos, como no componente original; só nas páginas públicas
+- **Primary:** Inter (V3, como na página inicial; antes IBM Plex Sans)
+- **Títulos:** Instrument Serif 400, na marca e nos títulos de página, de
+  seção e de diálogo
+- **Monospace:** IBM Plex Mono (comandos, prompts, caminhos de arquivo,
+  usuário do GitHub, nome de repositório)
 
 #### Type Scale
 
 | Element | Size | Weight | Line Height |
 |---|---|---|---|
-| H1 | 28 px | 600 | 1.2 |
-| H2 | 22 px | 600 | 1.25 |
-| H3 | 18 px | 600 | 1.3 |
+| H1 | 40 px, Instrument Serif | 400 | 1.1 |
+| H2 | 28 px, Instrument Serif | 400 | 1.2 |
+| H3 | 18 px, Inter | 500 | 1.3 |
 | Body | 15 px | 400 | 1.5 |
 | Small | 13 px | 400 | 1.4 |
+| Botão | 14 px | 500 | 1.43 |
 
 O texto do status do Claude usa 17 px, peso 500, para ser o maior texto
 corrido da página da jam.
@@ -673,7 +686,8 @@ item do feed; nunca decorativo; sempre com texto ao lado ou `aria-label`.
 duas colunas (cerca de 40/60) acima de 1024 px; uma coluna abaixo.
 
 **Spacing Scale:** 4, 8, 12, 16, 24, 32, 48 px, sem valores fora da escala.
-Raio de borda: 6 px em controles e faixas, 10 px em diálogos.
+Raio de borda (V3): pílula nos botões, na navegação e nos selos; 12 px nos
+campos; 16 px nos painéis, menus e diálogos.
 
 ## Accessibility Requirements
 
@@ -685,7 +699,7 @@ Raio de borda: 6 px em controles e faixas, 10 px em diálogos.
 
 **Visual:**
 - Color contrast ratios: texto 4,5:1 ou mais, texto grande e controles 3:1 ou
-  mais, nos dois temas (valores conferidos na paleta).
+  mais, na paleta escura da V3 (valores conferidos na paleta).
 - Focus indicators: anel de 2 px na cor primária com 2 px de afastamento,
   sempre visível ao navegar por teclado.
 - Text sizing: legível com zoom de 200% sem rolagem horizontal; tamanhos em
