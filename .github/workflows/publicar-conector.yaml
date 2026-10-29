@@ -38,10 +38,13 @@ jobs:
           pnpm test
           pnpm build
       # pnpm pack troca o workspace:* pelas versões de verdade; o npm publica
-      # o pacote pronto. Trusted publishing pede o npm 11.5.1 ou mais novo.
+      # o pacote pronto. Trusted publishing pede o npm 11.5.1 ou mais novo, e
+      # o "npm install -g" no Windows não passa na frente do npm do Node 22
+      # no PATH (a segunda tag publicou com o npm 10, sem OIDC): por npx, a
+      # versão é a pedida.
       - working-directory: packages/conector
         shell: bash
         run: |
-          npm install -g npm@11.6.2
           pnpm pack --pack-destination "$RUNNER_TEMP"
-          npm publish "$RUNNER_TEMP"/coodevelopment-*.tgz --provenance --access public
+          npx --yes npm@11.6.2 --version
+          npx --yes npm@11.6.2 publish "$RUNNER_TEMP"/coodevelopment-*.tgz --provenance --access public --loglevel verbose
