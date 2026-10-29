@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { clienteAuth } from "./cliente-auth";
+import { destinoDepoisDoLogin } from "./destino-depois-do-login";
 
 // Os dois botões da faixa da página inicial (V1): o translúcido do meio e o
 // branco do menu, com as classes do componente original.
@@ -36,9 +37,11 @@ export function BotaoEntrar({ variante = "principal" }: { variante?: keyof typeo
 
   async function entrar() {
     setIndo(true);
+    // Veio do link do conector (?para=/dispositivo...): volta para lá depois do login.
+    const para = destinoDepoisDoLogin(new URLSearchParams(window.location.search).get("para"));
     const { error } = await clienteAuth.signIn.social({
       provider: "github",
-      callbackURL: "/api/conta/continuar",
+      callbackURL: para ? `/api/conta/continuar?para=${encodeURIComponent(para)}` : "/api/conta/continuar",
       errorCallbackURL: "/?erro=github",
     });
     if (error) setIndo(false);

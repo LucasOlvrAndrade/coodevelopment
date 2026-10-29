@@ -10,9 +10,9 @@ vi.mock("@/servidor/env", () => ({ env: () => ({ GITHUB_APP_SLUG: "coodevelopmen
 const { GET } = await import("@/app/api/conta/continuar/route");
 
 // redirect() do Next lança um erro com o destino no digest.
-async function destino(): Promise<string> {
+async function destino(busca = ""): Promise<string> {
   try {
-    await GET(new Request("http://localhost:3000/api/conta/continuar"), {});
+    await GET(new Request(`http://localhost:3000/api/conta/continuar${busca}`), {});
   } catch (e) {
     const digest = String((e as { digest?: string }).digest ?? "");
     if (digest.startsWith("NEXT_REDIRECT")) return digest.split(";")[2];
@@ -59,5 +59,20 @@ describe("GET /api/conta/continuar (decisão A7)", () => {
     obterSessao.mockResolvedValue(sessao);
     appInstaladoNaConta.mockRejectedValue(new Error("fora do ar"));
     expect(await destino()).toBe("/inicio");
+  });
+
+  it("quem veio do link do conector volta para confirmar o código (gate da 3.1, REL-003)", async () => {
+    obterSessao.mockResolvedValue(sessao);
+    appInstaladoNaConta.mockResolvedValue(true);
+    expect(await destino(`?para=${encodeURIComponent("/dispositivo?user_code=WDJBMJHT")}`)).toBe("/dispositivo?user_code=WDJBMJHT");
+    expect(await destino(`?para=${encodeURIComponent("/dispositivo")}`)).toBe("/dispositivo");
+  });
+
+  it("qualquer outro destino cai no Início (não vira redirecionamento aberto)", async () => {
+    obterSessao.mockResolvedValue(sessao);
+    appInstaladoNaConta.mockResolvedValue(true);
+    for (const para of ["//outro.site", "https://outro.site", "/inicio?x=1", "/dispositivo/../amigos", "/dispositivo?user_code=a&b=c", "/dispositivo?user_code=<x>"]) {
+      expect(await destino(`?para=${encodeURIComponent(para)}`)).toBe("/inicio");
+    }
   });
 });

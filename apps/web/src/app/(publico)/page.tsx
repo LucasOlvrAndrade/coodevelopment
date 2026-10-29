@@ -5,11 +5,13 @@ import { BotaoEntrar } from "@/componentes/conta/BotaoEntrar";
 import { APLICATIVOS_GRUPO_RAM } from "@/componentes/marca/aplicativos-grupo-ram";
 import { ComoFunciona } from "@/componentes/marca/ComoFunciona";
 import { HeroBanner } from "@/componentes/ui/HeroBanner";
+import { destinoDepoisDoLogin } from "@/componentes/conta/destino-depois-do-login";
 import { obterSessao } from "@/servidor/auth";
 
-// Logado, a página inicial leva ao Início. Lê cookies, por isso fica no Suspense.
-async function RedirecionarSeLogado() {
-  if (await obterSessao()) redirect("/inicio");
+// Logado, a página inicial leva ao Início, ou de volta ao link do conector
+// (gate da 3.1, REL-003). Lê cookies, por isso fica no Suspense.
+async function RedirecionarSeLogado({ busca }: { busca: Promise<Record<string, string | string[] | undefined>> }) {
+  if (await obterSessao()) redirect(destinoDepoisDoLogin((await busca).para) ?? "/inicio");
   return null;
 }
 
@@ -32,7 +34,7 @@ export default function PaginaInicial({ searchParams }: PageProps<"/">) {
   return (
     <>
       <Suspense>
-        <RedirecionarSeLogado />
+        <RedirecionarSeLogado busca={searchParams} />
       </Suspense>
 
       <main className="font-inter bg-[#09090b] text-white">
