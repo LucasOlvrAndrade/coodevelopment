@@ -1,6 +1,6 @@
 {
   "name": "coodevelopment",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Conector do Coodevelopment: liga o Claude Code e a pasta do projeto a uma jam.",
   "license": "MIT",
   "author": "Lucas de Oliveira Andrade",

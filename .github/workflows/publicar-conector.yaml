@@ -1,0 +1,45 @@
+name: publicar-conector
+# Publica o conector no npm (Story 3.1) quando entra uma tag conector-vX.Y.Z.
+# Trusted publishing: o npm confia neste workflow pelo OIDC do GitHub, sem
+# token guardado. Ação do Lucas, uma vez: ligar o repositório e este arquivo
+# como publicador confiável do pacote coodevelopment no npmjs.com. Sem isso,
+# só o último passo falha.
+on:
+  push:
+    tags: ["conector-v*"]
+
+permissions:
+  contents: read
+  id-token: write # o OIDC que o npm confere
+
+jobs:
+  publicar:
+    runs-on: windows-latest # testa onde o conector roda (NFR4)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+      - run: pnpm install --frozen-lockfile --filter coodevelopment...
+      - name: Tag igual à versão do package.json
+        shell: bash
+        run: |
+          versao=$(node -p "require('./packages/conector/package.json').version")
+          if [ "conector-v$versao" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::A tag $GITHUB_REF_NAME não bate com a versão $versao do package.json."
+            exit 1
+          fi
+      - working-directory: packages/conector
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm build
+      # pnpm pack troca o workspace:* pelas versões de verdade; o npm publica
+      # o pacote pronto. Trusted publishing pede o npm 11.5.1 ou mais novo.
+      - working-directory: packages/conector
+        shell: bash
+        run: |
+          npm install -g npm@11.6.2
+          pnpm pack --pack-destination "$RUNNER_TEMP"
+          npm publish "$RUNNER_TEMP"/coodevelopment-*.tgz --provenance --access public
