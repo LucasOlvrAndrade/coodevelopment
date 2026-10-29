@@ -1,3 +1,4 @@
+import { ALFABETO_ID_JAM, idDeJamValido } from "@coodevelopment/protocolo";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { jam, participante, user } from "@/servidor/db/schema";
 import { ErroApp } from "@/servidor/erros";
@@ -54,22 +55,16 @@ export async function listarRepositorios(github: GithubRepositorios): Promise<Re
   return todos;
 }
 
-// Id curto e legível, usado no comando do conector (Story 3.1): "k7m2-rbq9",
-// sem caracteres que se confundem (0 e o, 1, l e i).
-const ALFABETO = "23456789abcdefghjkmnpqrstuvwxyz";
-
+// Id curto e legível, usado no comando do conector (Story 3.1): "k7m2-rbq9".
+// O formato fica no protocolo, para o conector conferir o mesmo.
 export function gerarIdJam(): string {
-  const letras = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => ALFABETO[b % ALFABETO.length]).join("");
+  const letras = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => ALFABETO_ID_JAM[b % ALFABETO_ID_JAM.length]).join("");
   return `${letras.slice(0, 4)}-${letras.slice(4)}`;
 }
 
-const FORMATO_ID = new RegExp(`^[${ALFABETO}]{4}-[${ALFABETO}]{4}$`);
-
 // O id no formato do gerarIdJam, conferido antes de ir ao banco na página, nas
 // ações e na rota da sala (gate da 2.4, REL-001).
-export function idDeJamValido(id: string): boolean {
-  return FORMATO_ID.test(id);
-}
+export { idDeJamValido };
 
 // Violação de unique do Postgres, venha do neon-http, do PGlite ou embrulhada pelo Drizzle.
 function violacaoUnica(e: unknown): string | null {

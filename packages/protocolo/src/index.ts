@@ -1,5 +1,6 @@
 export const VERSAO_PROTOCOLO = 1;
 
+export { ALFABETO_ID_JAM, idDeJamValido } from "./id-jam";
 export { normalizarCaminho, normalizarFinalDeLinha } from "./normalizacao";
 export type { Amizade, PedidoAmizade, Usuario } from "./modelos";
 export { mensagemDaSala, mensagemPresenca, type MensagemDaSala, type MensagemPresenca } from "./mensagens";
