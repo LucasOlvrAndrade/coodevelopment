@@ -94,6 +94,7 @@ body {
   animation: faixa-em-loop 40s linear infinite;
 }
 .faixa-em-loop:hover,
+.faixa-em-loop:focus-within,
 .faixa-em-loop[data-pausada="true"] {
   animation-play-state: paused;
 }

@@ -55,17 +55,28 @@ describe("faixa de abertura", () => {
   it("lista os aplicativos do Grupo RAM uma vez só para o leitor de tela", () => {
     renderizar();
     const lista = screen.getByRole("list", { name: "Da família de aplicativos do Grupo RAM" });
-    expect(within(lista).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "RAM Firewall",
-      "Click Fone",
-      "RAM Backup",
-      "RAM Talk",
-      "RAM Vision",
-      "CRM",
+    expect(within(lista).getAllByRole("link").map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["RAM Firewall (abre em outra aba)", "https://fw.gruporam.com.br"],
+      ["Click Fone (abre em outra aba)", "https://portal.clickfone.com.br"],
+      ["RAM Backup (abre em outra aba)", "https://rbc.gruporam.com.br"],
+      ["RAM Talk (abre em outra aba)", "https://ramtalk.gruporam.com.br"],
+      ["RAM Vision (abre em outra aba)", "https://ramvision.gruporam.com.br"],
+      ["CRM (abre em outra aba)", "https://crm.gruporam.com.br"],
     ]);
     // As cópias que fecham o loop existem, mas ficam escondidas do leitor de tela.
     expect(screen.getAllByText("CRM")).toHaveLength(4);
-    expect(screen.getAllByRole("listitem").filter((item) => item.textContent === "CRM")).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: /^CRM/ })).toHaveLength(1);
+  });
+
+  it("cada app abre o próprio site em outra aba, e as cópias da faixa ficam fora do Tab", () => {
+    renderizar();
+    const todos = document.querySelectorAll<HTMLAnchorElement>('a[href="https://crm.gruporam.com.br"]');
+    expect(todos).toHaveLength(4);
+    for (const link of todos) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+    expect([...todos].filter((link) => link.getAttribute("tabindex") === "-1")).toHaveLength(3);
   });
 
   it("a faixa em loop tem botão de pausa (WCAG 2.2.2)", () => {

@@ -13,7 +13,7 @@ import fundo from "@/imagens/hero-fundo.jpg";
 // sendo o de verdade.
 
 type LinkMenu = { rotulo: string; href: string; ativo?: boolean };
-type Aplicativo = { nome: string; icone: ReactNode };
+type Aplicativo = { nome: string; url: string; icone: ReactNode };
 
 type Props = {
   marca: string;
@@ -203,12 +203,20 @@ export function HeroBanner({
                     className={`flex shrink-0 items-center gap-12 pr-12 ${copia > 0 ? "motion-reduce:hidden" : "motion-reduce:w-full motion-reduce:flex-wrap motion-reduce:justify-center motion-reduce:gap-y-4 motion-reduce:pr-0"}`}
                   >
                     {faixa.map((app) => (
-                      <li
-                        key={app.nome}
-                        className="inline-flex h-[36px] items-center gap-2 text-white opacity-80 transition-opacity hover:opacity-100"
-                      >
-                        {app.icone}
-                        <span className="text-base font-semibold tracking-tight whitespace-nowrap">{app.nome}</span>
+                      <li key={app.nome}>
+                        {/* Cada app abre o próprio site. As cópias da faixa ficam fora do
+                            Tab: estão escondidas do leitor de tela. */}
+                        <a
+                          href={app.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          tabIndex={copia > 0 ? -1 : undefined}
+                          className="inline-flex h-[36px] items-center gap-2 rounded-full text-white opacity-80 transition-opacity outline-offset-4 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white"
+                        >
+                          {app.icone}
+                          <span className="text-base font-semibold tracking-tight whitespace-nowrap">{app.nome}</span>
+                          <span className="sr-only"> (abre em outra aba)</span>
+                        </a>
                       </li>
                     ))}
                   </ul>
