@@ -18,7 +18,7 @@ const { sockets, SocketDeTeste } = vi.hoisted(() => {
 });
 vi.mock("partysocket", () => ({ default: SocketDeTeste }));
 
-const { MarcaOnline, PresencaDaJam } = await import("@/componentes/jams/PresencaDaJam");
+const { MarcaConectado, MarcaOnline, PresencaDaJam } = await import("@/componentes/jams/PresencaDaJam");
 
 const fetch = vi.fn();
 
@@ -27,8 +27,12 @@ function tokenOk(token = "token-1") {
 }
 
 function presenca(...online: string[]) {
+  presencaCom(online, []);
+}
+
+function presencaCom(online: string[], conectados: string[]) {
   act(() => {
-    sockets.at(-1)!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ v: 1, tipo: "presenca", online }) }));
+    sockets.at(-1)!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ v: 1, tipo: "presenca", online, conectados }) }));
   });
 }
 
@@ -39,6 +43,7 @@ function pagina() {
       <MarcaOnline usuarioId="lucas" />
       <p>Pai</p>
       <MarcaOnline usuarioId="pai" />
+      <MarcaConectado usuarioId="pai" />
     </PresencaDaJam>,
   );
 }
@@ -62,6 +67,18 @@ describe("presença ao vivo na página da jam (Story 2.5)", () => {
     expect(sockets[0]!.opcoes).toMatchObject({ host: "sala.teste", protocol: "wss", party: "jam", room: "k7m2-rbq9" });
     presenca("pai");
     expect(screen.getAllByText("online agora")).toHaveLength(1);
+  });
+
+  it("marca \"conectado\" em quem está com o conector ligado, sem confundir com a página aberta (Story 3.1, AC 3)", async () => {
+    fetch.mockResolvedValueOnce(tokenOk());
+    pagina();
+    await waitFor(() => expect(sockets).toHaveLength(1));
+    presencaCom([], ["pai"]);
+    expect(screen.getByText("conectado")).toBeInTheDocument();
+    expect(screen.queryByText("online agora")).toBeNull();
+    presencaCom(["pai"], []);
+    expect(screen.queryByText("conectado")).toBeNull();
+    expect(screen.getByText("online agora")).toBeInTheDocument();
   });
 
   it("a presença se atualiza sozinha, sem recarregar (AC 2)", async () => {
@@ -115,7 +132,7 @@ describe("presença ao vivo na página da jam (Story 2.5)", () => {
     await waitFor(() => expect(sockets).toHaveLength(1));
     act(() => {
       sockets[0]!.dispatchEvent(new MessageEvent("message", { data: "não é json" }));
-      sockets[0]!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ v: 9, tipo: "presenca", online: ["pai"] }) }));
+      sockets[0]!.dispatchEvent(new MessageEvent("message", { data: JSON.stringify({ v: 9, tipo: "presenca", online: ["pai"], conectados: [] }) }));
     });
     expect(screen.queryByText("online agora")).toBeNull();
   });

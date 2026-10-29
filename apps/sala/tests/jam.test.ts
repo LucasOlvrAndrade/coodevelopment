@@ -2,10 +2,10 @@ import { assinarTokenSala, DURACAO_TOKEN_SALA_S } from "@coodevelopment/protocol
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
-type Presenca = { v: number; tipo: string; online: string[] };
+type Presenca = { v: number; tipo: string; online: string[]; conectados: string[] };
 
-async function token(usuarioId: string, jamId: string, agora = Date.now()) {
-  return (await assinarTokenSala({ usuarioId, jamId, via: "pagina" }, env.SEGREDO_SALA, agora)).token;
+async function token(usuarioId: string, jamId: string, agora = Date.now(), via: "pagina" | "conector" = "pagina") {
+  return (await assinarTokenSala({ usuarioId, jamId, via }, env.SEGREDO_SALA, agora)).token;
 }
 
 // Abre uma conexão com a sala e guarda as mensagens de presença que chegam.
@@ -85,5 +85,25 @@ describe("sala da jam", () => {
     aba2.ws.close(1000, "fechou a outra");
     await pai.presenca(com("pai"));
     pai.ws.close();
+  });
+  it("o conector ligado conta em conectados, não em online (Story 3.1, AC 3)", async () => {
+    const pagina = await conectar("jam-conector", await token("lucas", "jam-conector"));
+    await pagina.presenca(com("lucas"));
+    const conector = await conectar("jam-conector", await token("pai", "jam-conector", Date.now(), "conector"));
+    const p = await pagina.presenca((x) => x.conectados.includes("pai"));
+    expect(p.online).toEqual(["lucas"]);
+    expect(p.conectados).toEqual(["pai"]);
+    conector.ws.close(1000, "Ctrl+C");
+    await pagina.presenca((x) => x.conectados.length === 0);
+    pagina.ws.close();
+  });
+
+  it("a mesma pessoa com a página aberta e o conector ligado aparece nos dois", async () => {
+    const pagina = await conectar("jam-os-dois", await token("lucas", "jam-os-dois"));
+    const conector = await conectar("jam-os-dois", await token("lucas", "jam-os-dois", Date.now(), "conector"));
+    const p = await pagina.presenca((x) => x.conectados.includes("lucas"));
+    expect(p.online).toEqual(["lucas"]);
+    conector.ws.close();
+    pagina.ws.close();
   });
 });

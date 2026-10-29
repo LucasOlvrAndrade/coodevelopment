@@ -5,7 +5,8 @@ type Estado = Pick<QuemNaSala, "usuarioId" | "via">;
 
 // Uma sala por jam (Story 2.5). Só entra quem traz o token que o app emitiu
 // para esta jam, conferido aqui na entrada; a cada entrada e saída a sala
-// avisa a todos quem está online, uma vez por pessoa mesmo com várias abas.
+// avisa a todos quem está com a página aberta e quem está com o conector
+// ligado, uma vez por pessoa mesmo com várias abas.
 // O estado de cada conexão sobrevive à hibernação.
 export class Jam extends Server<Env> {
   static options = { hibernate: true };
@@ -35,12 +36,15 @@ export class Jam extends Server<Env> {
   }
 
   // Quem está saindo fica de fora pelo id, mesmo se o fechamento ainda corre.
+  // A página aberta conta em `online`; o conector ligado, em `conectados`.
   private anunciarPresenca(saindo?: string) {
     const online = new Set<string>();
+    const conectados = new Set<string>();
     for (const conexao of this.getConnections<Estado>()) {
-      if (conexao.id !== saindo && conexao.state) online.add(conexao.state.usuarioId);
+      if (conexao.id === saindo || !conexao.state) continue;
+      (conexao.state.via === "conector" ? conectados : online).add(conexao.state.usuarioId);
     }
-    const mensagem: MensagemPresenca = { v: 1, tipo: "presenca", online: [...online].sort() };
+    const mensagem: MensagemPresenca = { v: 1, tipo: "presenca", online: [...online].sort(), conectados: [...conectados].sort() };
     this.broadcast(JSON.stringify(mensagem), saindo ? [saindo] : undefined);
   }
 }

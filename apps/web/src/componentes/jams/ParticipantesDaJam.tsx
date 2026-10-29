@@ -1,7 +1,7 @@
 import { Avatar } from "@/componentes/ui/Avatar";
 import { link, painel } from "@/componentes/ui/estilo";
 import type { JamCompleta } from "@/servidor/dominio/jam";
-import { MarcaOnline } from "./PresencaDaJam";
+import { MarcaConectado, MarcaOnline } from "./PresencaDaJam";
 import { TentarDeNovo } from "./TentarDeNovo";
 
 // Cor de cada participante pela vaga, no anel da foto (front-end spec: a cor
@@ -30,8 +30,9 @@ export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }
                   {p.nome}
                   {p.id === eu && <span className="font-normal text-texto-suave"> (você)</span>}
                 </span>
-                {/* Ao vivo, pela sala da jam (Story 2.5). */}
+                {/* Ao vivo, pela sala da jam (Stories 2.5 e 3.1). */}
                 <MarcaOnline usuarioId={p.id} />
+                <MarcaConectado usuarioId={p.id} />
               </p>
               {/* Quebra de linha no celular em vez de cortar o usuário (gate da 2.4, UX-003). */}
               <p className="font-mono text-pequeno break-words text-texto-suave">

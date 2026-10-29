@@ -64,9 +64,10 @@ describe("token da sala (Story 2.5)", () => {
 });
 
 describe("mensagens da sala", () => {
-  it("presença: aceita a lista de quem está online e recusa o resto", () => {
-    expect(mensagemDaSala.safeParse({ v: 1, tipo: "presenca", online: ["lucas"] }).success).toBe(true);
-    expect(mensagemDaSala.safeParse({ v: 2, tipo: "presenca", online: [] }).success).toBe(false);
-    expect(mensagemDaSala.safeParse({ v: 1, tipo: "outra", online: [] }).success).toBe(false);
+  it("presença: aceita quem está online e quem está com o conector, e recusa o resto", () => {
+    expect(mensagemDaSala.safeParse({ v: 1, tipo: "presenca", online: ["lucas"], conectados: ["pai"] }).success).toBe(true);
+    expect(mensagemDaSala.safeParse({ v: 1, tipo: "presenca", online: ["lucas"] }).success).toBe(false);
+    expect(mensagemDaSala.safeParse({ v: 2, tipo: "presenca", online: [], conectados: [] }).success).toBe(false);
+    expect(mensagemDaSala.safeParse({ v: 1, tipo: "outra", online: [], conectados: [] }).success).toBe(false);
   });
 });
