@@ -1,6 +1,10 @@
 "use client";
 
+import { Sora } from "next/font/google";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+
+// A fonte da escrita do logo do Grupo RAM (gruporam-apps), só nos pesos dela.
+const sora = Sora({ weight: ["500", "800"], subsets: ["latin"], display: "swap" });
 
 export type Passo = { titulo: string; texto: string };
 
@@ -57,7 +61,17 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
 
   return (
     <div ref={palco} className="relative" onPointerLeave={(e) => e.pointerType === "mouse" && setAberto(null)}>
-      <div className="grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10">
+      {/* A escrita do logo, à esquerda dos quadrados como no original; no
+          celular, acima, porque ao lado não sobra lugar para o bloco. */}
+      <p className={`${sora.className} mb-6 flex items-baseline gap-2 text-3xl leading-none tracking-wide md:hidden`}>
+        <span className="font-medium">GRUPO</span>
+        <span className="font-extrabold">RAM</span>
+      </p>
+      <div className="grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10 md:grid-cols-[auto_72px_1fr]">
+        <p aria-hidden className={`${sora.className} hidden items-baseline gap-3 text-5xl leading-none tracking-wide md:flex lg:text-6xl`}>
+          <span className="font-medium">GRUPO</span>
+          <span className="font-extrabold">RAM</span>
+        </p>
         <ol aria-label="Passos" className="flex flex-col gap-[17px] sm:gap-[22px]">
           {passos.map((passo, i) => {
             const cor = QUADRADOS[i % QUADRADOS.length]!;

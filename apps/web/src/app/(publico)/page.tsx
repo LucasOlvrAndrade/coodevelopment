@@ -70,7 +70,7 @@ export default function PaginaInicial({ searchParams }: PageProps<"/">) {
             <h2 id="como-funciona-titulo" className="font-instrument-serif text-center text-4xl tracking-tight sm:text-5xl">
               Como funciona
             </h2>
-            <div className="mx-auto mt-12 max-w-3xl">
+            <div className="mx-auto mt-12 max-w-5xl">
               <ComoFunciona passos={PASSOS} />
             </div>
           </div>

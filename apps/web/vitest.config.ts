@@ -9,6 +9,7 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       // "server-only" lança fora do runtime do React Server; nos testes vira módulo vazio.
       "server-only": fileURLToPath(new URL("./tests/apoio/vazio.ts", import.meta.url)),
+      "next/font/google": fileURLToPath(new URL("./tests/apoio/fontes.ts", import.meta.url)),
     },
   },
   test: {
