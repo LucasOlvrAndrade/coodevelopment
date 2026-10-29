@@ -1,29 +1,58 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const execute = vi.fn();
+const fetchDaSala = vi.fn();
 
 vi.mock("next/server", () => ({ connection: vi.fn(async () => {}) }));
 vi.mock("@/servidor/db", () => ({ db: () => ({ execute }) }));
 
 const { GET } = await import("@/app/api/saude/route");
 
+const pedir = () => GET(new Request("http://teste/api/saude"), undefined);
+
 describe("GET /api/saude", () => {
   beforeEach(() => {
     execute.mockReset();
+    fetchDaSala.mockReset();
+    vi.stubGlobal("fetch", fetchDaSala);
     vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubEnv("NEXT_PUBLIC_SALA_HOST", "coodevelopment-sala.conta.workers.dev");
   });
 
-  it("responde app e banco ok quando o banco responde", async () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("responde app, banco e sala ok quando os três respondem (o 404 da raiz da sala conta como no ar)", async () => {
     execute.mockResolvedValue({ rows: [{ "?column?": 1 }] });
-    const resposta = await GET(new Request("http://teste/api/saude"), undefined);
+    fetchDaSala.mockResolvedValue(new Response("", { status: 404 }));
+    const resposta = await pedir();
     expect(resposta.status).toBe(200);
-    expect(await resposta.json()).toEqual({ app: "ok", banco: "ok" });
+    expect(await resposta.json()).toEqual({ app: "ok", banco: "ok", sala: "ok" });
+    expect(fetchDaSala).toHaveBeenCalledWith("https://coodevelopment-sala.conta.workers.dev/", expect.objectContaining({ cache: "no-store" }));
   });
 
   it("responde 503 com banco em erro quando o banco falha", async () => {
     execute.mockRejectedValue(new Error("sem conexão"));
-    const resposta = await GET(new Request("http://teste/api/saude"), undefined);
+    fetchDaSala.mockResolvedValue(new Response("", { status: 404 }));
+    const resposta = await pedir();
     expect(resposta.status).toBe(503);
-    expect(await resposta.json()).toEqual({ app: "ok", banco: "erro" });
+    expect(await resposta.json()).toEqual({ app: "ok", banco: "erro", sala: "ok" });
+  });
+
+  it("sala sem resposta não derruba o app (Story 2.5, AC 4)", async () => {
+    execute.mockResolvedValue({ rows: [] });
+    fetchDaSala.mockRejectedValue(new TypeError("fetch failed"));
+    const resposta = await pedir();
+    expect(resposta.status).toBe(200);
+    expect(await resposta.json()).toEqual({ app: "ok", banco: "ok", sala: "erro" });
+  });
+
+  it("sem o endereço da sala, ela está desligada e nem é chamada", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SALA_HOST", "");
+    execute.mockResolvedValue({ rows: [] });
+    expect(await (await pedir()).json()).toEqual({ app: "ok", banco: "ok", sala: "desligada" });
+    expect(fetchDaSala).not.toHaveBeenCalled();
   });
 });
