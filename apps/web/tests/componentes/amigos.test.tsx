@@ -66,7 +66,8 @@ describe("busca de amigo (AC 1, 2 e 5)", () => {
     acoes.buscarAmigo.mockResolvedValueOnce({ ok: true, dados: [] });
     render(<BuscaAmigo versao="v1" />);
     await buscar("ninguem");
-    expect(await screen.findByRole("status")).toHaveTextContent("Ninguém com esse usuário usa o Coodevelopment ainda.");
+    // A região de status já existe vazia: espera o texto, não a região (falhava no CI às vezes).
+    expect(await screen.findByText("Ninguém com esse usuário usa o Coodevelopment ainda.")).toHaveAttribute("role", "status");
   });
 
   it("usuário inválido mostra o erro ligado ao campo", async () => {
