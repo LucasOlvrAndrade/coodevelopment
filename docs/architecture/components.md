@@ -35,8 +35,10 @@ PartyServer, node-diff3, zod
 
 ## Conector (`packages/conector`, publicado no npm)
 
-**Responsibility:** ligar o PC à jam. Comandos `entrar <jam>`, `diagnostico`,
-`sair`. Ao entrar:
+**Responsibility:** ligar o PC à jam. Comandos `entrar <jam>`, `diagnostico`
+e `sair`. O `entrar` roda em primeiro plano e a pasta se desliga da jam com
+Ctrl+C; o `sair` encerra a sessão do conector no computador (Story 3.1). O
+token de clone é revogado logo depois do `git clone`. Ao entrar:
 
 1. faz login por dispositivo, se ainda não há sessão;
 2. clona o repositório ou confere a pasta;
