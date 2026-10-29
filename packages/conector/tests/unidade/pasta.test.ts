@@ -96,6 +96,16 @@ describe("clonar (NFR8)", () => {
     });
   });
 
+  it("revoga o token logo depois do clone, com sucesso ou falha", async () => {
+    for (const codigo of [0, 128]) {
+      const { amb, fetch } = ambienteFalso({ rodar: () => ({ codigo }) });
+      await clonar(amb, REPO, "main", "C:/d", "ghs_segredo").catch(() => {});
+      expect(fetch).toHaveBeenCalledWith("https://api.github.com/installation/token", expect.objectContaining({ method: "DELETE" }));
+      const [, init] = fetch.mock.calls[0]!;
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer ghs_segredo");
+    }
+  });
+
   it("falha do git vira mensagem com a última linha dele", async () => {
     const { amb } = ambienteFalso({ rodar: () => ({ codigo: 128, erro: "Cloning...\nfatal: Remote branch main not found\n" }) });
     await expect(clonar(amb, REPO, "main", "C:/d", "t")).rejects.toThrow("O git clone falhou: fatal: Remote branch main not found");

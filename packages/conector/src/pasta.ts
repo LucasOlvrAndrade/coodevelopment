@@ -76,5 +76,13 @@ export async function clonar(amb: Ambiente, repo: Repo, branch: string, pasta: s
     GIT_CONFIG_VALUE_0: `Authorization: Basic ${basico}`,
     GIT_TERMINAL_PROMPT: "0",
   });
+  // Clonou ou não, o token não serve para mais nada: revogado na hora, em vez
+  // de valer a hora inteira. Se a revogação falhar, ele vence sozinho.
+  await amb
+    .fetch("https://api.github.com/installation/token", {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "coodevelopment" },
+    })
+    .catch(() => {});
   if (r.codigo !== 0) throw new Error(`O git clone falhou: ${r.erro.trim().split("\n").at(-1) ?? r.codigo}`);
 }
