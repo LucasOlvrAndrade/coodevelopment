@@ -18,6 +18,16 @@ const QUADRADOS = [
 
 const DURACAO = 500;
 
+function posicaoNoPalco(el: HTMLElement, palco: HTMLElement): [number, number] {
+  let x = 0;
+  let y = 0;
+  for (let atual: HTMLElement | null = el; atual && atual !== palco; atual = atual.offsetParent as HTMLElement | null) {
+    x += atual.offsetLeft;
+    y += atual.offsetTop;
+  }
+  return [x, y];
+}
+
 // De onde o bloco sai: a posição e o tamanho do quadrado no logo, relativos ao
 // bloco já aberto no meio.
 type Origem = { dx: number; dy: number; sx: number; sy: number };
@@ -35,6 +45,8 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
 
   // offsetLeft/Top/Width/Height ignoram o transform: a medida é a mesma com o
   // bloco aberto ou recolhido. O observador mede de novo quando o palco muda.
+  // A posição soma os offsets até o palco: em tela grande o bloco fica numa
+  // camada própria, centralizada, e o pai dele não é o mesmo do quadrado.
   useEffect(() => {
     const elemento = palco.current;
     // Sem o observador (navegador antigo), o bloco só aparece, sem deslizar.
@@ -45,9 +57,11 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
           const q = quadrados.current[i];
           const b = blocos.current[i];
           if (!q || !b) return { dx: 0, dy: 0, sx: 1, sy: 1 };
+          const [qx, qy] = posicaoNoPalco(q, elemento);
+          const [bx, by] = posicaoNoPalco(b, elemento);
           return {
-            dx: q.offsetLeft - b.offsetLeft,
-            dy: q.offsetTop - b.offsetTop,
+            dx: qx - bx,
+            dy: qy - by,
             sx: q.offsetWidth / b.offsetWidth,
             sy: q.offsetHeight / b.offsetHeight,
           };
@@ -61,14 +75,14 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
 
   return (
     <div ref={palco} className="relative" onPointerLeave={(e) => e.pointerType === "mouse" && setAberto(null)}>
-      {/* A escrita do logo, à esquerda dos quadrados como no original; no
-          celular, acima, porque ao lado não sobra lugar para o bloco. */}
-      <p className={`${sora.className} mb-6 flex items-baseline gap-2 text-3xl leading-none tracking-wide md:hidden`}>
+      {/* A escrita do logo, com o RAM embaixo do GRUPO, à esquerda dos
+          quadrados; no celular, acima, porque ao lado não sobra lugar. */}
+      <p className={`${sora.className} mb-6 flex flex-col gap-1 text-3xl leading-none tracking-wide md:hidden`}>
         <span className="font-medium">GRUPO</span>
         <span className="font-extrabold">RAM</span>
       </p>
-      <div className="grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10 md:grid-cols-[auto_72px_1fr]">
-        <p aria-hidden className={`${sora.className} hidden items-baseline gap-3 text-5xl leading-none tracking-wide md:flex lg:text-6xl`}>
+      <div className="relative grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10 md:grid-cols-[auto_72px_1fr]">
+        <p aria-hidden className={`${sora.className} hidden flex-col gap-2 text-5xl leading-none tracking-wide md:flex lg:text-6xl`}>
           <span className="font-medium">GRUPO</span>
           <span className="font-extrabold">RAM</span>
         </p>
@@ -106,7 +120,9 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
           })}
         </ol>
 
-        <div className="grid min-h-[202px] place-items-center sm:min-h-[260px]">
+        {/* O bloco aberto: em tela grande, no meio da seção (numa camada que
+            cobre a fileira toda e não pega o mouse); menor, ao lado dos quadrados. */}
+        <div className="grid min-h-[202px] place-items-center sm:min-h-[260px] lg:pointer-events-none lg:absolute lg:inset-0">
           {passos.map((passo, i) => {
             const cor = QUADRADOS[i % QUADRADOS.length]!;
             const estaAberto = aberto === i;
@@ -132,7 +148,7 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
                   blocos.current[i] = el;
                 }}
                 aria-hidden={!estaAberto}
-                className="pointer-events-none w-full max-w-md p-6 motion-reduce:!transform-none sm:p-8"
+                className="pointer-events-none w-full max-w-md p-6 lg:max-w-sm motion-reduce:!transform-none sm:p-8"
                 style={estilo}
               >
                 <div
