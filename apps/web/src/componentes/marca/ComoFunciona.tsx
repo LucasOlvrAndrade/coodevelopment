@@ -81,8 +81,8 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
         <span className="font-medium">GRUPO</span>
         <span className="font-extrabold">RAM</span>
       </p>
-      <div className="relative grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10 md:grid-cols-[auto_72px_1fr]">
-        <p aria-hidden className={`${sora.className} hidden flex-col gap-2 text-5xl leading-none tracking-wide md:flex lg:text-6xl`}>
+      <div className="relative grid grid-cols-[56px_1fr] items-center gap-6 sm:grid-cols-[72px_1fr] sm:gap-10 md:grid-cols-[auto_72px_1fr] lg:gap-6">
+        <p aria-hidden className={`${sora.className} hidden flex-col gap-2 text-5xl leading-none tracking-wide md:flex`}>
           <span className="font-medium">GRUPO</span>
           <span className="font-extrabold">RAM</span>
         </p>
@@ -121,7 +121,8 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
         </ol>
 
         {/* O bloco aberto: em tela grande, no meio da seção (numa camada que
-            cobre a fileira toda e não pega o mouse); menor, ao lado dos quadrados. */}
+            cobre a fileira toda e não pega o mouse); menor, ao lado dos quadrados.
+            Em 1024 px, escrita, quadrados e metade do bloco cabem sem encostar. */}
         <div className="grid min-h-[202px] place-items-center sm:min-h-[260px] lg:pointer-events-none lg:absolute lg:inset-0">
           {passos.map((passo, i) => {
             const cor = QUADRADOS[i % QUADRADOS.length]!;
@@ -148,7 +149,7 @@ export function ComoFunciona({ passos }: { passos: Passo[] }) {
                   blocos.current[i] = el;
                 }}
                 aria-hidden={!estaAberto}
-                className="pointer-events-none w-full max-w-md p-6 lg:max-w-sm motion-reduce:!transform-none sm:p-8"
+                className="pointer-events-none w-full max-w-md p-6 lg:max-w-[22rem] motion-reduce:!transform-none sm:p-8"
                 style={estilo}
               >
                 <div
