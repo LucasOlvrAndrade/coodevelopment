@@ -69,4 +69,41 @@ describe("login por dispositivo (Story 3.1, AC 1)", () => {
     });
     await expect(entrarPorDispositivo(amb)).rejects.toThrow(/invalid_grant/);
   });
+
+  it("429 do limite de taxa vale como esperar mais, respeitando o Retry-After (gate da 3.1, REL-002)", async () => {
+    const { amb } = ambienteFalso({
+      respostas: {
+        "POST /api/auth/device/code": CODIGO,
+        "POST /api/auth/device/token": [{ status: 429, corpo: {} }, { corpo: { access_token: "s" } }],
+      },
+    });
+    expect(await entrarPorDispositivo(amb)).toBe("s");
+    expect(amb.esperar).toHaveBeenNthCalledWith(2, 10000);
+  });
+
+  it("queda de rede no meio da espera tenta de novo, sem derrubar o login (gate da 3.1, REL-005)", async () => {
+    const { amb, fetch, linhas } = ambienteFalso({
+      respostas: { "POST /api/auth/device/code": CODIGO, "POST /api/auth/device/token": { corpo: { access_token: "s" } } },
+    });
+    const real = fetch.getMockImplementation()!;
+    let caiu = 0;
+    fetch.mockImplementation(async (url, init) => {
+      if (String(url).endsWith("/device/token") && caiu++ < 2) throw new TypeError("fetch failed");
+      return real(url, init);
+    });
+    expect(await entrarPorDispositivo(amb)).toBe("s");
+    expect(linhas.filter((l) => l === "Sem conexão com o app. Tentando de novo...")).toHaveLength(1);
+    expect(amb.esperar).toHaveBeenNthCalledWith(2, 10000);
+    expect(amb.esperar).toHaveBeenNthCalledWith(3, 20000);
+  });
+
+  it("link de login que não é do app não abre no navegador (gate da 3.1, SEC-003)", async () => {
+    for (const url of ["file:///C:/Windows/System32/calc.exe", "https://outro.site/dispositivo", "http://app.teste/dispositivo"]) {
+      const { amb } = ambienteFalso({
+        respostas: { "POST /api/auth/device/code": { corpo: { ...CODIGO.corpo, verification_uri_complete: url } } },
+      });
+      await expect(entrarPorDispositivo(amb)).rejects.toThrow("O app mandou um endereço de login que não é dele.");
+      expect(amb.abrirNavegador).not.toHaveBeenCalled();
+    }
+  });
 });

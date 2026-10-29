@@ -64,7 +64,7 @@ describe("entrar (Story 3.1)", () => {
     salaQueConecta("A sala recusou a entrada. Rode o comando de novo.");
     const { amb } = ambienteFalso({
       respostas: comRespostas({
-        "POST /api/auth/device/code": { corpo: { device_code: "d", user_code: "ABCDEFGH", verification_uri: "u", verification_uri_complete: "u?c", expires_in: 600, interval: 5 } },
+        "POST /api/auth/device/code": { corpo: { device_code: "d", user_code: "ABCDEFGH", verification_uri: "https://app.teste/dispositivo", verification_uri_complete: "https://app.teste/dispositivo?user_code=ABCDEFGH", expires_in: 600, interval: 5 } },
         "POST /api/auth/device/token": { corpo: { access_token: "sessao-nova" } },
       }),
       rodar: gitDaPasta("C:/p"),
@@ -81,7 +81,7 @@ describe("entrar (Story 3.1)", () => {
     const { amb, linhas, pedidos } = ambienteFalso({
       respostas: {
         "GET /api/jams/k7m2-rbq9/conector": [{ status: 401, corpo: { error: { code: "sem_sessao", message: "x" } } }, { corpo: JAM }],
-        "POST /api/auth/device/code": { corpo: { device_code: "d", user_code: "ABCDEFGH", verification_uri: "u", verification_uri_complete: "u?c", expires_in: 600, interval: 5 } },
+        "POST /api/auth/device/code": { corpo: { device_code: "d", user_code: "ABCDEFGH", verification_uri: "https://app.teste/dispositivo", verification_uri_complete: "https://app.teste/dispositivo?user_code=ABCDEFGH", expires_in: 600, interval: 5 } },
         "POST /api/auth/device/token": { corpo: { access_token: "sessao-nova" } },
       },
       rodar: gitDaPasta("C:/p"),
