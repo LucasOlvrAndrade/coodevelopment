@@ -97,6 +97,19 @@ function criarAuth() {
         login: { type: "string", required: true },
       },
     },
+    // Limite de taxa (security-and-performance.md), guardado no banco para
+    // valer entre as instâncias da Vercel. Pelo IP que a própria Vercel põe
+    // no cabeçalho (não dá para forjar de fora). O Better Auth só liga o
+    // limite em produção. O login do conector ganha regras próprias: pedir
+    // código é raro; a consulta vem a cada 5 s de cada terminal esperando.
+    rateLimit: {
+      storage: "database",
+      customRules: {
+        "/device/code": { window: 60, max: 10 },
+        "/device/token": { window: 60, max: 30 },
+      },
+    },
+    advanced: { ipAddress: { ipAddressHeaders: ["x-vercel-forwarded-for"] } },
     plugins: [
       // Login do conector por código (FR10, Story 3.1): o terminal mostra o
       // código, a pessoa confirma em /dispositivo já logada, e o conector

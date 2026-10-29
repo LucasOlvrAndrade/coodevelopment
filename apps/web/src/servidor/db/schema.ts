@@ -104,6 +104,15 @@ export const deviceCode = pgTable(
   },
 );
 
+// Limite de taxa do Better Auth no banco (Story 3.1): na Vercel cada
+// instância tem a própria memória, então o limite em memória quase não limita.
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
 // Amigos (Story 1.3, database-schema.md). Pedido aceito vira amizade e some;
 // recusado fica guardado e volta a pendente se a pessoa pedir de novo (A10).
 export const pedidoAmizade = pgTable(

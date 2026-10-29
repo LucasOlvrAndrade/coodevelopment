@@ -50,6 +50,13 @@
       "when": 1793276572402,
       "tag": "0006_dispositivo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793278929553,
+      "tag": "0007_limite_de_taxa",
+      "breakpoints": true
     }
   ]
 }
