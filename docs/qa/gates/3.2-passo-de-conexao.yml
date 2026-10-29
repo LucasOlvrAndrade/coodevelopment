@@ -1,0 +1,47 @@
+schema: 1
+story: '3.2'
+story_title: 'Passo de conexão com ajuda para o Node'
+gate: PASS
+status_reason: 'Gate de 29/10 com revisor independente: CONCERNS (2 médios e 5 baixos, nenhum alto). Os 7 corrigidos com teste em e21a5c1; reavaliação por Quinn conferindo cada um no código e nos testes. Os 5 ACs com testes de componente (presença simulada, relógio falso para 10 s e 2 min, área de transferência simulada), passo conferido em produção com axe em 1280 e 360 px, sem violações dele e sem rolagem lateral. Sumir ao conectar usa a mesma presença do selo "conectado", que o Lucas viu em produção.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente no gate original'
+reviewed_revision: 'commit:e21a5c1 (gate original CONCERNS em 7ccd07c)'
+updated: '2026-10-29T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'A11Y-001', severity: medium, fix: 'ao trocar de passo, o foco vai para o texto do passo novo' }
+  - { id: 'TEST-001', severity: medium, fix: 'teste de jam fechada sem o passo e do passo acima de quem está na jam' }
+  - { id: 'A11Y-002', severity: low, fix: 'aguardando e dicas na mesma região de status, que fica montada' }
+  - { id: 'A11Y-003', severity: low, fix: 'nome do botão começa pelo texto visível (Copiar ou Copiado) e diz o que copia' }
+  - { id: 'A11Y-004', severity: low, fix: 'nome no grupo do bloco, não no pre' }
+  - { id: 'REL-001', severity: low, fix: 'estado da tela só vale sem armazenamento; com ele, a troca em outra aba chega' }
+  - { id: 'TEST-002', severity: low, fix: 'testes de sala fora do ar, título "Seu conector desligou" e relógio das dicas recomeçando' }
+
+waived_issues:
+  - id: 'A11Y-005'
+    severity: low
+    finding: 'O axe acusa label-content-name-mismatch no botão da conta quando a pessoa não tem foto (as iniciais aparecem e o nome é "Conta de ...").'
+    reason: 'Existe desde a V3, fora desta story; contas do GitHub sempre têm foto, então só aparece com usuário de teste. Corrigir pede desenhar as iniciais por CSS em todo avatar.'
+
+evidence:
+  tests_reviewed: 29
+  tools: 'pnpm test (313 no app), typecheck e lint ok, CI verde; code-review com revisor independente'
+  production: 'usuário de teste temporário em 29/10 (apagado no fim): passo 1 e passo 2 em /jams/[id] com axe sem violações do passo e sem rolagem lateral em 1280 e 360 px; comando com o id da jam'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Prompt fixo no código, sem nada do usuário ou da jam; o id da jam só entra no comando, depois de validado na página.'
+  reliability:
+    status: PASS
+    notes: 'Sem a sala, o passo fica (um passo a mais, não a menos); reconexão rápida não pisca.'
+  performance:
+    status: PASS
+    notes: 'Só front-end, sobre a presença que já existe.'
+  maintainability:
+    status: PASS
+    notes: 'Bloco de copiar reutilizável em componentes/ui.'
