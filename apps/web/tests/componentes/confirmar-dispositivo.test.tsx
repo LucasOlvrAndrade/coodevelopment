@@ -62,7 +62,7 @@ describe("tela /dispositivo (Story 3.1, AC 1)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Esse código venceu.");
   });
 
-  it("depois de um erro, o foco volta para o campo ou para o Confirmar (gate da 3.1, A11Y-001)", async () => {
+  it("depois de um erro, o foco volta ao campo; ao responder, vai para a mensagem e nunca para um botão (gate da 3.1, A11Y-001 e A11Y-002)", async () => {
     acoes.consultarDispositivo.mockResolvedValueOnce({ ok: false, erro: { codigo: "codigo_dispositivo_invalido", mensagem: "Esse código não existe." } });
     const { unmount } = render(<ConfirmarDispositivo inicial={{ tipo: "digitar" }} />);
     fireEvent.change(screen.getByLabelText("Código que aparece no terminal"), { target: { value: "ZZZZ" } });
@@ -72,8 +72,10 @@ describe("tela /dispositivo (Story 3.1, AC 1)", () => {
 
     acoes.responderDispositivo.mockResolvedValueOnce({ ok: false, erro: { codigo: "codigo_dispositivo_respondido", mensagem: "Esse código já foi respondido." } });
     render(<ConfirmarDispositivo inicial={{ tipo: "decidir", codigo: "WDJBMJHT", situacao: "pendente" }} />);
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Confirmar" })));
+    // Recusar e dar erro: um Enter em seguida não pode confirmar.
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Recusar" })));
     expect(await screen.findByRole("alert")).toHaveTextContent("Esse código já foi respondido.");
-    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Confirmar" })).toHaveFocus());
+    await vi.waitFor(() => expect(screen.getByRole("alert")).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Confirmar" })).not.toHaveFocus();
   });
 });

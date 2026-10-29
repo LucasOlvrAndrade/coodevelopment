@@ -194,6 +194,12 @@ export async function exigirSessaoDoConector(): Promise<{ usuario: UsuarioSessao
   if (!sessao) throw new ErroApp("sem_sessao", 401);
   const bearer = /^bearer\s+(\S+)/i.exec(cabecalhos.get("authorization") ?? "")?.[1];
   // O token do Bearer pode vir puro ou assinado ("token.assinatura").
-  const tokenDoBearer = bearer ? decodeURIComponent(bearer).split(".")[0] : undefined;
+  // decodeURIComponent lança com "%" malformado: aí não é a sessão (gate da 3.1, MNT-005).
+  let tokenDoBearer: string | undefined;
+  try {
+    tokenDoBearer = bearer ? decodeURIComponent(bearer).split(".")[0] : undefined;
+  } catch {
+    tokenDoBearer = undefined;
+  }
   return { usuario: sessao.user, via: tokenDoBearer === sessao.session.token ? "conector" : "pagina" };
 }

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { ErroApp } = await import("@/servidor/erros");
 const exigirSessaoDoConector = vi.fn(async (): Promise<{ usuario: { id: string }; via: "pagina" | "conector" }> => ({ usuario: { id: "lucas" }, via: "pagina" }));
-const obterJam = vi.fn(async (): Promise<object | null> => ({ id: "k7m2-rbq9" }));
+const obterJam = vi.fn(async (): Promise<object | null> => ({ id: "k7m2-rbq9", estado: "aberta" }));
 
 vi.mock("@/servidor/auth", () => ({ exigirSessaoDoConector }));
 vi.mock("@/servidor/db", () => ({ db: () => ({ banco: "de teste" }) }));
@@ -77,6 +77,13 @@ describe("POST /api/jams/[id]/token-sala (Story 2.5)", () => {
     exigirSessaoDoConector.mockResolvedValueOnce({ usuario: { id: "lucas" }, via: "conector" });
     const { token } = await (await pedir()).json();
     expect(await validarTokenSala(token, "k7m2-rbq9", SEGREDO)).toEqual({ usuarioId: "lucas", jamId: "k7m2-rbq9", via: "conector" });
+  });
+
+  it("jam fechada não recebe token: o conector para e a página segue sem a presença (gate da 3.1, REL-008)", async () => {
+    obterJam.mockResolvedValueOnce({ id: "k7m2-rbq9", estado: "fechada" });
+    const resposta = await pedir();
+    expect(resposta.status).toBe(409);
+    expect((await resposta.json()).error.code).toBe("jam_fechada");
   });
 
   it("a sala local do wrangler dev é sem TLS", async () => {

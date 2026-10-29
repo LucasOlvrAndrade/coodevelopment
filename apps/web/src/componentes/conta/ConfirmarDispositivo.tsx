@@ -20,10 +20,12 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
   const [erro, setErro] = useState<string | null>(inicial.tipo === "digitar" ? (inicial.erro ?? null) : null);
   const [respondendo, iniciar] = useTransition();
   const resultado = useRef<HTMLDivElement>(null);
-  // Depois de um erro, o foco volta para onde a pessoa estava: o campo ou o
-  // Confirmar (gate da 3.1, A11Y-001).
+  // Depois de um erro ao digitar, o foco volta ao campo (gate da 3.1,
+  // A11Y-001). Ao confirmar ou recusar, vai para a mensagem de erro e nunca
+  // para um botão: um Enter depois de recusar não pode confirmar o acesso
+  // (gate da 3.1, A11Y-002).
   const campoDoCodigo = useRef<HTMLInputElement>(null);
-  const botaoConfirmar = useRef<HTMLButtonElement>(null);
+  const mensagem = useRef<HTMLParagraphElement>(null);
 
   async function consultar(valor: string) {
     setErro(null);
@@ -49,7 +51,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
       const r = await semQuebrar(() => responderDispositivo(codigo, confirmar));
       if (!r.ok) {
         setErro(r.erro.mensagem);
-        requestAnimationFrame(() => botaoConfirmar.current?.focus());
+        requestAnimationFrame(() => mensagem.current?.focus());
         return;
       }
       setEtapa({ tipo: "decidir", codigo, situacao: r.dados.situacao });
@@ -59,7 +61,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
   }
 
   const mensagemDeErro = erro && (
-    <p id="codigo-dispositivo-erro" role="alert" className="text-pequeno text-erro">
+    <p ref={mensagem} id="codigo-dispositivo-erro" role="alert" tabIndex={-1} className="text-pequeno text-erro outline-none">
       {erro}
     </p>
   );
@@ -121,7 +123,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
           </p>
           {mensagemDeErro}
           <div className="flex flex-wrap gap-3">
-            <button ref={botaoConfirmar} type="button" disabled={respondendo} onClick={() => responder(codigo, true)} className={botaoPrincipalGrande}>
+            <button type="button" disabled={respondendo} onClick={() => responder(codigo, true)} className={botaoPrincipalGrande}>
               Confirmar
             </button>
             <button type="button" disabled={respondendo} onClick={() => responder(codigo, false)} className={botaoSecundarioGrande}>

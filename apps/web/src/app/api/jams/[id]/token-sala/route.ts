@@ -16,7 +16,11 @@ export const POST = rota(async (_req: Request, { params }: RouteContext<"/api/ja
   const host = process.env.NEXT_PUBLIC_SALA_HOST;
   if (!segredo || !host) throw new ErroApp("sala_indisponivel", 503);
   // O id vai para o caminho da sala: só no formato do gerarIdJam.
-  if (!idDeJamValido(id) || !(await obterJam(db(), eu.id, id))) throw new ErroApp("nao_participa", 403);
+  const daJam = idDeJamValido(id) ? await obterJam(db(), eu.id, id) : null;
+  if (!daJam) throw new ErroApp("nao_participa", 403);
+  // Jam fechada não recebe token: o conector para com a explicação, e a
+  // página segue sem a presença (gate da 3.1, REL-008).
+  if (daJam.estado !== "aberta") throw new ErroApp("jam_fechada", 409);
 
   const { token, expiraEm } = await assinarTokenSala({ usuarioId: eu.id, jamId: id, via }, segredo);
   // A sala local do `wrangler dev` não tem TLS.
