@@ -156,6 +156,6 @@ describe("Bearer", () => {
   it("o token da sessão nunca vai para o cabeçalho set-auth-token", () => {
     const plugin = auth().options.plugins?.find((p) => p.id === "bearer");
     expect(plugin?.hooks?.before).toHaveLength(1);
-    expect(plugin?.hooks?.after).toBeUndefined();
+    expect((plugin?.hooks as { after?: unknown } | undefined)?.after).toBeUndefined();
   });
 });
