@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { AvisoErroLogin } from "@/componentes/conta/AvisoErroLogin";
 import { BotaoEntrar } from "@/componentes/conta/BotaoEntrar";
 import { APLICATIVOS_GRUPO_RAM } from "@/componentes/marca/aplicativos-grupo-ram";
+import { ComoFunciona } from "@/componentes/marca/ComoFunciona";
 import { HeroBanner } from "@/componentes/ui/HeroBanner";
 import { obterSessao } from "@/servidor/auth";
 
@@ -69,15 +70,9 @@ export default function PaginaInicial({ searchParams }: PageProps<"/">) {
             <h2 id="como-funciona-titulo" className="font-instrument-serif text-center text-4xl tracking-tight sm:text-5xl">
               Como funciona
             </h2>
-            <ol className="mt-12 grid gap-8 md:grid-cols-3">
-              {PASSOS.map((passo, i) => (
-                <li key={passo.titulo} className="border-t border-white/10 pt-6">
-                  <span className="font-mono text-sm text-white/60">0{i + 1}</span>
-                  <h3 className="mt-3 text-lg font-medium">{passo.titulo}</h3>
-                  <p className="mt-2 text-sm text-white/70">{passo.texto}</p>
-                </li>
-              ))}
-            </ol>
+            <div className="mx-auto mt-12 max-w-3xl">
+              <ComoFunciona passos={PASSOS} />
+            </div>
           </div>
         </section>
       </main>
