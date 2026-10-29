@@ -95,9 +95,11 @@ Todas com `{ v: 1, tipo, ... }`, validadas com zod nas duas pontas. Resumo
 |---|---|---|
 | cliente → sala | `ola` | `via` (pagina ou conector), versão do protocolo, `soLocal` |
 | sala → cliente | `estado` | participantes, presença, status, avisos ativos, últimos 100 eventos do feed, `baseSha`, manifesto (`caminho → versao, hash`) |
-| conector → sala | `escrever` | `caminho`, `versaoBase`, `hash`, `conteudo` (texto ou base64), `apagado`, `conteudoBase` (só na primeira escrita do arquivo) |
-| sala → conectores | `arquivo` | `caminho`, `versao`, `hash`, `conteudo`, `autorId`, `origem` (escrita ou merge) |
-| sala → autor | `recusado` | `caminho`, motivo (`conflito_guardado`, `jam_fechando`, `caminho_invalido`, `grande_demais`) |
+| conector → sala | `escrever` | `caminho`, `versaoBase`, `hash`, `conteudo` (texto ou base64), `binario`, `apagado`, `conteudoBase` (só na primeira escrita do arquivo; `null` se não existia no `baseSha`) |
+| sala → autor | `aceito` | `caminho`, `versao`, `hash` da escrita que entrou como veio (Story 3.3) |
+| sala → conector | `manifesto` | ao conectar: `caminho`, `versao`, `hash`, `apagado` de tudo que mudou desde o `baseSha`; os arquivos vêm em seguida com `origem: estado` (Story 3.3) |
+| sala → conectores | `arquivo` | `caminho`, `versao`, `hash`, `conteudo`, `binario`, `apagado`, `autorId`, `origem` (escrita, merge ou estado) |
+| sala → autor | `recusado` | `caminho`, motivo (`conflito_guardado`, `jam_fechando`, `caminho_invalido`, `proibido`, `grande_demais`); no conflito, o arquivo atual chega em seguida numa mensagem `arquivo` |
 | conector → sala | `status` | `trabalhando` ou `parado` (hooks) |
 | conector → sala | `anunciar` | `resumo`, `arquivos` |
 | sala → todos | `presenca`, `status`, `aviso`, `evento` | atualizações incrementais |

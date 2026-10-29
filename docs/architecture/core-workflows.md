@@ -60,7 +60,7 @@ Regras do conector na sincronização (Story 3.3):
   `core.autocrlf` do git local (NFR7).
 - **O que nunca vai:** o que o `git check-ignore` ignora, `.git/`, `.env*`
   (exceto `.env.example`), caminho fora da pasta, link simbólico para fora,
-  arquivo acima de 5 MB (vira evento no feed). A lista fixa vale mesmo que o
+  arquivo acima de 1 MB (A14; vira evento no feed). A lista fixa vale mesmo que o
   `.gitignore` do projeto esqueça.
 - **Binário:** detectado por byte nulo nos primeiros 8 KB; sincronizado
   inteiro, sem merge (a última escrita vence e a anterior fica no histórico).
