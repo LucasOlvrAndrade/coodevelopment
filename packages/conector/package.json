@@ -5,6 +5,11 @@
   "license": "MIT",
   "author": "Lucas de Oliveira Andrade",
   "homepage": "https://coodevelopment.lucas-andrade.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LucasOlvrAndrade/coodevelopment.git",
+    "directory": "packages/conector"
+  },
   "type": "module",
   "bin": {
     "coodevelopment": "dist/cli.js"

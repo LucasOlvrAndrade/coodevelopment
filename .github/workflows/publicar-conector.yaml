@@ -19,7 +19,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm, registry-url: "https://registry.npmjs.org" }
+        # Sem registry-url: ele grava um .npmrc com um token de mentira, e o
+        # npm usa esse token no lugar do OIDC (deu 404 na primeira tag).
+        with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile --filter coodevelopment...
       - name: Tag igual à versão do package.json
         shell: bash
