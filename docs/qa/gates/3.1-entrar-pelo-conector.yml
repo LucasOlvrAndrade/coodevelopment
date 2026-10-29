@@ -1,0 +1,64 @@
+schema: 1
+story: '3.1'
+story_title: 'Entrar na jam pelo conector'
+gate: PASS
+status_reason: 'Gate de 29/10 com revisor independente: CONCERNS na primeira rodada (5 médios e 11 baixos, nenhum alto). Correções de 335dd56 a 4f05814, com teste em cada uma; a reavaliação pelo mesmo revisor deu PASS e achou A11Y-002 (médio) e 4 baixos novos, também corrigidos. O ponto mais sério era a sessão do conector valer no app inteiro: agora o Bearer só vale nas três rotas do conector e, no Better Auth, só para ler a sessão e sair; o via vem da sessão que entrou. Ponta a ponta em produção com o Lucas: login por dispositivo, clone do testejam privado com o origin limpo, "conectado" e "online agora" na página da jam. coodevelopment@0.1.0 no npm por trusted publishing.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente nas duas rodadas'
+reviewed_revision: 'commit:4f05814 (gate original CONCERNS em b2259f5)'
+updated: '2026-10-29T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'SEC-001', severity: medium, fix: 'Bearer só em /get-session e /sign-out no hook; obterSessao ignora o Authorization; exigirSessaoDoConector só nas rotas do conector' }
+  - { id: 'REL-001', severity: medium, fix: 'conector para com a explicação em 401, 403 e 409 na reconexão; token-sala responde 409 para jam fechada (REL-008)' }
+  - { id: 'REL-002', severity: medium, fix: 'conector trata 429 como espera com Retry-After; consulta do login com 120 por minuto por IP' }
+  - { id: 'REL-003', severity: medium, fix: '/dispositivo fora de (app), leva ?para= pelo login e volta; destino só /dispositivo com código válido (sem redirecionamento aberto)' }
+  - { id: 'TEST-001', severity: medium, fix: 'sala.test.ts com WebSocket falso: renovação do token, 4401, 503, 401, 403 e 409' }
+  - { id: 'A11Y-002', severity: medium, fix: 'depois de erro ao confirmar ou recusar, o foco vai para a mensagem, nunca para um botão' }
+  - { id: 'SEC-002', severity: low, fix: 'via pela comparação do Bearer com session.token' }
+  - { id: 'SEC-003', severity: low, fix: 'navegador só abre https na origem do app (ou http em localhost)' }
+  - { id: 'REL-004', severity: low, fix: 'Ctrl+C reservado só no entrar' }
+  - { id: 'REL-005', severity: low, fix: 'queda de rede na espera do login tenta de novo' }
+  - { id: 'REL-006', severity: low, fix: '404 e 422 do GitHub App viram repositorio_fora_do_app, com mensagem para o dono da jam' }
+  - { id: 'REL-007', severity: low, fix: 'git 2.31 conferido no clone e no diagnóstico; clone sem gerenciador de credenciais e sem janela' }
+  - { id: 'REL-009', severity: low, fix: 'link de outro endereço não aborta o login; mostra o endereço do app' }
+  - { id: 'REL-010', severity: low, fix: 'espera volta ao normal depois da queda' }
+  - { id: 'A11Y-001', severity: low, fix: 'role=status no "Conferindo"; foco de volta ao campo depois de erro' }
+  - { id: 'MNT-001', severity: low, fix: 'código já respondido com mensagem própria' }
+  - { id: 'MNT-003', severity: low, fix: 'sala no ar só abaixo de 500, resposta guardada 30 s, em servidor/situacao-da-sala.ts' }
+  - { id: 'MNT-005', severity: low, fix: 'Bearer com % malformado não lança' }
+
+waived_issues:
+  - { id: 'MNT-002', severity: low, finding: 'linhas vencidas de device_code e rate_limit nunca são apagadas', reason: 'volume pequeno com 3 pessoas por jam; limpeza periódica quando houver um job agendado' }
+  - { id: 'MNT-004', severity: low, finding: 'actions do workflow de publicação fixadas por tag, sem environment protegido', reason: 'o environment com aprovação precisa ser criado pelo Lucas no GitHub; fixar por SHA junto' }
+  - { id: 'REL-011', severity: low, finding: 'convidado sem o GitHub App instalado perde o ?para= na instalação e volta ao Início', reason: 'acontece uma vez por pessoa; o terminal continua mostrando o código e o endereço' }
+  - { id: 'TEST-002', severity: low, finding: 'axe de /dispositivo com sessão logada', reason: 'componentes e estilos são os mesmos das telas já conferidas com axe; fica para a próxima rodada de telas com usuário de teste' }
+
+evidence:
+  tests_reviewed: 386
+  tools: 'pnpm -r test (web 300, conector 58, sala 8, protocolo 17, plugin 3), pnpm -r typecheck e lint ok, CI verde; code-review com revisor independente em duas rodadas'
+  production: 'login por dispositivo, clone do testejam e "conectado" conferidos com o Lucas em 29/10; token de clone conferido no GitHub (só leitura, só o repositório da jam, escrita 403); DPAPI pelo PowerShell; npx coodevelopment@0.1.0'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Sessão do conector restrita às rotas dele; token do GitHub nunca sai do servidor (NFR8); token de clone só de leitura, revogado depois do clone e fora da linha de comando; limite de taxa no banco; aviso de golpe na confirmação.'
+  reliability:
+    status: PASS
+    notes: 'Reconexão com token novo; para em sessão encerrada, fora da jam ou jam fechada; login aguenta queda de rede e 429.'
+  performance:
+    status: PASS
+    notes: 'Consulta do login a cada 5 s; saúde da sala guardada 30 s.'
+  maintainability:
+    status: PASS
+    notes: 'Conector com Ambiente injetável e testado sem rede, git ou PowerShell; id da jam no protocolo.'
+
+recommendations:
+  immediate:
+    - 'Publicar o conector 0.1.1 com as correções (tag conector-v0.1.1).'
+  future:
+    - 'Mostrar em /dispositivo a hora do pedido e de onde veio, para ajudar a reconhecer um golpe.'
