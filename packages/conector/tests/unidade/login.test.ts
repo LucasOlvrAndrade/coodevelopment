@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { entrarPorDispositivo, ID_DO_CONECTOR, LoginRecusado } from "../../src/login";
 import { ambienteFalso } from "../apoio/ambiente-falso";
 
@@ -97,13 +97,34 @@ describe("login por dispositivo (Story 3.1, AC 1)", () => {
     expect(amb.esperar).toHaveBeenNthCalledWith(3, 20000);
   });
 
-  it("link de login que não é do app não abre no navegador (gate da 3.1, SEC-003)", async () => {
+  it("link de login que não é do app não abre no navegador, e o login segue pelo endereço do app (gate da 3.1, SEC-003 e REL-009)", async () => {
     for (const url of ["file:///C:/Windows/System32/calc.exe", "https://outro.site/dispositivo", "http://app.teste/dispositivo"]) {
-      const { amb } = ambienteFalso({
-        respostas: { "POST /api/auth/device/code": { corpo: { ...CODIGO.corpo, verification_uri_complete: url } } },
+      const { amb, linhas } = ambienteFalso({
+        respostas: {
+          "POST /api/auth/device/code": { corpo: { ...CODIGO.corpo, verification_uri_complete: url } },
+          "POST /api/auth/device/token": { corpo: { access_token: "s" } },
+        },
       });
-      await expect(entrarPorDispositivo(amb)).rejects.toThrow("O app mandou um endereço de login que não é dele.");
+      expect(await entrarPorDispositivo(amb)).toBe("s");
       expect(amb.abrirNavegador).not.toHaveBeenCalled();
+      expect(linhas).toContain("Entre em https://app.teste/dispositivo e digite o código.");
     }
+  });
+
+  it("depois de uma queda, a espera volta ao normal quando a rede volta (gate da 3.1, REL-010)", async () => {
+    const { amb, fetch } = ambienteFalso({
+      respostas: {
+        "POST /api/auth/device/code": CODIGO,
+        "POST /api/auth/device/token": [erro("authorization_pending"), erro("authorization_pending"), { corpo: { access_token: "s" } }],
+      },
+    });
+    const real = fetch.getMockImplementation()!;
+    let caiu = 0;
+    fetch.mockImplementation(async (url, init) => {
+      if (String(url).endsWith("/device/token") && caiu++ < 1) throw new TypeError("fetch failed");
+      return real(url, init);
+    });
+    await entrarPorDispositivo(amb);
+    expect(vi.mocked(amb.esperar).mock.calls.map(([ms]) => ms)).toEqual([5000, 10000, 5000, 5000]);
   });
 });

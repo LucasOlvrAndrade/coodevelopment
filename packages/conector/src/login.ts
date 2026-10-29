@@ -63,12 +63,20 @@ export async function entrarPorDispositivo(amb: Ambiente): Promise<string> {
   amb.escrever("");
   amb.escrever(`    ${legivel(codigo.user_code)}`);
   amb.escrever("");
-  if (!doApp(amb, codigo.verification_uri_complete)) throw new Error("O app mandou um endereço de login que não é dele.");
-  amb.escrever(`Abrindo ${codigo.verification_uri_complete}`);
-  amb.escrever("Se o navegador não abrir, entre nesse endereço e digite o código.");
-  amb.abrirNavegador(codigo.verification_uri_complete);
+  if (doApp(amb, codigo.verification_uri_complete)) {
+    amb.escrever(`Abrindo ${codigo.verification_uri_complete}`);
+    amb.escrever("Se o navegador não abrir, entre nesse endereço e digite o código.");
+    amb.abrirNavegador(codigo.verification_uri_complete);
+  } else {
+    // Link de outro endereço: não abre nada sozinho, mas o login segue pelo
+    // endereço do próprio app (gate da 3.1, REL-009).
+    amb.escrever(`Entre em ${amb.urlApp}/dispositivo e digite o código.`);
+  }
 
-  let intervalo = Math.max(codigo.interval, 1) * 1000;
+  // O intervalo normal (o do app, mais os slow_down) e o da hora, que cresce
+  // nas quedas de rede e volta ao normal quando a rede volta (gate da 3.1, REL-010).
+  let normal = Math.max(codigo.interval, 1) * 1000;
+  let intervalo = normal;
   const prazo = Date.now() + codigo.expires_in * 1000;
   let quedas = 0;
   while (Date.now() < prazo) {
@@ -90,12 +98,14 @@ export async function entrarPorDispositivo(amb: Ambiente): Promise<string> {
       continue;
     }
     quedas = 0;
+    intervalo = normal;
     const { status, esperarS, dados } = resposta;
     if (status === 200 && typeof dados.access_token === "string") return dados.access_token;
     // Muitas consultas do mesmo IP (várias pessoas no mesmo escritório): espera
     // o que o app pedir e segue, como um slow_down (gate da 3.1, REL-002).
     if (status === 429) {
-      intervalo = Math.max(intervalo, esperarS * 1000) + 5000;
+      normal = Math.max(normal, esperarS * 1000) + 5000;
+      intervalo = normal;
       continue;
     }
     switch (dados.error) {
@@ -103,7 +113,8 @@ export async function entrarPorDispositivo(amb: Ambiente): Promise<string> {
         continue;
       case "slow_down":
         // A RFC manda somar 5 s ao intervalo a cada slow_down.
-        intervalo += 5000;
+        normal += 5000;
+        intervalo = normal;
         continue;
       case "access_denied":
         throw new LoginRecusado("O login foi recusado no navegador.");
