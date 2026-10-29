@@ -5,9 +5,10 @@ import { Suspense } from "react";
 import { ChamarMaisAmigos } from "@/componentes/jams/ChamarMaisAmigos";
 import { ExcluirJam } from "@/componentes/jams/ExcluirJam";
 import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
+import { PassoConexao } from "@/componentes/jams/PassoConexao";
 import { PresencaDaJam } from "@/componentes/jams/PresencaDaJam";
 import { ResultadoDaAcao } from "@/componentes/jams/ResultadoDaAcao";
-import { link, painel, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
+import { link, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { listarAmigos } from "@/servidor/dominio/amizade";
@@ -20,7 +21,8 @@ const MAXIMO_NA_JAM = 3;
 
 // Página da jam (Story 2.4): repositório, quem está nela e, para o criador,
 // chamar mais amigos, tentar de novo e excluir. Só para participantes (AC 3).
-// Quem está com a página aberta aparece ao vivo pela sala (Story 2.5).
+// Quem está com a página aberta aparece ao vivo pela sala (Story 2.5), e quem
+// ainda não ligou o conector vê o passo de conexão (Story 3.2).
 export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, eu] = await Promise.all([params, exigirSessao()]);
   // Id fora do formato nem vai ao banco (gate da 2.4, REL-001).
@@ -70,28 +72,19 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
         </p>
       </header>
 
-      <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
-        <h2 id="titulo-quem" className={tituloSecao}>
-          Quem está na jam
-        </h2>
-        <PresencaDaJam jamId={jam.id}>
+      {/* A presença da sala serve ao passo de conexão (Story 3.2) e à lista de quem está na jam (Story 2.5). */}
+      <PresencaDaJam jamId={jam.id}>
+        {aberta && <PassoConexao jamId={jam.id} eu={eu.id} />}
+        <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
+          <h2 id="titulo-quem" className={tituloSecao}>
+            Quem está na jam
+          </h2>
           <ResultadoDaAcao>
             <ParticipantesDaJam jam={jam} eu={eu.id} />
             {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
           </ResultadoDaAcao>
-        </PresencaDaJam>
-      </section>
-
-      <section aria-labelledby="titulo-claude" className={`${painel} flex flex-col gap-3 p-6`}>
-        <h2 id="titulo-claude" className={tituloSecao}>
-          Trabalhar junto
-        </h2>
-        <p className="text-texto-suave">
-          Na próxima etapa, cada um liga o próprio Claude Code a esta jam com um comando no terminal, usando o código{" "}
-          <span className="font-mono text-texto">{jam.id}</span>. Aí os arquivos ficam em sincronia e todo mundo vê o que cada Claude
-          está fazendo. Por enquanto, a jam guarda o repositório e quem está nela.
-        </p>
-      </section>
+        </section>
+      </PresencaDaJam>
 
       {souCriador && (
         <section aria-labelledby="titulo-gerenciar" className="flex flex-col items-start gap-3 border-t border-divisoria pt-8">

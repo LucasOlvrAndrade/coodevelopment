@@ -106,3 +106,8 @@ export function MarcaConectado({ usuarioId }: { usuarioId: string }) {
     </span>
   );
 }
+
+// A pessoa está com o conector ligado agora? (passo de conexão, Story 3.2)
+export function useConectado(usuarioId: string): boolean {
+  return useContext(Online).conectados.has(usuarioId);
+}
