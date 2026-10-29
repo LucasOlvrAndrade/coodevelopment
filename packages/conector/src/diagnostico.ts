@@ -46,12 +46,22 @@ export async function diagnosticar(amb: Ambiente): Promise<Item[]> {
   }
 
   const resposta = await amb.fetch(`${amb.urlApp}/api/saude`).catch(() => null);
-  const saude = resposta?.ok ? ((await resposta.json().catch(() => null)) as { app?: string; banco?: string } | null) : null;
+  const saude = resposta?.ok ? ((await resposta.json().catch(() => null)) as { app?: string; banco?: string; sala?: string } | null) : null;
   itens.push(
     saude?.app === "ok" && saude.banco === "ok"
       ? { nome: "App", ok: true, detalhe: amb.urlApp }
       : { nome: "App", ok: false, detalhe: `${amb.urlApp} não respondeu. Confira a internet e tente de novo.` },
   );
+  // A sala ao vivo, pelo app (que sabe o endereço dela). Sem o app, não há o que dizer.
+  if (saude) {
+    itens.push(
+      saude.sala === "ok"
+        ? { nome: "Sala ao vivo", ok: true, detalhe: "no ar" }
+        : saude.sala === "desligada"
+          ? { nome: "Sala ao vivo", ok: false, detalhe: "ainda não está no ar. A pasta funciona, mas sem conectar à jam." }
+          : { nome: "Sala ao vivo", ok: false, detalhe: "não respondeu agora. Tente de novo em alguns minutos." },
+    );
+  }
 
   const raiz = await raizDoRepositorio(amb, amb.cwd);
   if (!raiz) {

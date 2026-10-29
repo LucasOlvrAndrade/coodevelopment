@@ -17,7 +17,7 @@ describe("diagnostico (Story 3.1, AC 4)", () => {
       rodar: tudoInstalado,
       respostas: {
         "GET /api/auth/get-session": { corpo: { user: { login: "lucas", name: "Lucas" } } },
-        "GET /api/saude": { corpo: { app: "ok", banco: "ok" } },
+        "GET /api/saude": { corpo: { app: "ok", banco: "ok", sala: "ok" } },
       },
     });
     await guardarSessao(amb, "s");
@@ -27,6 +27,7 @@ describe("diagnostico (Story 3.1, AC 4)", () => {
       ["Git", true],
       ["Sessão", true],
       ["App", true],
+      ["Sala ao vivo", true],
       ["Pasta", true],
       ["Claude Code", true],
     ]);
@@ -36,7 +37,7 @@ describe("diagnostico (Story 3.1, AC 4)", () => {
   });
 
   it("sem Node novo, sem git, sem sessão e fora de um repositório: diz o que fazer em cada um", async () => {
-    const { amb } = ambienteFalso({ versaoNode: "20.11.0", respostas: { "GET /api/saude": { corpo: { app: "ok", banco: "ok" } } } });
+    const { amb } = ambienteFalso({ versaoNode: "20.11.0", respostas: { "GET /api/saude": { corpo: { app: "ok", banco: "ok", sala: "ok" } } } });
     const itens = await diagnosticar(amb);
     const falta = (nome: string) => itens.find((i) => i.nome === nome)!;
     expect(falta("Node.js")).toMatchObject({ ok: false, detalhe: expect.stringMatching(/precisa do 22 ou mais novo/) });
@@ -55,6 +56,14 @@ describe("diagnostico (Story 3.1, AC 4)", () => {
     expect(itens.find((i) => i.nome === "Sessão")).toMatchObject({ ok: false, detalhe: expect.stringMatching(/venceu/) });
     expect(itens.find((i) => i.nome === "App")).toMatchObject({ ok: false });
     expect(await lerSessao(amb)).toBeNull();
+  });
+
+  it("sala desligada ou sem resposta conta como falta, com o que esperar", async () => {
+    for (const [sala, texto] of [["desligada", /ainda não está no ar/], ["erro", /não respondeu agora/]] as const) {
+      const { amb } = ambienteFalso({ rodar: tudoInstalado, respostas: { "GET /api/saude": { corpo: { app: "ok", banco: "ok", sala } } } });
+      const item = (await diagnosticar(amb)).find((i) => i.nome === "Sala ao vivo");
+      expect(item).toMatchObject({ ok: false, detalhe: expect.stringMatching(texto) });
+    }
   });
 
   it("o comando sai com erro quando falta algo", async () => {
