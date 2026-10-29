@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "@/servidor/db/schema";
 import { criarBancoDeTeste, criarUsuario } from "../apoio/banco-teste";
+import { cookieDeSessao } from "../apoio/cookie-sessao";
 
 // Login do conector por dispositivo (Story 3.1, AC 1), com o Better Auth de
 // verdade contra o PGlite com as migrações reais.
@@ -19,7 +20,7 @@ vi.stubEnv("GITHUB_APP_CLIENT_ID", "id");
 vi.stubEnv("GITHUB_APP_CLIENT_SECRET", "segredo");
 vi.stubEnv("GITHUB_APP_SLUG", "coodevelopment");
 
-const { auth, exigirSessao, viaDaSessao, ID_DO_CONECTOR } = await import("@/servidor/auth");
+const { auth, exigirSessao, exigirSessaoDoConector, ID_DO_CONECTOR } = await import("@/servidor/auth");
 const { consultarDispositivo, responderDispositivo } = await import("@/servidor/acoes/dispositivo");
 
 const URL_APP = "http://localhost:3000/api/auth";
@@ -44,11 +45,13 @@ async function pedirSessao(deviceCode: string) {
   );
 }
 
-// Sessão do navegador de cada pessoa, posta direto no banco; o Bearer serve de
-// cookie nos testes (o plugin converte um no outro).
+// Sessão do navegador de cada pessoa, posta direto no banco, com o cookie
+// assinado como o Better Auth assina.
+const SEGREDO = "x".repeat(32);
+const cookie = (usuarioId: string) => cookieDeSessao(`sessao-${usuarioId}`, SEGREDO);
+
 async function entrarComo(usuarioId: string) {
-  const token = `sessao-${usuarioId}`;
-  cabecalhos = new Headers({ authorization: `Bearer ${token}` });
+  cabecalhos = new Headers({ cookie: cookie(usuarioId) });
 }
 
 beforeAll(async () => {
@@ -102,8 +105,7 @@ describe("confirmar no navegador e entrar pelo terminal", () => {
     expect(access_token).toEqual(expect.any(String));
 
     cabecalhos = new Headers({ authorization: `Bearer ${access_token}` });
-    expect((await exigirSessao()).id).toBe("lucas");
-    expect(await viaDaSessao()).toBe("conector");
+    expect(await exigirSessaoDoConector()).toMatchObject({ usuario: { id: "lucas" }, via: "conector" });
   });
 
   it("recusado, o conector recebe access_denied", async () => {
@@ -143,14 +145,32 @@ describe("confirmar no navegador e entrar pelo terminal", () => {
   });
 });
 
-describe("Bearer", () => {
-  it("sem Bearer, a sessão é da página", async () => {
-    expect(await viaDaSessao()).toBe("pagina");
+describe("Bearer só nas rotas do conector (gate da 3.1, SEC-001 e SEC-002)", () => {
+  it("o cookie do navegador vale nas rotas do conector, como página", async () => {
+    await entrarComo("lucas");
+    expect(await exigirSessaoDoConector()).toMatchObject({ usuario: { id: "lucas" }, via: "pagina" });
+  });
+
+  it("nas páginas e nas ações, o Bearer é ignorado", async () => {
+    cabecalhos = new Headers({ authorization: "Bearer sessao-lucas" });
+    await expect(exigirSessao()).rejects.toMatchObject({ codigo: "sem_sessao" });
+    expect(await consultarDispositivo("ABCDEFGH")).toMatchObject({ ok: false, erro: { codigo: "sem_sessao" } });
+  });
+
+  it("Bearer inventado ao lado do cookie não vira conector: o plugin troca o cookie pelo Bearer, e ninguém entra", async () => {
+    cabecalhos = new Headers({ cookie: cookie("lucas"), authorization: "Bearer inventado" });
+    await expect(exigirSessaoDoConector()).rejects.toMatchObject({ codigo: "sem_sessao" });
   });
 
   it("Bearer que não é sessão não entra", async () => {
     cabecalhos = new Headers({ authorization: "Bearer inventado" });
-    await expect(exigirSessao()).rejects.toMatchObject({ codigo: "sem_sessao" });
+    await expect(exigirSessaoDoConector()).rejects.toMatchObject({ codigo: "sem_sessao" });
+  });
+
+  it("no Better Auth, o Bearer lê a sessão, mas não serve para outras rotas", async () => {
+    const pedir = (caminho: string) => auth().handler(new Request(`${URL_APP}${caminho}`, { headers: { authorization: "Bearer sessao-lucas" } }));
+    expect((await (await pedir("/get-session")).json())?.user?.id).toBe("lucas");
+    expect((await pedir("/list-sessions")).status).toBe(401);
   });
 
   it("o token da sessão nunca vai para o cabeçalho set-auth-token", () => {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { exigirSessao } from "@/servidor/auth";
+import { exigirSessaoDoConector } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { idDeJamValido, obterJam } from "@/servidor/dominio/jam";
 import { ErroApp, rota } from "@/servidor/erros";
@@ -11,7 +11,7 @@ const corpo = z.object({ jamId: z.string().refine(idDeJamValido) });
 // conector nunca recebe o token do GitHub do usuário (NFR8). É um token de
 // instalação do GitHub App, só de leitura, só desse repositório, de 1 hora.
 export const POST = rota(async (req: Request) => {
-  const eu = await exigirSessao();
+  const { usuario: eu } = await exigirSessaoDoConector();
   const lido = corpo.safeParse(await req.json().catch(() => null));
   if (!lido.success) throw new ErroApp("entrada_invalida");
   const daJam = await obterJam(db(), eu.id, lido.data.jamId);

@@ -69,10 +69,21 @@ export const ID_DO_CONECTOR = "coodevelopment-conector";
 // Do plugin bearer, só a metade que lê o `Authorization: Bearer` do conector.
 // A outra metade põe o token da sessão no cabeçalho `set-auth-token` de toda
 // resposta com cookie de sessão, o que deixaria o token do navegador legível
-// por JavaScript e anularia o httpOnly do cookie.
+// por JavaScript e anularia o httpOnly do cookie. E só em ler a sessão e
+// sair: com o Bearer, ninguém revoga sessões, troca dados nem confirma outro
+// dispositivo (gate da 3.1, SEC-001). Nas rotas do app, quem decide é
+// obterSessao (ignora o Bearer) e exigirSessaoDoConector (aceita).
+const ROTAS_DO_BEARER = new Set(["/get-session", "/sign-out"]);
+
 function bearerSoNaEntrada() {
   const plugin = bearer();
-  return { ...plugin, hooks: { before: plugin.hooks.before } };
+  const [entrada] = plugin.hooks.before;
+  return {
+    ...plugin,
+    hooks: {
+      before: [{ ...entrada, matcher: (ctx: Parameters<typeof entrada.matcher>[0]) => ROTAS_DO_BEARER.has(ctx.path ?? "") && entrada.matcher(ctx) }],
+    },
+  };
 }
 
 function criarAuth() {
@@ -157,7 +168,11 @@ export function auth() {
 export type UsuarioSessao = ReturnType<typeof auth>["$Infer"]["Session"]["user"];
 
 export async function obterSessao() {
-  return auth().api.getSession({ headers: await headers() });
+  // Só o cookie do navegador: a sessão do conector (Bearer) não vale nas
+  // páginas nem nas ações, só nas rotas dele (gate da 3.1, SEC-001).
+  const cabecalhos = new Headers(await headers());
+  cabecalhos.delete("authorization");
+  return auth().api.getSession({ headers: cabecalhos });
 }
 
 export async function exigirSessao(): Promise<UsuarioSessao> {
@@ -166,8 +181,18 @@ export async function exigirSessao(): Promise<UsuarioSessao> {
   return sessao.user;
 }
 
-// De onde vem a sessão: o conector manda Bearer; o navegador, só o cookie.
-export async function viaDaSessao(): Promise<"conector" | "pagina"> {
-  const autorizacao = (await headers()).get("authorization") ?? "";
-  return /^bearer\s+\S/i.test(autorizacao) ? "conector" : "pagina";
+export type Via = "conector" | "pagina";
+
+// As rotas que o conector chama (dados da jam, token de clone, token da sala)
+// aceitam a sessão dele como Bearer, além do cookie do navegador. O `via`
+// vem da sessão que de fato entrou: um Bearer inválido ao lado de um cookie
+// válido é a página, não o conector (gate da 3.1, SEC-002).
+export async function exigirSessaoDoConector(): Promise<{ usuario: UsuarioSessao; via: Via }> {
+  const cabecalhos = await headers();
+  const sessao = await auth().api.getSession({ headers: cabecalhos });
+  if (!sessao) throw new ErroApp("sem_sessao", 401);
+  const bearer = /^bearer\s+(\S+)/i.exec(cabecalhos.get("authorization") ?? "")?.[1];
+  // O token do Bearer pode vir puro ou assinado ("token.assinatura").
+  const tokenDoBearer = bearer ? decodeURIComponent(bearer).split(".")[0] : undefined;
+  return { usuario: sessao.user, via: tokenDoBearer === sessao.session.token ? "conector" : "pagina" };
 }

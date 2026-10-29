@@ -3,11 +3,10 @@ import { validarTokenSala } from "@coodevelopment/protocolo";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { ErroApp } = await import("@/servidor/erros");
-const exigirSessao = vi.fn(async () => ({ id: "lucas" }));
+const exigirSessaoDoConector = vi.fn(async (): Promise<{ usuario: { id: string }; via: "pagina" | "conector" }> => ({ usuario: { id: "lucas" }, via: "pagina" }));
 const obterJam = vi.fn(async (): Promise<object | null> => ({ id: "k7m2-rbq9" }));
 
-const viaDaSessao = vi.fn(async (): Promise<"pagina" | "conector"> => "pagina");
-vi.mock("@/servidor/auth", () => ({ exigirSessao, viaDaSessao }));
+vi.mock("@/servidor/auth", () => ({ exigirSessaoDoConector }));
 vi.mock("@/servidor/db", () => ({ db: () => ({ banco: "de teste" }) }));
 vi.mock("@/servidor/dominio/jam", async (original) => ({
   idDeJamValido: (await original<typeof import("@/servidor/dominio/jam")>()).idDeJamValido,
@@ -69,13 +68,13 @@ describe("POST /api/jams/[id]/token-sala (Story 2.5)", () => {
   });
 
   it("sem sessão, 401", async () => {
-    exigirSessao.mockRejectedValueOnce(new ErroApp("sem_sessao", 401));
+    exigirSessaoDoConector.mockRejectedValueOnce(new ErroApp("sem_sessao", 401));
     expect((await pedir()).status).toBe(401);
     expect(obterJam).not.toHaveBeenCalled();
   });
 
   it("com a sessão do conector (Bearer), o token diz à sala que é o conector (Story 3.1, AC 3)", async () => {
-    viaDaSessao.mockResolvedValueOnce("conector");
+    exigirSessaoDoConector.mockResolvedValueOnce({ usuario: { id: "lucas" }, via: "conector" });
     const { token } = await (await pedir()).json();
     expect(await validarTokenSala(token, "k7m2-rbq9", SEGREDO)).toEqual({ usuarioId: "lucas", jamId: "k7m2-rbq9", via: "conector" });
   });

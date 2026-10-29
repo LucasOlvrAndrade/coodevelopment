@@ -1,4 +1,4 @@
-import { exigirSessao } from "@/servidor/auth";
+import { exigirSessaoDoConector } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { idDeJamValido, obterJam } from "@/servidor/dominio/jam";
 import { ErroApp, rota } from "@/servidor/erros";
@@ -7,7 +7,7 @@ import { ErroApp, rota } from "@/servidor/erros";
 // repositório (para clonar ou conferir o origin) e a branch. Só para quem
 // participa; quem não participa e jam que não existe recebem o mesmo 403.
 export const GET = rota(async (_req: Request, { params }: RouteContext<"/api/jams/[id]/conector">) => {
-  const [eu, { id }] = await Promise.all([exigirSessao(), params]);
+  const [{ usuario: eu }, { id }] = await Promise.all([exigirSessaoDoConector(), params]);
   const daJam = idDeJamValido(id) ? await obterJam(db(), eu.id, id) : null;
   if (!daJam) throw new ErroApp("nao_participa", 403);
   return Response.json(

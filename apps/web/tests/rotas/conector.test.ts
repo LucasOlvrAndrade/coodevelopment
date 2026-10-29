@@ -3,7 +3,7 @@ import { generateKeyPairSync, createVerify } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { ErroApp } = await import("@/servidor/erros");
-const exigirSessao = vi.fn(async () => ({ id: "pai" }));
+const exigirSessaoDoConector = vi.fn(async () => ({ usuario: { id: "pai" }, via: "conector" as const }));
 const obterJam = vi.fn(async (): Promise<object | null> => ({
   id: "k7m2-rbq9",
   nome: "projeto",
@@ -15,7 +15,7 @@ const obterJam = vi.fn(async (): Promise<object | null> => ({
 }));
 const tokenDeLeitura = vi.fn(async () => ({ token: "ghs_leitura", expiraEm: "2026-10-29T13:00:00Z" }));
 
-vi.mock("@/servidor/auth", () => ({ exigirSessao }));
+vi.mock("@/servidor/auth", () => ({ exigirSessaoDoConector }));
 vi.mock("@/servidor/db", () => ({ db: () => ({ banco: "de teste" }) }));
 vi.mock("@/servidor/dominio/jam", async (original) => ({
   idDeJamValido: (await original<typeof import("@/servidor/dominio/jam")>()).idDeJamValido,
@@ -66,7 +66,7 @@ describe("GET /api/jams/[id]/conector (Story 3.1, AC 2)", () => {
   });
 
   it("sem sessão, 401 em JSON (o conector refaz o login)", async () => {
-    exigirSessao.mockRejectedValueOnce(new ErroApp("sem_sessao", 401));
+    exigirSessaoDoConector.mockRejectedValueOnce(new ErroApp("sem_sessao", 401));
     const resposta = await dadosDaJam();
     expect(resposta.status).toBe(401);
     expect((await resposta.json()).error.code).toBe("sem_sessao");

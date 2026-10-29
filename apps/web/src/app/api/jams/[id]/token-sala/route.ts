@@ -1,5 +1,5 @@
 import { assinarTokenSala } from "@coodevelopment/protocolo";
-import { exigirSessao, viaDaSessao } from "@/servidor/auth";
+import { exigirSessaoDoConector } from "@/servidor/auth";
 import { db } from "@/servidor/db";
 import { idDeJamValido, obterJam } from "@/servidor/dominio/jam";
 import { ErroApp, rota } from "@/servidor/erros";
@@ -11,7 +11,7 @@ import { ErroApp, rota } from "@/servidor/erros";
 // (AC 4). O conector chega com a sessão própria como Bearer (Story 3.1), e
 // o token diz à sala que é ele, para a página mostrar "conectado".
 export const POST = rota(async (_req: Request, { params }: RouteContext<"/api/jams/[id]/token-sala">) => {
-  const [eu, via, { id }] = await Promise.all([exigirSessao(), viaDaSessao(), params]);
+  const [{ usuario: eu, via }, { id }] = await Promise.all([exigirSessaoDoConector(), params]);
   const segredo = process.env.SEGREDO_SALA;
   const host = process.env.NEXT_PUBLIC_SALA_HOST;
   if (!segredo || !host) throw new ErroApp("sala_indisponivel", 503);
