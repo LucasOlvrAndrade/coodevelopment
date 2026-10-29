@@ -106,6 +106,67 @@ describe("passo de conexão (Story 3.2)", () => {
   });
 });
 
+describe("passo de conexão, depois do gate (Story 3.2)", () => {
+  it("ao trocar de passo, o foco vai para o texto do passo novo (A11Y-001)", async () => {
+    render(passo());
+    fireEvent.click(screen.getByRole("button", { name: "Já instalei" }));
+    await vi.waitFor(() => expect(screen.getByText(/Passo 2 de 2:/).closest("p")).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Ainda não tenho o Node" }));
+    await vi.waitFor(() => expect(screen.getByText(/Passo 1 de 2:/).closest("p")).toHaveFocus());
+  });
+
+  it("as dicas aparecem na mesma região de status que já estava na tela (A11Y-002)", () => {
+    vi.useFakeTimers();
+    localStorage.setItem("coodevelopment:ja-instalei", "sim");
+    render(passo());
+    const regiao = screen.getByText(/Aguardando o conector/).closest("[role=status]");
+    act(() => vi.advanceTimersByTime(120_000));
+    expect(screen.getByText("Ainda não conectou?").closest("[role=status]")).toBe(regiao);
+  });
+
+  it("o botão de copiar tem no nome o texto visível, também quando diz Copiado (A11Y-003)", async () => {
+    localStorage.setItem("coodevelopment:ja-instalei", "sim");
+    render(passo());
+    const botao = screen.getByRole("button", { name: "Copiar Comando para entrar na jam" });
+    await act(async () => fireEvent.click(botao));
+    expect(botao).toHaveAccessibleName("Copiado Comando para entrar na jam");
+  });
+
+  it("trocar em outra aba vale nesta (REL-001)", () => {
+    render(passo());
+    fireEvent.click(screen.getByRole("button", { name: "Já instalei" }));
+    act(() => {
+      localStorage.removeItem("coodevelopment:ja-instalei");
+      window.dispatchEvent(new StorageEvent("storage", { key: "coodevelopment:ja-instalei" }));
+    });
+    expect(screen.getByText(/esta jam precisa do Node\.js/)).toBeInTheDocument();
+  });
+
+  it("sem a sala no ar, ninguém aparece conectado e o passo fica (TEST-002)", () => {
+    vi.useFakeTimers();
+    render(passo());
+    act(() => vi.advanceTimersByTime(600_000));
+    expect(screen.getByRole("heading", { name: "Ligue este computador à jam" })).toBeInTheDocument();
+  });
+
+  it("quando o passo volta, o relógio das dicas começa do zero (TEST-002)", () => {
+    vi.useFakeTimers();
+    localStorage.setItem("coodevelopment:ja-instalei", "sim");
+    const { rerender } = render(passo());
+    act(() => vi.advanceTimersByTime(110_000));
+    presenca.conectado = true;
+    rerender(passo());
+    presenca.conectado = false;
+    rerender(passo());
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.getByRole("heading", { name: "Seu conector desligou" })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(110_000));
+    expect(screen.queryByText("Ainda não conectou?")).toBeNull();
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.getByText("Ainda não conectou?")).toBeInTheDocument();
+  });
+});
+
 describe("bloco de copiar", () => {
   it("\"Copiado\" por 2 s, anunciado; falha avisa para copiar com Ctrl+C", async () => {
     vi.useFakeTimers();

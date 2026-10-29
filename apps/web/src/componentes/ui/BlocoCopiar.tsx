@@ -28,17 +28,20 @@ export function BlocoCopiar({ texto, rotulo, variante = "comando" }: { texto: st
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3 rounded-xl bg-fundo/60 p-3 ring-1 ring-divisoria">
+      {/* O nome fica no grupo, não no <pre>, que em ARIA não aceita nome (gate da 3.2, A11Y-004). */}
+      <div role="group" aria-label={rotulo} className="flex items-start justify-between gap-3 rounded-xl bg-fundo/60 p-3 ring-1 ring-divisoria">
         <pre
-          aria-label={rotulo}
           tabIndex={0}
           className={`min-w-0 flex-1 font-mono text-pequeno text-texto select-all ${variante === "prompt" ? "whitespace-pre-wrap" : "overflow-x-auto"}`}
         >
           {texto}
         </pre>
-        {/* O nome diz o que copia; o "Copiado" é anunciado pela região de status. */}
-        <button type="button" onClick={copiar} aria-label={`Copiar ${rotulo}`} className={`${botaoSecundarioPequeno} shrink-0`}>
+        {/* O nome começa pelo texto visível ("Copiar" ou "Copiado") e diz o
+            que copia, para quem usa voz (WCAG 2.5.3, gate da 3.2, A11Y-003). */}
+        <button type="button" onClick={copiar} className={`${botaoSecundarioPequeno} shrink-0`}>
           {estado === "copiado" ? "Copiado" : "Copiar"}
+          {" "}
+          <span className="sr-only">{rotulo}</span>
         </button>
       </div>
       <p role="status" className="text-pequeno text-texto-suave">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { BlocoCopiar } from "@/componentes/ui/BlocoCopiar";
 import { botaoPrincipal, link, painel, tituloSecao } from "@/componentes/ui/estilo";
 import { useConectado } from "./PresencaDaJam";
@@ -25,14 +25,16 @@ function lerJaInstalei(): boolean {
   }
 }
 
-function gravarJaInstalei(valor: boolean) {
+// Devolve se gravou. Sem armazenamento, quem vale é o estado da tela.
+function gravarJaInstalei(valor: boolean): boolean {
   try {
     if (valor) localStorage.setItem(CHAVE, "sim");
     else localStorage.removeItem(CHAVE);
   } catch {
-    // Sem armazenamento: o estado da tela segue valendo.
+    return false;
   }
   window.dispatchEvent(new Event(AVISO));
+  return true;
 }
 
 function assinar(avisar: () => void) {
@@ -45,23 +47,30 @@ function assinar(avisar: () => void) {
 }
 
 // Depois de 2 minutos esperando, as dicas (AC 5). Remontado a cada vez que o
-// passo do comando aparece, o relógio começa do zero.
+// passo do comando aparece, o relógio começa do zero. Uma região de status só,
+// que fica montada e troca o conteúdo: assim o leitor de tela anuncia as dicas
+// (gate da 3.2, A11Y-002).
 function AguardandoConexao() {
   const [dicas, setDicas] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDicas(true), DICAS_EM_MS);
     return () => clearTimeout(t);
   }, []);
-  if (!dicas) {
-    return (
-      <p role="status" className="flex items-center gap-2 text-pequeno text-texto-suave">
-        <span aria-hidden className="size-2 animate-pulse rounded-full bg-texto-suave motion-reduce:animate-none" />
-        Aguardando o conector... quando o terminal disser &quot;Conectado&quot;, este passo some.
-      </p>
-    );
-  }
   return (
     <div role="status" className="flex flex-col gap-2 text-pequeno">
+      {dicas ? <Dicas /> : (
+        <p className="flex items-center gap-2 text-texto-suave">
+          <span aria-hidden className="size-2 animate-pulse rounded-full bg-texto-suave motion-reduce:animate-none" />
+          Aguardando o conector... quando o terminal disser &quot;Conectado&quot;, este passo some.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Dicas() {
+  return (
+    <>
       <p className="font-medium">Ainda não conectou?</p>
       <ul className="list-disc pl-5 text-texto-suave">
         <li>Confira se o Node está instalado: no terminal, <span className="font-mono text-texto">node -v</span> precisa mostrar 22 ou mais.</li>
@@ -70,7 +79,7 @@ function AguardandoConexao() {
         </li>
         <li>Se o terminal pediu um código, confirme no navegador que abriu.</li>
       </ul>
-    </div>
+    </>
   );
 }
 
@@ -82,8 +91,13 @@ function AguardandoConexao() {
 export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
   const conectado = useConectado(eu);
   const jaInstalouGuardado = useSyncExternalStore(assinar, lerJaInstalei, () => false);
-  const [jaInstalouAgora, setJaInstalouAgora] = useState<boolean | null>(null);
-  const jaInstalou = jaInstalouAgora ?? jaInstalouGuardado;
+  // Só quando o navegador não guarda: aí vale o clique desta tela. Guardando,
+  // vale o armazenamento, e uma troca em outra aba chega aqui (gate da 3.2, REL-001).
+  const [semArmazenamento, setSemArmazenamento] = useState<boolean | null>(null);
+  const jaInstalou = semArmazenamento ?? jaInstalouGuardado;
+  // Ao trocar de passo, o botão clicado some: o foco vai para o texto do
+  // passo novo (gate da 3.2, A11Y-001).
+  const inicioDoPasso = useRef<HTMLParagraphElement>(null);
 
   // Já conectou nesta visita? E voltou a faltar há 10 s? Ajustados durante o
   // render quando a presença muda (sem efeito para copiar a presença).
@@ -102,8 +116,8 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
   if (!visivel) return null;
 
   function marcar(valor: boolean) {
-    setJaInstalouAgora(valor);
-    gravarJaInstalei(valor);
+    setSemArmazenamento(gravarJaInstalei(valor) ? null : valor);
+    requestAnimationFrame(() => inicioDoPasso.current?.focus());
   }
 
   return (
@@ -119,7 +133,7 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
 
       {!jaInstalou ? (
         <div className="flex flex-col gap-3">
-          <p>
+          <p ref={inicioDoPasso} tabIndex={-1} className="outline-none">
             <span className="font-medium">Passo 1 de 2: esta jam precisa do Node.js.</span> Se você não sabe se tem, mande este pedido para o
             seu Claude Code: ele instala o Node e o Git e confere as versões.
           </p>
@@ -132,7 +146,7 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p>
+          <p ref={inicioDoPasso} tabIndex={-1} className="outline-none">
             <span className="font-medium">Passo 2 de 2:</span> abra o terminal na pasta onde quer o projeto e rode o comando. Ele pede para
             você confirmar um código no navegador e, se a pasta estiver vazia, baixa o repositório.
           </p>

@@ -174,11 +174,20 @@ describe("página da jam (Story 2.4)", () => {
     await waitFor(() => expect(screen.getByText("Pai está no repositório agora.").closest("[tabindex='-1']")).toHaveFocus());
   });
 
-  it("jam fechada não oferece tentar de novo nem chamar mais amigos", async () => {
+  it("jam fechada não oferece tentar de novo, chamar mais amigos nem o passo de conexão", async () => {
     obterJam.mockResolvedValueOnce(jam({ estado: "fechada" }));
     render(await pagina());
     expect(screen.queryByRole("button", { name: /Tentar de novo/ })).toBeNull();
     expect(screen.queryByRole("checkbox")).toBeNull();
+    // Story 3.2, gate TEST-001.
+    expect(screen.queryByRole("heading", { name: /Ligue este computador/ })).toBeNull();
+  });
+
+  it("jam aberta mostra o passo de conexão acima de quem está na jam (Story 3.2)", async () => {
+    obterJam.mockResolvedValueOnce(jam());
+    render(await pagina());
+    const titulos = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(titulos.indexOf("Ligue este computador à jam")).toBeLessThan(titulos.indexOf("Quem está na jam"));
   });
 
   it("excluir pede confirmação e volta às jams sem deixar a jam no histórico (AC 5, REL-002)", async () => {
