@@ -124,6 +124,14 @@ describe("confirmar no navegador e entrar pelo terminal", () => {
     expect(await responderDispositivo(user_code, true)).toMatchObject({ ok: false, erro: { codigo: "codigo_dispositivo_de_outro" } });
   });
 
+  it("código já respondido (duas abas, clique duplo) diz isso, não que o código não existe (gate da 3.1, MNT-001)", async () => {
+    const { user_code } = await (await pedirCodigo()).json();
+    await entrarComo("lucas");
+    await consultarDispositivo(user_code);
+    await responderDispositivo(user_code, true);
+    expect(await responderDispositivo(user_code, true)).toMatchObject({ ok: false, erro: { codigo: "codigo_dispositivo_respondido" } });
+  });
+
   it("código que não existe e código fora do formato", async () => {
     await entrarComo("lucas");
     expect(await consultarDispositivo("ZZZZZZZZ")).toMatchObject({ ok: false, erro: { codigo: "codigo_dispositivo_invalido" } });

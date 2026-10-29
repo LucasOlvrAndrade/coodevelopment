@@ -112,12 +112,13 @@ function criarAuth() {
     // valer entre as instâncias da Vercel. Pelo IP que a própria Vercel põe
     // no cabeçalho (não dá para forjar de fora). O Better Auth só liga o
     // limite em produção. O login do conector ganha regras próprias: pedir
-    // código é raro; a consulta vem a cada 5 s de cada terminal esperando.
+    // código é raro; a consulta vem a cada 5 s de cada terminal esperando,
+    // e cabem uns dez terminais atrás do mesmo IP (gate da 3.1, REL-002).
     rateLimit: {
       storage: "database",
       customRules: {
         "/device/code": { window: 60, max: 10 },
-        "/device/token": { window: 60, max: 30 },
+        "/device/token": { window: 60, max: 120 },
       },
     },
     advanced: { ipAddress: { ipAddressHeaders: ["x-vercel-forwarded-for"] } },

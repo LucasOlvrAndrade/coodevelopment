@@ -34,6 +34,8 @@ const MENSAGENS: Record<string, string> = {
   codigo_dispositivo_invalido: "Esse código não existe. Confira o código que aparece no terminal.",
   codigo_dispositivo_vencido: "Esse código venceu. Rode o comando de novo no terminal para ganhar outro.",
   codigo_dispositivo_de_outro: "Esse código foi aberto por outra conta. Rode o comando de novo no terminal.",
+  codigo_dispositivo_respondido: "Esse código já foi respondido. Se não foi você, rode o comando de novo no terminal.",
+  repositorio_fora_do_app: "O Coodevelopment não tem acesso a este repositório no GitHub. Quem criou a jam precisa instalar o app com \"All repositories\" na conta dele.",
 };
 
 export class ErroApp extends Error {

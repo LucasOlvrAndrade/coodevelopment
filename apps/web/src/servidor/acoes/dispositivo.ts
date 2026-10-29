@@ -33,8 +33,10 @@ function lerCodigo(valor: unknown): string {
 // Os erros do plugin viram as mensagens do app; o resto segue como inesperado.
 function traduzir(e: unknown): never {
   if (e instanceof APIError) {
-    const erro = (e.body as { error?: string } | undefined)?.error;
+    const { error: erro, error_description: descricao } = (e.body ?? {}) as { error?: string; error_description?: string };
     if (erro === "expired_token") throw new ErroApp("codigo_dispositivo_vencido");
+    // Duas abas ou clique duplo: o código existe, só já foi respondido (gate da 3.1, MNT-001).
+    if (erro === "invalid_request" && /already processed/i.test(descricao ?? "")) throw new ErroApp("codigo_dispositivo_respondido");
     if (erro === "invalid_request") throw new ErroApp("codigo_dispositivo_invalido");
     if (erro === "access_denied") throw new ErroApp("codigo_dispositivo_de_outro");
   }

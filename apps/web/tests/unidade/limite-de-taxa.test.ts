@@ -44,4 +44,8 @@ describe("limite de taxa do login do conector", () => {
     const linhas = await teste.banco.query.rateLimit.findMany();
     expect(linhas.map((l) => l.key)).toEqual(expect.arrayContaining([expect.stringContaining("203.0.113.7")]));
   });
+
+  it("a consulta do login aceita uns dez terminais atrás do mesmo IP (gate da 3.1, REL-002)", () => {
+    expect(auth().options.rateLimit?.customRules?.["/device/token"]).toEqual({ window: 60, max: 120 });
+  });
 });

@@ -36,15 +36,22 @@ export function githubApp(): GithubApp {
     async tokenDeLeitura(repo) {
       const { appId, chave } = credenciais();
       const octokit = new Octokit({ userAgent: "coodevelopment", auth: jwtDoApp(appId, chave) });
-      const instalacao = await octokit.rest.apps.getRepoInstallation({ owner: repo.owner, repo: repo.nome }).catch((e: unknown) => {
-        if ((e as { status?: number }).status === 404) throw new ErroApp("instalacao_ausente", 409);
+      // App sem instalação no dono (404) ou instalado só em alguns
+      // repositórios, sem o da jam (422): quem resolve é o dono da jam, não
+      // quem está entrando (gate da 3.1, REL-006).
+      const foraDoApp = (e: unknown): never => {
+        const status = (e as { status?: number }).status;
+        if (status === 404 || status === 422) throw new ErroApp("repositorio_fora_do_app", 409);
         throw e;
-      });
-      const { data } = await octokit.rest.apps.createInstallationAccessToken({
-        installation_id: instalacao.data.id,
-        repository_ids: [repo.id],
-        permissions: { contents: "read" },
-      });
+      };
+      const instalacao = await octokit.rest.apps.getRepoInstallation({ owner: repo.owner, repo: repo.nome }).catch(foraDoApp);
+      const { data } = await octokit.rest.apps
+        .createInstallationAccessToken({
+          installation_id: instalacao.data.id,
+          repository_ids: [repo.id],
+          permissions: { contents: "read" },
+        })
+        .catch(foraDoApp);
       return { token: data.token, expiraEm: data.expires_at };
     },
   };
