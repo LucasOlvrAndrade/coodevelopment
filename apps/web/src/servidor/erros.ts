@@ -30,6 +30,10 @@ const MENSAGENS: Record<string, string> = {
   // Sala da jam (Story 2.5)
   sala_indisponivel: "A presença ao vivo não está disponível agora.",
   nao_participa: "Você não participa dessa jam.",
+  // Login do conector (Story 3.1)
+  codigo_dispositivo_invalido: "Esse código não existe. Confira o código que aparece no terminal.",
+  codigo_dispositivo_vencido: "Esse código venceu. Rode o comando de novo no terminal para ganhar outro.",
+  codigo_dispositivo_de_outro: "Esse código foi aberto por outra conta. Rode o comando de novo no terminal.",
 };
 
 export class ErroApp extends Error {

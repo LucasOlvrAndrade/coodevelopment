@@ -1,6 +1,7 @@
 import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { bearer, deviceAuthorization } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { db } from "@/servidor/db";
 import * as schema from "@/servidor/db/schema";
@@ -62,6 +63,18 @@ export const ROTAS_DESLIGADAS = [
   "/unlink-account",
 ] as const;
 
+// Id de cliente que o conector manda no login por dispositivo.
+export const ID_DO_CONECTOR = "coodevelopment-conector";
+
+// Do plugin bearer, só a metade que lê o `Authorization: Bearer` do conector.
+// A outra metade põe o token da sessão no cabeçalho `set-auth-token` de toda
+// resposta com cookie de sessão, o que deixaria o token do navegador legível
+// por JavaScript e anularia o httpOnly do cookie.
+function bearerSoNaEntrada() {
+  const plugin = bearer();
+  return { ...plugin, hooks: { before: plugin.hooks.before } };
+}
+
 function criarAuth() {
   const e = env();
   return betterAuth({
@@ -84,6 +97,18 @@ function criarAuth() {
         login: { type: "string", required: true },
       },
     },
+    plugins: [
+      // Login do conector por código (FR10, Story 3.1): o terminal mostra o
+      // código, a pessoa confirma em /dispositivo já logada, e o conector
+      // recebe uma sessão própria, usada como Bearer.
+      deviceAuthorization({
+        verificationUri: "/dispositivo",
+        expiresIn: "10m",
+        interval: "5s",
+        validateClient: (clientId) => clientId === ID_DO_CONECTOR,
+      }),
+      bearerSoNaEntrada(),
+    ],
     account: {
       // XChaCha20-Poly1305 com chave derivada do BETTER_AUTH_SECRET (NFR8, Story 1.2 Task 3).
       encryptOAuthTokens: true,
@@ -126,4 +151,10 @@ export async function exigirSessao(): Promise<UsuarioSessao> {
   const sessao = await obterSessao();
   if (!sessao) throw new ErroApp("sem_sessao", 401);
   return sessao.user;
+}
+
+// De onde vem a sessão: o conector manda Bearer; o navegador, só o cookie.
+export async function viaDaSessao(): Promise<"conector" | "pagina"> {
+  const autorizacao = (await headers()).get("authorization") ?? "";
+  return /^bearer\s+\S/i.test(autorizacao) ? "conector" : "pagina";
 }

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, index, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Tabelas do Better Auth 1.7 (campos de get-tables do @better-auth/core),
 // com nomes de coluna em snake_case. As chaves em camelCase são as que o
@@ -84,6 +84,24 @@ export const verification = pgTable(
     updatedAt: atualizadoEm(),
   },
   (t) => [index("verification_identifier").on(t.identifier)],
+);
+
+// Login do conector por dispositivo (Story 3.1): campos do plugin
+// device-authorization do Better Auth 1.7.
+export const deviceCode = pgTable(
+  "device_code",
+  {
+    id: text("id").primaryKey(),
+    deviceCode: text("device_code").notNull().unique(),
+    userCode: text("user_code").notNull().unique(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull(),
+    lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
+    pollingInterval: integer("polling_interval"),
+    clientId: text("client_id"),
+    scope: text("scope"),
+  },
 );
 
 // Amigos (Story 1.3, database-schema.md). Pedido aceito vira amizade e some;

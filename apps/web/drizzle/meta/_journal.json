@@ -43,6 +43,13 @@
       "when": 1793127629435,
       "tag": "0005_vaga",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793276572402,
+      "tag": "0006_dispositivo",
+      "breakpoints": true
     }
   ]
 }
