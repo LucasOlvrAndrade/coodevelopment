@@ -6,7 +6,8 @@ const { ErroApp } = await import("@/servidor/erros");
 const exigirSessao = vi.fn(async () => ({ id: "lucas" }));
 const obterJam = vi.fn(async (): Promise<object | null> => ({ id: "k7m2-rbq9" }));
 
-vi.mock("@/servidor/auth", () => ({ exigirSessao }));
+const viaDaSessao = vi.fn(async (): Promise<"pagina" | "conector"> => "pagina");
+vi.mock("@/servidor/auth", () => ({ exigirSessao, viaDaSessao }));
 vi.mock("@/servidor/db", () => ({ db: () => ({ banco: "de teste" }) }));
 vi.mock("@/servidor/dominio/jam", async (original) => ({
   idDeJamValido: (await original<typeof import("@/servidor/dominio/jam")>()).idDeJamValido,
@@ -71,6 +72,12 @@ describe("POST /api/jams/[id]/token-sala (Story 2.5)", () => {
     exigirSessao.mockRejectedValueOnce(new ErroApp("sem_sessao", 401));
     expect((await pedir()).status).toBe(401);
     expect(obterJam).not.toHaveBeenCalled();
+  });
+
+  it("com a sessão do conector (Bearer), o token diz à sala que é o conector (Story 3.1, AC 3)", async () => {
+    viaDaSessao.mockResolvedValueOnce("conector");
+    const { token } = await (await pedir()).json();
+    expect(await validarTokenSala(token, "k7m2-rbq9", SEGREDO)).toEqual({ usuarioId: "lucas", jamId: "k7m2-rbq9", via: "conector" });
   });
 
   it("a sala local do wrangler dev é sem TLS", async () => {

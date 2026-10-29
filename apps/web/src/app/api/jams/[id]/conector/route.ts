@@ -1,0 +1,23 @@
+import { exigirSessao } from "@/servidor/auth";
+import { db } from "@/servidor/db";
+import { idDeJamValido, obterJam } from "@/servidor/dominio/jam";
+import { ErroApp, rota } from "@/servidor/erros";
+
+// O que o conector precisa para ligar a pasta à jam (Story 3.1, AC 2): o
+// repositório (para clonar ou conferir o origin) e a branch. Só para quem
+// participa; quem não participa e jam que não existe recebem o mesmo 403.
+export const GET = rota(async (_req: Request, { params }: RouteContext<"/api/jams/[id]/conector">) => {
+  const [eu, { id }] = await Promise.all([exigirSessao(), params]);
+  const daJam = idDeJamValido(id) ? await obterJam(db(), eu.id, id) : null;
+  if (!daJam) throw new ErroApp("nao_participa", 403);
+  return Response.json(
+    {
+      jamId: daJam.id,
+      nome: daJam.nome,
+      estado: daJam.estado,
+      repo: { owner: daJam.repoOwner, nome: daJam.repoNome, id: daJam.repoId },
+      branch: daJam.branch,
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
+});

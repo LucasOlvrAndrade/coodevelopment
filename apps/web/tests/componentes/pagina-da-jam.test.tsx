@@ -41,6 +41,7 @@ function jam(extra: Partial<JamCompleta> = {}): JamCompleta {
   return {
     id: "k7m2-rbq9",
     nome: "projeto",
+    repoId: 1296269,
     repoOwner: "lucas",
     repoNome: "projeto",
     branch: "main",

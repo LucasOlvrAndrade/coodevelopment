@@ -232,6 +232,7 @@ export type ParticipanteDaJam = Pessoa & {
 export type JamCompleta = {
   id: string;
   nome: string;
+  repoId: number;
   repoOwner: string;
   repoNome: string;
   branch: string;
@@ -247,6 +248,7 @@ export async function obterJam(banco: Banco, eu: string, jamId: string): Promise
     .select({
       id: jam.id,
       nome: jam.nome,
+      repoId: jam.repoId,
       repoOwner: jam.repoOwner,
       repoNome: jam.repoNome,
       branch: jam.branch,
