@@ -9,6 +9,7 @@ const obterJam = vi.fn(async (): Promise<object | null> => ({
   nome: "projeto",
   estado: "aberta",
   repoId: 1296269,
+  baseSha: "abc123",
   repoOwner: "lucas",
   repoNome: "projeto",
   branch: "main",
@@ -53,6 +54,8 @@ describe("GET /api/jams/[id]/conector (Story 3.1, AC 2)", () => {
       estado: "aberta",
       repo: { owner: "lucas", nome: "projeto", id: 1296269 },
       branch: "main",
+      baseSha: "abc123",
+      eu: "pai",
     });
     expect(obterJam).toHaveBeenCalledWith({ banco: "de teste" }, "pai", "k7m2-rbq9");
   });

@@ -42,6 +42,7 @@ function jam(extra: Partial<JamCompleta> = {}): JamCompleta {
     id: "k7m2-rbq9",
     nome: "projeto",
     repoId: 1296269,
+    baseSha: "abc123",
     repoOwner: "lucas",
     repoNome: "projeto",
     branch: "main",

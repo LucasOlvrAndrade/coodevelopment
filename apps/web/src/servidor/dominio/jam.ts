@@ -228,6 +228,7 @@ export type JamCompleta = {
   id: string;
   nome: string;
   repoId: number;
+  baseSha: string;
   repoOwner: string;
   repoNome: string;
   branch: string;
@@ -244,6 +245,7 @@ export async function obterJam(banco: Banco, eu: string, jamId: string): Promise
       id: jam.id,
       nome: jam.nome,
       repoId: jam.repoId,
+      baseSha: jam.baseSha,
       repoOwner: jam.repoOwner,
       repoNome: jam.repoNome,
       branch: jam.branch,
