@@ -1,0 +1,48 @@
+schema: 1
+story: '2.5'
+story_title: 'Presença ao vivo na página da jam'
+gate: PASS
+status_reason: 'Gate de 29/10 com revisor independente: CONCERNS com 4 achados baixos e nenhum médio ou alto. Três corrigidos com teste (REL-001 em 67ae989, SEC-002 em 35df9c9, SEC-001 pela correção da 3.1 em 335dd56) e um aceito (SEC-003). O token da sala está certo: alg fixo conferido antes de tudo, assinatura pela WebCrypto (tempo constante), exp inteiro, jam igual ao nome da sala, segredo vazio fecha com 4401. Presença sobrevive à hibernação e conta pessoas, não abas. Sala publicada pelo CI em coodevelopment-sala.lucasolvrandrade.workers.dev e presença conferida em produção pelo Lucas ("online agora" e "conectado" na jam testejam).'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente'
+reviewed_revision: 'commit:35df9c9'
+updated: '2026-10-29T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'REL-001', severity: low, fix: 'PresencaDaJam: token da reconexão com 401 ou 403 fecha a conexão; rede fora e 503 deixam o partysocket tentar de novo; teste dos três casos' }
+  - { id: 'SEC-002', severity: low, fix: 'publicar-sala: umask 077 e trap que apaga o arquivo do segredo mesmo com o deploy falhando' }
+  - { id: 'SEC-001', severity: low, fix: 'via vem da sessão que entrou (exigirSessaoDoConector, Story 3.1); Bearer inventado ao lado do cookie dá 401, não "conectado"' }
+
+waived_issues:
+  - id: 'SEC-003'
+    severity: low
+    finding: 'O token da sala vai na query da URL do WebSocket e pode aparecer nos logs da Cloudflare com observability ligado.'
+    reason: 'O navegador não manda cabeçalho em WebSocket; os logs só são vistos pelo dono da conta Cloudflare (o Lucas); o token vale 10 minutos e só para uma jam. Rever se a conta passar a ter mais gente.'
+
+evidence:
+  tests_reviewed: 33
+  tools: 'pnpm --filter sala test 8/8, protocolo 17/17, token-sala e presença 16/16; CI verde; code-review com revisor independente'
+  production: 'sala publicada pelo CI em 29/10; NEXT_PUBLIC_SALA_HOST na Vercel; o Lucas viu "online agora" e "conectado" na página da jam'
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Só participante recebe token; token HS256 com alg fixo, exp e jam conferidos; sala fecha com 4401 qualquer token ruim.'
+  reliability:
+    status: PASS
+    notes: 'Sem a sala, a página segue sem a presença (AC 4); reconexão pede token novo e para em 401 e 403.'
+  performance:
+    status: PASS
+    notes: 'Um WebSocket por aba; presença em uma mensagem por entrada ou saída.'
+  maintainability:
+    status: PASS
+    notes: 'Token e mensagens no protocolo, usados pelo app, pela sala e pelo conector.'
+
+recommendations:
+  future:
+    - 'Revogar o acesso à sala de quem sai da jam (hoje vale até cair a conexão, ou 10 minutos com um token já emitido).'
+    - 'CSP completa (connect-src e nonce), pendência de segurança fora da story.'
