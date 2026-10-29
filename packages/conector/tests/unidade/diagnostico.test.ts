@@ -66,6 +66,11 @@ describe("diagnostico (Story 3.1, AC 4)", () => {
     }
   });
 
+  it("git antigo conta como falta (REL-007)", async () => {
+    const { amb } = ambienteFalso({ rodar: (p, a) => (p === "git" && a[0] === "--version" ? { saida: "git version 2.25.1" } : tudoInstalado(p, a)) });
+    expect((await diagnosticar(amb)).find((i) => i.nome === "Git")).toMatchObject({ ok: false, detalhe: expect.stringMatching(/precisa do 2\.31 ou mais novo/) });
+  });
+
   it("o comando sai com erro quando falta algo", async () => {
     const { executar } = await import("../../src/comandos");
     const { amb } = ambienteFalso();

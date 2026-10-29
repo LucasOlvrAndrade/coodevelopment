@@ -2,7 +2,7 @@ import type { Ambiente } from "./ambiente";
 import { ErroApi, quemSouEu } from "./api";
 import { apagarSessao, lerSessao } from "./cofre";
 import { lerPasta, processoVivo } from "./descoberta";
-import { originDe, raizDoRepositorio } from "./pasta";
+import { GIT_MINIMO, gitNovoOBastante, originDe, raizDoRepositorio, versaoDoGit } from "./pasta";
 
 // `npx coodevelopment diagnostico` (Story 3.1, AC 4): o que está ligado e o
 // que falta, cada linha com o que fazer.
@@ -27,7 +27,14 @@ export async function diagnosticar(amb: Ambiente): Promise<Item[]> {
   );
 
   const git = await versao(amb, "git", ["--version"]);
-  itens.push(git ? { nome: "Git", ok: true, detalhe: git } : { nome: "Git", ok: false, detalhe: "não encontrado. Instale pelo git-scm.com." });
+  const numeroDoGit = git ? versaoDoGit(git) : null;
+  itens.push(
+    !git
+      ? { nome: "Git", ok: false, detalhe: "não encontrado. Instale pelo git-scm.com." }
+      : numeroDoGit && !gitNovoOBastante(numeroDoGit)
+        ? { nome: "Git", ok: false, detalhe: `${git}; o conector precisa do ${GIT_MINIMO.join(".")} ou mais novo. Atualize pelo git-scm.com.` }
+        : { nome: "Git", ok: true, detalhe: git },
+  );
 
   const sessao = await lerSessao(amb);
   if (!sessao) {

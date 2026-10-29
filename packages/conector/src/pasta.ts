@@ -65,16 +65,35 @@ export async function destinoDoClone(amb: Ambiente, repo: Repo): Promise<{ pasta
   return { pasta: sub, existe: estado === false };
 }
 
+// O git 2.31 trouxe o GIT_CONFIG_* que leva o token sem linha de comando.
+export const GIT_MINIMO = [2, 31] as const;
+
+export function versaoDoGit(saida: string): [number, number] | null {
+  const lido = /git version (\d+)\.(\d+)/.exec(saida);
+  return lido ? [Number(lido[1]), Number(lido[2])] : null;
+}
+
+export const gitNovoOBastante = ([maior, menor]: [number, number]) => maior > GIT_MINIMO[0] || (maior === GIT_MINIMO[0] && menor >= GIT_MINIMO[1]);
+
 // O token de leitura vai para o git só por variáveis de ambiente
 // (GIT_CONFIG_*, git 2.31+): não aparece na linha de comando nem fica no
-// .git/config. O origin gravado é a URL limpa.
+// .git/config. O origin gravado é a URL limpa. Sem gerenciador de
+// credenciais e sem janela: se o token for recusado, o clone falha em vez de
+// o Windows abrir um login do GitHub (gate da 3.1, REL-007).
 export async function clonar(amb: Ambiente, repo: Repo, branch: string, pasta: string, token: string): Promise<void> {
+  const versao = versaoDoGit((await git(amb, ["--version"], amb.cwd)).saida);
+  if (versao && !gitNovoOBastante(versao)) {
+    throw new PastaErrada(`O conector precisa do git ${GIT_MINIMO.join(".")} ou mais novo (este é o ${versao.join(".")}). Atualize pelo git-scm.com.`);
+  }
   const basico = Buffer.from(`x-access-token:${token}`).toString("base64");
   const r = await git(amb, ["clone", "--branch", branch, "--", `https://github.com/${repo.owner}/${repo.nome}.git`, pasta], amb.cwd, {
-    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_COUNT: "2",
     GIT_CONFIG_KEY_0: "http.https://github.com/.extraHeader",
     GIT_CONFIG_VALUE_0: `Authorization: Basic ${basico}`,
+    GIT_CONFIG_KEY_1: "credential.helper",
+    GIT_CONFIG_VALUE_1: "",
     GIT_TERMINAL_PROMPT: "0",
+    GCM_INTERACTIVE: "never",
   });
   // Clonou ou não, o token não serve para mais nada: revogado na hora, em vez
   // de valer a hora inteira. Se a revogação falhar, ele vence sozinho.

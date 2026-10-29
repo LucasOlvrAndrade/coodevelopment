@@ -84,16 +84,27 @@ describe("clonar (NFR8)", () => {
   it("o token vai só pelo ambiente do git; a URL e os argumentos ficam limpos", async () => {
     const { amb, rodar } = ambienteFalso({ rodar: () => ({}) });
     await clonar(amb, REPO, "main", "C:/destino", "ghs_segredo");
-    const [programa, argumentos, extra] = rodar.mock.calls[0]!;
+    const [programa, argumentos, extra] = rodar.mock.calls.find(([, a]) => a[0] === "clone")!;
     expect(programa).toBe("git");
     expect(argumentos).toEqual(["clone", "--branch", "main", "--", "https://github.com/lucas/projeto.git", "C:/destino"]);
     expect(JSON.stringify(argumentos)).not.toContain("ghs_segredo");
     expect(extra?.env).toMatchObject({
-      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_COUNT: "2",
       GIT_CONFIG_KEY_0: "http.https://github.com/.extraHeader",
       GIT_CONFIG_VALUE_0: `Authorization: Basic ${Buffer.from("x-access-token:ghs_segredo").toString("base64")}`,
+      // Sem gerenciador de credenciais e sem janela de login (REL-007).
+      GIT_CONFIG_KEY_1: "credential.helper",
+      GIT_CONFIG_VALUE_1: "",
       GIT_TERMINAL_PROMPT: "0",
+      GCM_INTERACTIVE: "never",
     });
+  });
+
+  it("git antigo (sem GIT_CONFIG_*) para antes de clonar, dizendo o que atualizar (REL-007)", async () => {
+    const { amb, rodar, fetch } = ambienteFalso({ rodar: (_p, a) => (a[0] === "--version" ? { saida: "git version 2.30.2.windows.1" } : {}) });
+    await expect(clonar(amb, REPO, "main", "C:/d", "t")).rejects.toThrow("O conector precisa do git 2.31 ou mais novo (este é o 2.30). Atualize pelo git-scm.com.");
+    expect(rodar.mock.calls.some(([, a]) => a[0] === "clone")).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("revoga o token logo depois do clone, com sucesso ou falha", async () => {
