@@ -58,6 +58,8 @@ jobs:
             exit 1
           fi
           export CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN
+          # O arquivo do segredo some mesmo se o deploy falhar (gate da 2.5, SEC-002).
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/segredos-sala.env"' EXIT
           printf 'SEGREDO_SALA=%s\n' "$SEGREDO_SALA" > "$RUNNER_TEMP/segredos-sala.env"
           pnpm exec wrangler deploy --secrets-file "$RUNNER_TEMP/segredos-sala.env"
-          rm "$RUNNER_TEMP/segredos-sala.env"
