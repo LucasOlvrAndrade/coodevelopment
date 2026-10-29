@@ -1,7 +1,7 @@
 import { mensagemDaSala } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import type { Ambiente } from "./ambiente";
-import { tokenDaSala } from "./api";
+import { ErroApi, tokenDaSala } from "./api";
 
 // Conexão do conector com a sala da jam (Story 3.1, AC 3). Com ela aberta, a
 // página da jam mostra o participante como "conectado". O token da sala vale
@@ -17,22 +17,50 @@ function lerJson(dados: unknown): unknown {
   }
 }
 
-export async function conectarNaSala(amb: Ambiente, sessao: string, jamId: string, aoConectar: () => void): Promise<ConexaoSala> {
+// O que dizer quando o app recusa o token de uma reconexão: tentar de novo não
+// resolve, então o conector para (gate da 3.1, REL-001). Rede fora e sala sem
+// resposta não entram aqui: o partysocket tenta de novo, com espera crescente.
+function motivoParaParar(e: unknown): string | null {
+  if (!(e instanceof ErroApi)) return null;
+  if (e.status === 401) return "Sua sessão deste computador foi encerrada. Rode o comando de novo para entrar.";
+  if (e.status === 403) return "Você não participa mais dessa jam.";
+  if (e.status === 409) return "A jam foi fechada.";
+  return null;
+}
+
+export async function conectarNaSala(
+  amb: Ambiente,
+  sessao: string,
+  jamId: string,
+  aoConectar: () => void,
+  // O WebSocket do Node 22; os testes passam um falso.
+  WebSocketDaSala?: typeof WebSocket,
+): Promise<ConexaoSala> {
   const primeiro = await tokenDaSala(amb, sessao, jamId);
   const url = new URL(primeiro.salaUrl);
   let token: string | undefined = primeiro.token;
   let avisarFim: (motivo: string) => void = () => {};
   const fechou = new Promise<string>((r) => (avisarFim = r));
 
-  const socket = new PartySocket({
+  const socket: PartySocket = new PartySocket({
     host: url.host,
     protocol: url.protocol === "ws:" ? "ws" : "wss",
     party: "jam",
     room: jamId,
+    ...(WebSocketDaSala ? { WebSocket: WebSocketDaSala } : {}),
     query: async () => {
-      const atual = token ?? (await tokenDaSala(amb, sessao, jamId)).token;
-      token = undefined;
-      return { token: atual };
+      try {
+        const atual = token ?? (await tokenDaSala(amb, sessao, jamId)).token;
+        token = undefined;
+        return { token: atual };
+      } catch (e) {
+        const motivo = motivoParaParar(e);
+        if (motivo) {
+          socket.close();
+          avisarFim(motivo);
+        }
+        throw e;
+      }
     },
   });
 
