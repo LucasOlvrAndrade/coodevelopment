@@ -8,9 +8,15 @@ type Presenca = { online: ReadonlySet<string>; conectados: ReadonlySet<string> }
 const NINGUEM: Presenca = { online: new Set(), conectados: new Set() };
 const Online = createContext<Presenca>(NINGUEM);
 
+class ErroDoToken extends Error {
+  constructor(public status: number) {
+    super(`token-sala ${status}`);
+  }
+}
+
 async function pedirToken(jamId: string): Promise<{ token: string; salaUrl: string }> {
   const resposta = await fetch(`/api/jams/${encodeURIComponent(jamId)}/token-sala`, { method: "POST", cache: "no-store" });
-  if (!resposta.ok) throw new Error(`token-sala ${resposta.status}`);
+  if (!resposta.ok) throw new ErroDoToken(resposta.status);
   return resposta.json();
 }
 
@@ -43,10 +49,18 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
           protocol: url.protocol === "ws:" ? "ws" : "wss",
           party: "jam",
           room: jamId,
+          // Rede fora ou sala sem resposta: o partysocket tenta de novo, com
+          // espera crescente. Sessão vencida (401) ou fora da jam (403) não se
+          // resolvem tentando: a conexão fecha (gate da 2.5, REL-001).
           query: async () => {
-            const atual = primeiro ?? (await pedirToken(jamId)).token;
-            primeiro = undefined;
-            return { token: atual };
+            try {
+              const atual = primeiro ?? (await pedirToken(jamId)).token;
+              primeiro = undefined;
+              return { token: atual };
+            } catch (e) {
+              if (e instanceof ErroDoToken && (e.status === 401 || e.status === 403)) socket?.close();
+              throw e;
+            }
           },
         });
         socket.addEventListener("message", (evento) => {

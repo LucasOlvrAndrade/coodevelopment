@@ -100,6 +100,19 @@ describe("presença ao vivo na página da jam (Story 2.5)", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("na reconexão, sessão vencida ou fora da jam fecham a conexão; rede fora deixa o partysocket tentar de novo (gate da 2.5, REL-001)", async () => {
+    for (const [status, fecha] of [[503, false], [401, true], [403, true]] as const) {
+      sockets.length = 0;
+      fetch.mockResolvedValueOnce(tokenOk()).mockResolvedValueOnce(new Response("", { status }));
+      const { unmount } = pagina();
+      await waitFor(() => expect(sockets).toHaveLength(1));
+      await sockets[0]!.opcoes.query();
+      await expect(sockets[0]!.opcoes.query()).rejects.toThrow(`token-sala ${status}`);
+      expect(sockets[0]!.fechado).toBe(fecha);
+      unmount();
+    }
+  });
+
   it("sem a sala (503), não conecta e a página segue igual (AC 4)", async () => {
     fetch.mockResolvedValueOnce(new Response("{}", { status: 503 }));
     pagina();
