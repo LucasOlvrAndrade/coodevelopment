@@ -53,7 +53,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
   }
 
   const mensagemDeErro = erro && (
-    <p role="alert" className="text-pequeno text-erro">
+    <p id="codigo-dispositivo-erro" role="alert" className="text-pequeno text-erro">
       {erro}
     </p>
   );
@@ -77,6 +77,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
             autoCapitalize="characters"
             spellCheck={false}
             aria-invalid={erro ? true : undefined}
+            aria-describedby={erro ? "codigo-dispositivo-erro" : undefined}
             className={`${campo} font-mono uppercase`}
           />
         </div>
