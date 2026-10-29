@@ -20,6 +20,10 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
   const [erro, setErro] = useState<string | null>(inicial.tipo === "digitar" ? (inicial.erro ?? null) : null);
   const [respondendo, iniciar] = useTransition();
   const resultado = useRef<HTMLDivElement>(null);
+  // Depois de um erro, o foco volta para onde a pessoa estava: o campo ou o
+  // Confirmar (gate da 3.1, A11Y-001).
+  const campoDoCodigo = useRef<HTMLInputElement>(null);
+  const botaoConfirmar = useRef<HTMLButtonElement>(null);
 
   async function consultar(valor: string) {
     setErro(null);
@@ -28,6 +32,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
     if (!r.ok) {
       setErro(r.erro.mensagem);
       setEtapa({ tipo: "digitar" });
+      requestAnimationFrame(() => campoDoCodigo.current?.focus());
       return;
     }
     setEtapa({ tipo: "decidir", codigo: r.dados.codigo, situacao: r.dados.situacao });
@@ -44,6 +49,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
       const r = await semQuebrar(() => responderDispositivo(codigo, confirmar));
       if (!r.ok) {
         setErro(r.erro.mensagem);
+        requestAnimationFrame(() => botaoConfirmar.current?.focus());
         return;
       }
       setEtapa({ tipo: "decidir", codigo, situacao: r.dados.situacao });
@@ -58,7 +64,13 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
     </p>
   );
 
-  if (etapa.tipo === "consultando") return <p className="text-texto-suave">Conferindo o código...</p>;
+  if (etapa.tipo === "consultando") {
+    return (
+      <p role="status" className="text-texto-suave">
+        Conferindo o código...
+      </p>
+    );
+  }
 
   if (etapa.tipo === "digitar") {
     return (
@@ -68,6 +80,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
             Código que aparece no terminal
           </label>
           <input
+            ref={campoDoCodigo}
             id="codigo-dispositivo"
             value={digitado}
             onChange={(e) => setDigitado(e.target.value)}
@@ -108,7 +121,7 @@ export function ConfirmarDispositivo({ inicial }: { inicial: EtapaDispositivo })
           </p>
           {mensagemDeErro}
           <div className="flex flex-wrap gap-3">
-            <button type="button" disabled={respondendo} onClick={() => responder(codigo, true)} className={botaoPrincipalGrande}>
+            <button ref={botaoConfirmar} type="button" disabled={respondendo} onClick={() => responder(codigo, true)} className={botaoPrincipalGrande}>
               Confirmar
             </button>
             <button type="button" disabled={respondendo} onClick={() => responder(codigo, false)} className={botaoSecundarioGrande}>
