@@ -73,6 +73,15 @@ describe("arquivos na sala (Story 3.3)", () => {
     conector.ws.close();
   });
 
+  it("nome que só muda a caixa, com acento, é recusado no SQLite da sala (gate da 3.3, REL-001)", async () => {
+    const lucas = await conectar("jam-caixa", "lucas");
+    await lucas.escrever("docs/Ação.md", "a\n", 0);
+    await lucas.esperar((m) => m.tipo === "aceito");
+    await lucas.escrever("docs/AÇÃO.md", "b\n", 0);
+    expect(await lucas.esperar((m) => m.tipo === "recusado")).toMatchObject({ caminho: "docs/AÇÃO.md", motivo: "caminho_invalido" });
+    lucas.ws.close();
+  });
+
   it("merge de duas escritas da mesma versão vai para todos os conectores (AC 6)", async () => {
     const lucas = await conectar("jam-merge", "lucas");
     const pai = await conectar("jam-merge", "pai");

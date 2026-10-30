@@ -55,10 +55,20 @@ export class ArmazenamentoSqlite implements Armazenamento {
       apagado integer not null,
       em text not null
     )`);
+    // Caminho em minúsculas, calculado no JavaScript (o lower() do SQLite só
+    // conhece ASCII: "Ação.md" e "AÇÃO.md" passavam), com índice para não
+    // varrer a tabela a cada arquivo novo (gate da 3.3, REL-001 e PERF-003).
+    // Salas criadas antes da coluna ganham a coluna e as chaves aqui.
+    const colunas = sql.exec<Linha>("pragma table_info(arquivo)").toArray().map((c) => String(c.name));
+    if (!colunas.includes("chave")) sql.exec("alter table arquivo add column chave text");
+    for (const l of sql.exec<Linha>("select caminho from arquivo where chave is null").toArray()) {
+      sql.exec("update arquivo set chave = ? where caminho = ?", String(l.caminho).toLowerCase(), String(l.caminho));
+    }
+    sql.exec("create index if not exists arquivo_chave on arquivo (chave)");
   }
 
   outroComOutraCaixa(caminho: string): string | null {
-    const [l] = this.sql.exec<Linha>("select caminho from arquivo where lower(caminho) = lower(?) and caminho <> ? limit 1", caminho, caminho).toArray();
+    const [l] = this.sql.exec<Linha>("select caminho from arquivo where chave = ? and caminho <> ? limit 1", caminho.toLowerCase(), caminho).toArray();
     return l ? String(l.caminho) : null;
   }
 
@@ -69,11 +79,12 @@ export class ArmazenamentoSqlite implements Armazenamento {
 
   gravar(r: Registro): void {
     this.sql.exec(
-      `insert into arquivo (caminho, versao, hash, conteudo, binario, apagado, autor_id, atualizado_em)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
+      `insert into arquivo (caminho, chave, versao, hash, conteudo, binario, apagado, autor_id, atualizado_em)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?)
        on conflict (caminho) do update set versao = excluded.versao, hash = excluded.hash, conteudo = excluded.conteudo,
          binario = excluded.binario, apagado = excluded.apagado, autor_id = excluded.autor_id, atualizado_em = excluded.atualizado_em`,
       r.caminho,
+      r.caminho.toLowerCase(),
       r.versao,
       r.hash,
       r.conteudo,
