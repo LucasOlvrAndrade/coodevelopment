@@ -36,7 +36,7 @@ function base64ParaBytes(base64: string): Uint8Array<ArrayBuffer> {
 
 // sha256 em hex, pela WebCrypto (roda no Node, no Worker e no navegador).
 export async function hashDoConteudo(conteudo: string, binario: boolean): Promise<string> {
-  const bytes: Uint8Array<ArrayBuffer> = binario ? base64ParaBytes(conteudo) : new TextEncoder().encode(normalizarFinalDeLinha(conteudo));
+  const bytes: Uint8Array<ArrayBuffer> = binario ? base64ParaBytes(conteudo) : new Uint8Array(new TextEncoder().encode(normalizarFinalDeLinha(conteudo)));
   const resumo = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(resumo)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
