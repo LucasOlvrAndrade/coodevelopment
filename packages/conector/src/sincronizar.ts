@@ -1,6 +1,6 @@
 import { lstat } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
-import { TAMANHO_MAXIMO, hashDoConteudo, type MensagemArquivo, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
+import { TAMANHO_MAXIMO, caminhoSincronizavel, hashDoConteudo, juntar, type MensagemArquivo, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { PREFIXO_TEMPORARIO, gravarNoDisco, lerLocal, type Local } from "./disco";
 import { arquivoNaBase, crlfPorPadrao, ignoradosPeloGit, podeCircular } from "./filtro";
@@ -38,7 +38,9 @@ export const vigiarComParcel: Vigiar = async (raiz, aoMudar) => {
 };
 
 type Versao = { versao: number; hash: string; apagado: boolean };
-type Enviado = { hash: string; apagado: boolean; em: number };
+// O que saiu, com o conteúdo: base do merge local quando a pasta muda
+// enquanto a escrita está no ar (gate da 3.3, DATA-005).
+type Enviado = { hash: string; apagado: boolean; em: number; conteudo: string; binario: boolean };
 
 // Escrita sem resposta da sala por tanto tempo se perdeu: sai de novo.
 const SEM_RESPOSTA_MS = 30_000;
@@ -130,15 +132,21 @@ export class Sincronizador {
     try {
       // O que chegou e não pôde ser gravado tenta de novo.
       for (const m of [...this.aGravar.values()]) await this.aplicar(m);
+      // Escrita sem resposta há mais de 30 s sai de novo, mesmo sem edição
+      // nova no arquivo (gate da 3.3, REL-008).
+      for (const [c, e] of [...this.emVoo]) if (Date.now() - e.em >= SEM_RESPOSTA_MS) await this.enviarSePreciso(c);
       for (const c of await this.candidatos()) {
         // Só relê e calcula o hash do que mudou de data ou tamanho desde a
         // última varredura (gate da 3.3, PERF-001; NFR6).
         const marca = await this.marca(c);
         if (this.vistos.get(c) === marca) continue;
+        if (this.naPartida.get(c) !== this.chave(await lerLocal(this.raiz, c))) {
+          this.naPartida.delete(c);
+          await this.enviarSePreciso(c);
+        }
+        // Marcado só depois do envio: se o git falhar no meio, a próxima
+        // varredura tenta de novo (REL-008).
         this.vistos.set(c, marca);
-        if (this.naPartida.get(c) === this.chave(await lerLocal(this.raiz, c))) continue;
-        this.naPartida.delete(c);
-        await this.enviarSePreciso(c);
       }
       this.avisouVarredura = false;
     } catch (e) {
@@ -206,6 +214,15 @@ export class Sincronizador {
         // Pasta apagada: os arquivos conhecidos dentro dela foram juntos.
         const todos = new Set(caminhos);
         for (const c of caminhos) for (const k of this.conhecidos.keys()) if (k.startsWith(`${c}/`)) todos.add(k);
+        // Nome que não funciona no Windows (":", "?", "~1"...) não vai, e a
+        // pessoa fica sabendo uma vez; o que a lista fixa barra (.env,
+        // node_modules) não vai em silêncio (gate da 3.3, SEC-004).
+        for (const c of todos) {
+          const permitido = caminhoSincronizavel(c);
+          if (permitido.ok || permitido.motivo !== "caminho_invalido" || this.avisados.has(c)) continue;
+          this.avisados.add(c);
+          this.amb.escrever(`${c} tem um nome que não funciona no Windows e não vai para a jam.`);
+        }
         const circulam = [...todos].filter(podeCircular);
         const ignorados = await ignoradosPeloGit(this.amb, this.raiz, circulam);
         for (const c of circulam) if (!ignorados.has(c)) await this.enviarSePreciso(c);
@@ -253,7 +270,13 @@ export class Sincronizador {
       return;
     }
 
-    this.emVoo.set(caminho, { hash: local.hash, apagado: local.apagado, em: Date.now() });
+    this.emVoo.set(caminho, {
+      hash: local.hash,
+      apagado: local.apagado,
+      em: Date.now(),
+      conteudo: local.existe ? local.conteudo : "",
+      binario: local.existe ? local.binario : false,
+    });
     this.transporte.enviar({
       v: 1,
       tipo: "escrever",
@@ -312,14 +335,37 @@ export class Sincronizador {
         // com a base antiga, e a sala junta com o que já tem (gate da 3.3, DATA-001).
         this.emVoo.delete(m.caminho);
         if (!mesmo(enviado, local)) {
+          // A pasta mudou depois do envio (o Claude editou de novo). Junta
+          // aqui: base = o que enviamos, nosso = a pasta, deles = o merge da
+          // sala. Reenviar a pasta com a base antiga dava conflito falso
+          // quando a segunda edição encostava na primeira (gate da 3.3, DATA-005).
+          const juntado =
+            local.existe && !local.binario && !enviado.binario && !enviado.apagado && !m.binario && !m.apagado
+              ? juntar(enviado.conteudo, local.conteudo, m.conteudo)
+              : null;
+          if (juntado !== null) {
+            try {
+              if (!(await gravarNoDisco(this.raiz, m.caminho, { conteudo: juntado, binario: false, apagado: false }, this.crlf))) return;
+            } catch {
+              // Arquivo preso: a pasta sai como está, com a base antiga.
+              await this.enviarSePreciso(m.caminho);
+              return;
+            }
+            // A sala está no merge; o que juntamos sai a partir dele.
+            this.conhecidos.set(m.caminho, { versao: m.versao, hash: m.hash, apagado: m.apagado });
+          }
+          // Sem como juntar (binário, apagado, trechos cruzados): a pasta sai
+          // com a base antiga, e o que cruzar vai para o histórico da sala.
           await this.enviarSePreciso(m.caminho);
           return;
         }
       } else if (m.origem === "estado") {
-        // A sala não reconheceu a versão da nossa escrita (perdeu o estado):
-        // ela vale a partir da versão atual da sala, e a pasta vai como está.
+        // A sala não reconheceu a versão da nossa escrita (perdeu o estado).
+        // A pasta sai a partir do baseSha (versão 0): a sala junta com o que
+        // tem, e o que cruzar vai para o histórico, em vez de a pasta
+        // substituir a versão de outra pessoa (gate da 3.3, REL-007).
         this.emVoo.delete(m.caminho);
-        this.conhecidos.set(m.caminho, { versao: m.versao, hash: m.hash, apagado: m.apagado });
+        this.conhecidos.set(m.caminho, { versao: 0, hash: "", apagado: false });
         if (!mesmo(local, m)) await this.enviarSePreciso(m.caminho);
         return;
       } else {

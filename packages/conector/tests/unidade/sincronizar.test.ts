@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // Cada caso cria um repositório e roda git de verdade: com a máquina ocupada
 // (o monorepo inteiro testando junto), passa dos 5 s padrão.
 vi.setConfig({ testTimeout: 30_000 });
+import { ArmazenamentoEmMemoria, Sincronizacao } from "../../../../apps/sala/src/sincronizacao";
 import { ambienteReal } from "../../src/ambiente";
 import { Sincronizador, type Vigiar } from "../../src/sincronizar";
 
@@ -73,12 +74,17 @@ async function preparar() {
     origem,
   });
   // Evento do vigia sem esperar escrita (para mudança que não deve sair).
-  const tocar = async () => {
-    avisar([join(raiz, "texto.txt")]);
+  const tocar = async (nome = "texto.txt") => {
+    avisar([join(raiz, nome)]);
     await new Promise((r) => setTimeout(r, 100));
     await sinc.ocioso();
   };
-  return { raiz, enviados, linhas, mudar, tocar, daSala, arquivo, ler: () => readFileSync(join(raiz, "texto.txt"), "utf8") };
+  // O vigia avisando que perdeu eventos pede uma varredura na hora.
+  const varrer = async () => {
+    avisar(null);
+    await sinc.ocioso();
+  };
+  return { raiz, enviados, linhas, mudar, tocar, varrer, daSala, arquivo, ler: () => readFileSync(join(raiz, "texto.txt"), "utf8") };
 }
 
 describe("merge da nossa escrita com a pasta mudada no meio (DATA-001)", () => {
@@ -92,14 +98,15 @@ describe("merge da nossa escrita com a pasta mudada no meio (DATA-001)", () => {
     // A sala juntou a primeira com a escrita de outra pessoa (linha seis).
     await t.daSala(await t.arquivo("UM\ndois\ntres\nquatro\ncinco\nSEIS\n", 2, "merge"));
 
-    // A pasta não foi sobrescrita e a segunda edição saiu, com a base antiga,
-    // para a sala juntar com o que já tem.
-    expect(t.ler()).toBe("UM\nDOIS\ntres\nquatro\ncinco\nseis\n");
-    expect(t.enviados.at(-1)).toMatchObject({ versaoBase: 0, conteudo: "UM\nDOIS\ntres\nquatro\ncinco\nseis\n" });
+    // A segunda edição não se perdeu: o conector juntou com o merge da sala
+    // (DATA-005) e mandou o resultado a partir da versão do merge.
+    const tudo = "UM\nDOIS\ntres\nquatro\ncinco\nSEIS\n";
+    expect(t.ler()).toBe(tudo);
+    expect(t.enviados.at(-1)).toMatchObject({ versaoBase: 2, conteudo: tudo });
 
-    // E a resposta seguinte da sala (o novo merge) é gravada: nada ficou preso.
-    await t.daSala(await t.arquivo("UM\nDOIS\ntres\nquatro\ncinco\nSEIS\n", 3, "merge"));
-    expect(t.ler()).toBe("UM\nDOIS\ntres\nquatro\ncinco\nSEIS\n");
+    // E a resposta seguinte da sala é tratada: nada ficou preso.
+    await t.daSala({ v: 1, tipo: "aceito", caminho: "texto.txt", versao: 3, hash: await hashDoConteudo(tudo, false) });
+    expect(t.ler()).toBe(tudo);
   });
 
   it("merge com a pasta igual ao que enviamos é gravado", async () => {
@@ -153,5 +160,60 @@ describe("base da versão 0 (DATA-003)", () => {
     expect(t.enviados).toEqual([]);
     const editada = await t.mudar("UM\ndois\ntres\nquatro\ncinco\nseis\n");
     expect(editada).toMatchObject({ versaoBase: 0, conteudoBase: "um\ndois\ntres\nquatro\ncinco\nseis\n" });
+  });
+});
+
+describe("com a regra de verdade da sala (gate da 3.3, DATA-005)", () => {
+  it("duas edições seguidas em linhas vizinhas enquanto outra pessoa muda outro trecho: tudo se junta, sem conflito falso", async () => {
+    const t = await preparar();
+    const armazenamento = new ArmazenamentoEmMemoria();
+    const sala = new Sincronizacao(armazenamento);
+    const base = "um\ndois\ntres\nquatro\ncinco\nseis\n";
+    // Entrega à sala o que o lucas mandou e devolve a ele as respostas.
+    const levar = async (m: MensagemEscrever) => {
+      for (const { para, mensagem } of await sala.escrever("lucas", m)) if (para !== "outros") await t.daSala(mensagem);
+    };
+
+    // 1. O Claude do lucas muda a linha 1; a escrita fica no ar.
+    const primeira = await t.mudar("UM\ndois\ntres\nquatro\ncinco\nseis\n");
+    // 2. Enquanto isso, a escrita do pai na linha 6 chega antes à sala.
+    await sala.escrever("pai", { v: 1, tipo: "escrever", caminho: "texto.txt", versaoBase: 0, hash: await hashDoConteudo("um\ndois\ntres\nquatro\ncinco\nSEIS\n", false), conteudo: "um\ndois\ntres\nquatro\ncinco\nSEIS\n", binario: false, apagado: false, conteudoBase: base });
+    // 3. O Claude do lucas edita de novo, na linha 2, colada na primeira.
+    writeFileSync(join(t.raiz, "texto.txt"), "UM\nDOIS\ntres\nquatro\ncinco\nseis\n");
+    // 4. Só agora a primeira escrita do lucas chega à sala, que junta com a do pai.
+    const antes = t.enviados.length;
+    await levar(primeira);
+    // O conector juntou a segunda edição com o merge da sala e mandou o resultado.
+    await vi.waitFor(() => expect(t.enviados.length).toBeGreaterThan(antes), { timeout: 15_000 });
+    await levar(t.enviados.at(-1)!);
+
+    const tudo = "UM\nDOIS\ntres\nquatro\ncinco\nSEIS\n";
+    expect(t.ler()).toBe(tudo);
+    expect(armazenamento.ler("texto.txt")).toMatchObject({ conteudo: tudo });
+    expect(armazenamento.historico).toEqual([]);
+    expect(t.linhas.filter((l) => l.startsWith("Conflito"))).toEqual([]);
+  });
+
+  it("escrita sem resposta sai de novo na varredura, mesmo sem edição nova (REL-008)", async () => {
+    const t = await preparar();
+    const primeira = await t.mudar("UM\ndois\ntres\nquatro\ncinco\nseis\n");
+    const agora = Date.now();
+    const relogio = vi.spyOn(Date, "now").mockReturnValue(agora + 31_000);
+    try {
+      await t.varrer();
+      expect(t.enviados.at(-1)).toMatchObject({ conteudo: primeira.conteudo, versaoBase: 0 });
+      expect(t.enviados).toHaveLength(2);
+    } finally {
+      relogio.mockRestore();
+    }
+  });
+
+  it("nome que não funciona no Windows avisa uma vez e não sai (SEC-004)", async () => {
+    const t = await preparar();
+    writeFileSync(join(t.raiz, "backup~1.txt"), "x");
+    await t.tocar("backup~1.txt");
+    await t.tocar("backup~1.txt");
+    expect(t.enviados).toEqual([]);
+    expect(t.linhas.filter((l) => l === "backup~1.txt tem um nome que não funciona no Windows e não vai para a jam.")).toHaveLength(1);
   });
 });
