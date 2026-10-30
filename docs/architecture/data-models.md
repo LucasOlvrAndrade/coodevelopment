@@ -191,6 +191,12 @@ export type EventoFeed =
 
 ### Relationships
 
-- `ArquivoJam` tem histórico em `versoes_arquivo` (conteúdo de cada versão
-  aceita e das versões guardadas em conflito), apagado depois de cada commit.
+- `ArquivoJam` mora na tabela `arquivo` da sala (Story 3.3). O conteúdo de
+  cada versão aceita fica em `versao` (as últimas 50 por arquivo, base dos
+  merges; a versão 0 é o conteúdo do `baseSha`, guardado na primeira
+  escrita), e o que não entrou fica em `historico`: a escrita que perdeu num
+  conflito (`motivo: conflito`) e o binário sobrescrito pela última escrita
+  (`motivo: sobrescrito`). Cada linha cabe nos 2 MB do SQLite do Durable
+  Object porque o arquivo tem no máximo 1 MB (A14). A limpeza depois do
+  commit fica para o fechamento (Story 5.1).
 - `Aviso` reserva arquivos enquanto está ativo.
