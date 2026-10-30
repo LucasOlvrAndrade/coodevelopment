@@ -11,12 +11,14 @@ export { TAMANHO_MAXIMO };
 // do .gitignore case com ele: ele é do projeto.
 export async function ignoradosPeloGit(amb: Ambiente, raiz: string, caminhos: string[]): Promise<Set<string>> {
   if (caminhos.length === 0) return new Set();
-  const r = await amb.rodar("git", ["check-ignore", "--stdin"], { cwd: raiz, entrada: caminhos.join("\n") + "\n" });
+  // -z: caminhos separados por NUL na ida e na volta. Sem ele, o git devolve
+  // nome acentuado entre aspas e em octal, e o ignorado escapava (gate da 3.3, SEC-002).
+  const r = await amb.rodar("git", ["check-ignore", "-z", "--stdin"], { cwd: raiz, entrada: caminhos.join("\0") + "\0" });
   // 0: algum ignorado; 1: nenhum; outro: o git falhou. Aí quem chamou tenta
   // de novo: sumir em silêncio perderia a mudança.
   if (r.codigo === 1) return new Set();
   if (r.codigo !== 0) throw new Error(`git check-ignore falhou (${r.codigo}): ${r.erro.trim().split("\n")[0] ?? ""}`);
-  return new Set(r.saida.split(/\r?\n/).filter(Boolean).map((c) => c.replace(/\\/g, "/")));
+  return new Set(r.saida.split("\0").filter(Boolean).map((c) => c.replace(/\\/g, "/")));
 }
 
 export function podeCircular(caminho: string): boolean {

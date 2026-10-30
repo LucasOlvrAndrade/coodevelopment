@@ -1,15 +1,37 @@
 import { randomBytes } from "node:crypto";
-import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
-import { caminhoSincronizavel, hashDoConteudo, normalizarFinalDeLinha } from "@coodevelopment/protocolo";
+import { chmod, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { PREFIXO_TEMPORARIO, caminhoSincronizavel, hashDoConteudo, normalizarFinalDeLinha } from "@coodevelopment/protocolo";
 
 // Leitura e gravação dos arquivos da pasta (Story 3.3). É o ponto mais
 // sensível do conector: grava no disco de outra pessoa o que chega da sala.
 // Por isso o caminho é conferido contra a raiz, link simbólico nunca é
 // seguido, e a gravação é atômica (arquivo temporário e rename).
 
-// Prefixo dos temporários da gravação; o vigia os ignora.
-export const PREFIXO_TEMPORARIO = ".coodevelopment-";
+// Prefixo dos temporários da gravação (no protocolo, para nunca circularem).
+export { PREFIXO_TEMPORARIO };
+
+// Segunda camada contra nome que o Windows lê de outro jeito (GIT~1, fluxo
+// do NTFS): o caminho real da pasta, resolvido pelo sistema, tem que estar
+// dentro da raiz e fora do .git (gate da 3.3, SEC-001).
+export async function pastaRealSegura(raizReal: string, pasta: string): Promise<boolean> {
+  const real = await realpath(pasta).catch(() => null);
+  if (!real) return false;
+  const rel = relative(raizReal, real);
+  if (rel.startsWith("..") || isAbsolute(rel)) return false;
+  return !rel.split(sep).some((p) => p.toLowerCase() === ".git");
+}
+
+// Texto é o que decodifica como UTF-8 válido; o resto (Windows-1252,
+// Latin-1...) circula como binário, sem ser corrompido (gate da 3.3, DATA-004).
+function utf8Valido(bytes: Buffer): boolean {
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type Local =
   | { existe: false; apagado: true; hash: string }
@@ -49,7 +71,7 @@ export async function lerLocal(raiz: string, caminho: string): Promise<Local | n
   if (!info) return { existe: false, apagado: true, hash: await HASH_DO_APAGADO };
   if (!info.isFile()) return null;
   const bytes = await readFile(alvo);
-  const binario = ehBinario(bytes);
+  const binario = ehBinario(bytes) || !utf8Valido(bytes);
   const conteudo = binario ? bytes.toString("base64") : bytes.toString("utf8");
   return { existe: true, apagado: false, conteudo, binario, hash: await hashDoConteudo(conteudo, binario), tamanho: bytes.length };
 }
@@ -85,7 +107,11 @@ export async function gravarNoDisco(
 ): Promise<boolean> {
   const alvo = await caminhoSeguro(raiz, caminho);
   if (!alvo) return false;
+  const raizReal = await realpath(raiz);
   if (arquivo.apagado) {
+    // Sem a pasta, não há o que apagar; com ela, só dentro da raiz e fora do .git.
+    if (!(await lstat(dirname(alvo)).catch(() => null))) return true;
+    if (!(await pastaRealSegura(raizReal, dirname(alvo)))) return false;
     await rm(alvo, { force: true });
     return true;
   }
@@ -98,10 +124,15 @@ export async function gravarNoDisco(
     bytes = Buffer.from(comFinalDeLinha(arquivo.conteudo, crlf), "utf8");
   }
   await mkdir(dirname(alvo), { recursive: true });
-  // Depois de criar as pastas, confere de novo: nenhuma virou link no meio.
-  if ((await caminhoSeguro(raiz, caminho)) !== alvo) return false;
+  // Depois de criar as pastas, confere de novo: nenhuma virou link no meio, e
+  // a pasta real (resolvida pelo sistema) está dentro da raiz e fora do .git.
+  if ((await caminhoSeguro(raiz, caminho)) !== alvo || !(await pastaRealSegura(raizReal, dirname(alvo)))) return false;
   const temporario = join(dirname(alvo), `${PREFIXO_TEMPORARIO}${randomBytes(6).toString("hex")}.tmp`);
   await writeFile(temporario, bytes);
+  // O arquivo novo nasce com a permissão do que ele substitui: um script
+  // executável continua executável (gate da 3.3, REL-004).
+  const anterior = await lstat(alvo).catch(() => null);
+  if (anterior) await chmod(temporario, anterior.mode).catch(() => {});
   try {
     await renomearComPaciencia(temporario, alvo);
   } catch (e) {

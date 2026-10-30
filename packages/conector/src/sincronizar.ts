@@ -1,4 +1,5 @@
-import { basename, relative, sep } from "node:path";
+import { lstat } from "node:fs/promises";
+import { basename, join, relative, sep } from "node:path";
 import { TAMANHO_MAXIMO, hashDoConteudo, type MensagemArquivo, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { PREFIXO_TEMPORARIO, gravarNoDisco, lerLocal, type Local } from "./disco";
@@ -37,7 +38,10 @@ export const vigiarComParcel: Vigiar = async (raiz, aoMudar) => {
 };
 
 type Versao = { versao: number; hash: string; apagado: boolean };
-type Enviado = { hash: string; apagado: boolean };
+type Enviado = { hash: string; apagado: boolean; em: number };
+
+// Escrita sem resposta da sala por tanto tempo se perdeu: sai de novo.
+const SEM_RESPOSTA_MS = 30_000;
 
 const mesmo = (a: { hash: string; apagado: boolean }, b: { hash: string; apagado: boolean }) => a.hash === b.hash && a.apagado === b.apagado;
 
@@ -46,8 +50,14 @@ export class Sincronizador {
   private conhecidos = new Map<string, Versao>();
   // Escrita enviada esperando a resposta da sala, por arquivo.
   private emVoo = new Map<string, Enviado>();
-  // Depois de um conflito, o próximo arquivo que chega é o atual: grava.
-  private esperandoAtual = new Set<string>();
+  // Depois de um conflito, o próximo arquivo que chega é o atual; guarda o
+  // que foi enviado, para saber se a pasta mudou depois.
+  private esperandoAtual = new Map<string, Enviado>();
+  // Arquivos que chegaram e não puderam ser gravados (presos por outro programa).
+  private aGravar = new Map<string, MensagemArquivo>();
+  // Data e tamanho de cada arquivo na última varredura: só relê o que mudou.
+  private vistos = new Map<string, string>();
+  private avisouVarredura = false;
   private relogios = new Map<string, ReturnType<typeof setTimeout>>();
   private prontos = new Set<string>();
   private lote?: ReturnType<typeof setTimeout>;
@@ -104,18 +114,37 @@ export class Sincronizador {
   }
 
   private async fotografar(): Promise<void> {
-    for (const c of await this.candidatos()) this.naPartida.set(c, this.chave(await lerLocal(this.raiz, c)));
+    for (const c of await this.candidatos()) {
+      this.naPartida.set(c, this.chave(await lerLocal(this.raiz, c)));
+      this.vistos.set(c, await this.marca(c));
+    }
+  }
+
+  // Data e tamanho do arquivo no disco; "" se não existe.
+  private async marca(caminho: string): Promise<string> {
+    const info = await lstat(join(this.raiz, ...caminho.split("/"))).catch(() => null);
+    return info ? `${info.mtimeMs}:${info.size}` : "";
   }
 
   private async varrer(): Promise<void> {
     try {
+      // O que chegou e não pôde ser gravado tenta de novo.
+      for (const m of [...this.aGravar.values()]) await this.aplicar(m);
       for (const c of await this.candidatos()) {
+        // Só relê e calcula o hash do que mudou de data ou tamanho desde a
+        // última varredura (gate da 3.3, PERF-001; NFR6).
+        const marca = await this.marca(c);
+        if (this.vistos.get(c) === marca) continue;
+        this.vistos.set(c, marca);
         if (this.naPartida.get(c) === this.chave(await lerLocal(this.raiz, c))) continue;
         this.naPartida.delete(c);
         await this.enviarSePreciso(c);
       }
-    } catch {
-      // A próxima varredura tenta de novo.
+      this.avisouVarredura = false;
+    } catch (e) {
+      // A próxima varredura tenta de novo; avisa uma vez, sem encher o terminal.
+      if (!this.avisouVarredura) this.amb.escrever(`Não consegui conferir a pasta agora (${e instanceof Error ? e.message : String(e)}). Tento de novo em instantes.`);
+      this.avisouVarredura = true;
     }
   }
 
@@ -192,21 +221,28 @@ export class Sincronizador {
   }
 
   private async enviarSePreciso(caminho: string): Promise<void> {
-    // Uma escrita por vez: a próxima sai quando a sala responder.
-    if (this.emVoo.has(caminho)) return;
+    // Uma escrita por vez: a próxima sai quando a sala responder. Sem
+    // resposta em 30 s, a escrita se perdeu e sai de novo (gate da 3.3, DATA-001).
+    const noAr = this.emVoo.get(caminho);
+    if (noAr && Date.now() - noAr.em < SEM_RESPOSTA_MS) return;
+    this.emVoo.delete(caminho);
     const local = await lerLocal(this.raiz, caminho);
     if (!local) return;
     const conhecido = this.conhecidos.get(caminho);
     if (conhecido && mesmo(conhecido, local)) return;
 
+    // A partir da versão 0 (o baseSha), a base vai junto: a sala precisa dela
+    // para juntar, mesmo que a pasta já tenha sido conferida igual à base
+    // antes (gate da 3.3, DATA-003).
     let conteudoBase: string | null | undefined;
-    if (!conhecido) {
-      // Nunca veio da sala: a referência é o arquivo no baseSha.
+    if (!conhecido || conhecido.versao === 0) {
       const base = await arquivoNaBase(this.amb, this.raiz, this.baseSha, caminho);
-      if (!base.existe && local.apagado) return;
-      if (base.existe && base.conteudo !== null && !local.apagado && (await hashDoConteudo(base.conteudo, false)) === local.hash) {
-        this.conhecidos.set(caminho, { versao: 0, hash: local.hash, apagado: false });
-        return;
+      if (!conhecido) {
+        if (!base.existe && local.apagado) return;
+        if (base.existe && base.conteudo !== null && !local.apagado && (await hashDoConteudo(base.conteudo, false)) === local.hash) {
+          this.conhecidos.set(caminho, { versao: 0, hash: local.hash, apagado: false });
+          return;
+        }
       }
       conteudoBase = base.existe ? base.conteudo : null;
     }
@@ -217,7 +253,7 @@ export class Sincronizador {
       return;
     }
 
-    this.emVoo.set(caminho, { hash: local.hash, apagado: local.apagado });
+    this.emVoo.set(caminho, { hash: local.hash, apagado: local.apagado, em: Date.now() });
     this.transporte.enviar({
       v: 1,
       tipo: "escrever",
@@ -241,15 +277,19 @@ export class Sincronizador {
         await this.enviarSePreciso(m.caminho);
         return;
       }
-      case "recusado":
+      case "recusado": {
+        const enviado = this.emVoo.get(m.caminho);
         this.emVoo.delete(m.caminho);
         if (m.motivo === "conflito_guardado") {
-          this.esperandoAtual.add(m.caminho);
+          if (enviado) this.esperandoAtual.set(m.caminho, enviado);
           this.amb.escrever(`Conflito em ${m.caminho}: outra pessoa mudou o mesmo trecho antes. A sua versão ficou guardada no histórico da jam, e o arquivo voltou para a versão atual.`);
         } else if (m.motivo === "grande_demais") {
           this.amb.escrever(`${m.caminho} tem mais de 1 MB e não vai para a jam.`);
+        } else if (m.motivo === "erro") {
+          this.amb.escrever(`A sala não conseguiu receber ${m.caminho}. Ele sai de novo na próxima mudança.`);
         }
         return;
+      }
       case "arquivo":
         await this.aplicar(m);
         return;
@@ -263,21 +303,56 @@ export class Sincronizador {
     // Caminho que não pode ser gravado aqui (fora da raiz, .git, link): recusa (FR18).
     if (!local) return;
     const enviado = this.emVoo.get(m.caminho);
-    const atualDepoisDoConflito = this.esperandoAtual.has(m.caminho);
-    // O merge que a sala fez com a nossa escrita: só grava se a pasta ainda
-    // tem o que enviamos (senão a mudança nova sai com a base antiga).
-    const nossoMerge = m.origem === "merge" && m.autorId === this.eu && enviado !== undefined && mesmo(enviado, local);
-    // Nossa escrita está no ar: a resposta da sala resolve; não grava por cima.
-    if (enviado && !nossoMerge && !atualDepoisDoConflito) return;
+    const recusado = this.esperandoAtual.get(m.caminho);
 
-    if (!nossoMerge && !atualDepoisDoConflito && !(await this.semMudancaLocal(m.caminho, local, m))) {
+    if (enviado) {
+      if (m.origem === "merge" && m.autorId === this.eu) {
+        // O merge que a sala fez com a nossa escrita resolve a escrita. Se a
+        // pasta mudou depois do envio, não grava por cima: a pasta sai de novo
+        // com a base antiga, e a sala junta com o que já tem (gate da 3.3, DATA-001).
+        this.emVoo.delete(m.caminho);
+        if (!mesmo(enviado, local)) {
+          await this.enviarSePreciso(m.caminho);
+          return;
+        }
+      } else if (m.origem === "estado") {
+        // A sala não reconheceu a versão da nossa escrita (perdeu o estado):
+        // ela vale a partir da versão atual da sala, e a pasta vai como está.
+        this.emVoo.delete(m.caminho);
+        this.conhecidos.set(m.caminho, { versao: m.versao, hash: m.hash, apagado: m.apagado });
+        if (!mesmo(local, m)) await this.enviarSePreciso(m.caminho);
+        return;
+      } else {
+        // A escrita de outra pessoa chegou antes da resposta à nossa: a sala
+        // vai juntar a nossa com ela e mandar o resultado.
+        return;
+      }
+    } else if (recusado) {
+      // Depois de um conflito: se a pasta mudou depois do envio que perdeu,
+      // não sobrescreve; sai de novo, e o que cruzar vai inteiro para o
+      // histórico da sala (gate da 3.3, DATA-002).
+      this.esperandoAtual.delete(m.caminho);
+      if (!mesmo(recusado, local)) {
+        await this.enviarSePreciso(m.caminho);
+        return;
+      }
+    } else if (!(await this.semMudancaLocal(m.caminho, local, m))) {
       await this.enviarSePreciso(m.caminho);
       return;
     }
 
-    this.esperandoAtual.delete(m.caminho);
-    this.emVoo.delete(m.caminho);
-    if (!mesmo(local, m) && !(await gravarNoDisco(this.raiz, m.caminho, m, this.crlf))) return;
+    if (!mesmo(local, m)) {
+      try {
+        if (!(await gravarNoDisco(this.raiz, m.caminho, m, this.crlf))) return;
+      } catch (e) {
+        // Arquivo preso por outro programa: tenta de novo na varredura, em vez
+        // de a pasta ficar para trás da sala (gate da 3.3, REL-003).
+        if (!this.aGravar.has(m.caminho)) this.amb.escrever(`Não consegui gravar ${m.caminho} (${e instanceof Error ? e.message : String(e)}). Vou tentar de novo.`);
+        this.aGravar.set(m.caminho, m);
+        return;
+      }
+    }
+    this.aGravar.delete(m.caminho);
     this.conhecidos.set(m.caminho, { versao: m.versao, hash: m.hash, apagado: m.apagado });
   }
 
