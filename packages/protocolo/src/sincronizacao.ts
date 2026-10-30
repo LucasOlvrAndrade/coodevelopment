@@ -14,12 +14,31 @@ const PASTAS_PROIBIDAS = new Set([".git", "node_modules", ".venv", "venv", "__py
 
 export type MotivoProibido = "caminho_invalido" | "proibido";
 
+// Prefixo dos temporários que o conector grava antes do rename; nunca circulam.
+export const PREFIXO_TEMPORARIO = ".coodevelopment-";
+
+// Partes de caminho que o Windows lê de outro jeito, e que por isso podiam
+// chegar a uma pasta proibida por outro nome (gate da 3.3, SEC-001):
+// - "~" e dígito: nome curto 8.3 do NTFS ("GIT~1" é a pasta .git);
+// - ":": fluxo alternativo do NTFS (".git::$INDEX_ALLOCATION") ou unidade;
+// - ponto ou espaço no fim: o Windows ignora (".git." é ".git");
+// - nomes reservados (CON, NUL, AUX, COM1...), com ou sem extensão;
+// - caracteres que o Windows não aceita em nome.
+const NOME_CURTO = /~\d/;
+const CARACTERE_PROIBIDO = /[<>:"|?*\u0000-\u001f]/;
+const RESERVADO = /^(con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$/i;
+
+function parteValida(parte: string): boolean {
+  return !NOME_CURTO.test(parte) && !CARACTERE_PROIBIDO.test(parte) && !/[. ]$/.test(parte) && !RESERVADO.test(parte) && !parte.startsWith(PREFIXO_TEMPORARIO);
+}
+
 // Caminho que pode circular: normalizado (relativo, com "/", sem sair da
 // raiz) e fora da lista fixa. Devolve o caminho normalizado ou o motivo.
 export function caminhoSincronizavel(caminho: string): { ok: true; caminho: string } | { ok: false; motivo: MotivoProibido } {
   const normal = normalizarCaminho(caminho);
   if (!normal) return { ok: false, motivo: "caminho_invalido" };
   const partes = normal.split("/");
+  if (!partes.every(parteValida)) return { ok: false, motivo: "caminho_invalido" };
   // No Windows, ".GIT" e ".git" são a mesma pasta.
   if (partes.some((p) => PASTAS_PROIBIDAS.has(p.toLowerCase()))) return { ok: false, motivo: "proibido" };
   const nome = partes.at(-1)!.toLowerCase();
@@ -97,7 +116,7 @@ export const mensagemRecusado = z.object({
   v: z.literal(1),
   tipo: z.literal("recusado"),
   caminho,
-  motivo: z.enum(["conflito_guardado", "caminho_invalido", "proibido", "grande_demais"]),
+  motivo: z.enum(["conflito_guardado", "caminho_invalido", "proibido", "grande_demais", "erro"]),
 });
 
 // Sala → conector, ao conectar: o que mudou desde o baseSha. Os arquivos

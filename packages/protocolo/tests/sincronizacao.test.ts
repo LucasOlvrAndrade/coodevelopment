@@ -30,6 +30,40 @@ describe("caminhoSincronizavel (Story 3.3, AC 2 e 3)", () => {
   });
 });
 
+describe("nomes que o Windows lê de outro jeito (gate da 3.3, SEC-001)", () => {
+  it("recusa o nome curto 8.3, fluxo do NTFS, ponto ou espaço no fim, nome reservado, caractere proibido e temporário do conector", () => {
+    for (const c of [
+      "GIT~1/hooks/pre-commit",
+      "NODE_M~1/x.js",
+      ".git::$INDEX_ALLOCATION/hooks/x",
+      "a.txt:segredo",
+      ".git./config",
+      ".git /config",
+      "pasta./a.txt",
+      "con",
+      "CON.ts",
+      "src/aux.js",
+      "nul",
+      "com1.txt",
+      "LPT9",
+      "a<b>.txt",
+      "a|b",
+      "pergunta?.md",
+      "tab\there.txt",
+      ".coodevelopment-abc123.tmp",
+      "src/.coodevelopment-x.tmp",
+    ]) {
+      expect(caminhoSincronizavel(c), c).toEqual({ ok: false, motivo: "caminho_invalido" });
+    }
+  });
+
+  it("nomes parecidos e legítimos continuam passando", () => {
+    for (const c of ["config.ts", "consumer.ts", "console.log.md", "auxiliar.js", "comunicacao/com.ts", "nula.txt", "a~b.txt", "versao~final.md", "src/.gitkeep", ".github/workflows/ci.yaml", "pasta com espaco/a b.txt", "coodevelopment.md"]) {
+      expect(caminhoSincronizavel(c), c).toMatchObject({ ok: true });
+    }
+  });
+});
+
 describe("hashDoConteudo (AC 4)", () => {
   it("CRLF, LF e CR solto dão o mesmo hash", async () => {
     const lf = await hashDoConteudo("a\nb\n", false);

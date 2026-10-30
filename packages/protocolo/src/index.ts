@@ -5,6 +5,7 @@ export { normalizarCaminho, normalizarFinalDeLinha } from "./normalizacao";
 export type { Amizade, PedidoAmizade, Usuario } from "./modelos";
 export { mensagemDaSala, mensagemDoConector, mensagemPresenca, type MensagemDaSala, type MensagemDoConector, type MensagemPresenca } from "./mensagens";
 export {
+  PREFIXO_TEMPORARIO,
   TAMANHO_MAXIMO,
   caminhoSincronizavel,
   hashDoConteudo,
