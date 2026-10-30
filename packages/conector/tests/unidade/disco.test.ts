@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, chmodSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -41,10 +41,13 @@ describe("gravarNoDisco recusa .git por outro nome (gate da 3.3, SEC-001)", () =
     const nomeCurto = /\s(\S+~\d)\s+\.git\s*$/m.exec(curto)?.[1];
     // Sem nomes curtos no volume (há quem desligue o 8.3), não há o que testar.
     if (!nomeCurto) return;
-    expect(await pastaRealSegura(raiz, join(raiz, nomeCurto, "hooks"))).toBe(false);
-    expect(await pastaRealSegura(raiz, join(raiz, "src"))).toBe(false);
+    // A raiz resolvida, como o gravarNoDisco faz: no CI, a pasta temporária
+    // vem com nome curto (C:/Users/RUNNER~1/...).
+    const raizReal = realpathSync.native(raiz);
+    expect(await pastaRealSegura(raizReal, join(raiz, nomeCurto, "hooks"))).toBe(false);
+    expect(await pastaRealSegura(raizReal, join(raiz, "src"))).toBe(false);
     mkdirSync(join(raiz, "src"));
-    expect(await pastaRealSegura(raiz, join(raiz, "src"))).toBe(true);
+    expect(await pastaRealSegura(raizReal, join(raiz, "src"))).toBe(true);
   });
 });
 
