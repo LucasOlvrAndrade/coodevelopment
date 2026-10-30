@@ -1,4 +1,4 @@
-import { mensagemDaSala } from "@coodevelopment/protocolo";
+import { mensagemDaSala, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import type { Ambiente } from "./ambiente";
 import { ErroApi, tokenDaSala } from "./api";
@@ -7,7 +7,17 @@ import { ErroApi, tokenDaSala } from "./api";
 // página da jam mostra o participante como "conectado". O token da sala vale
 // 10 minutos; cada reconexão pede outro ao app.
 
-export type ConexaoSala = { fechar(): void; fechou: Promise<string> };
+export type ConexaoSala = { fechar(): void; fechou: Promise<string>; enviar(mensagem: MensagemEscrever): void };
+
+export type OpcoesDaSala = {
+  aoConectar: () => void;
+  // Mensagens da sala (arquivos, Story 3.3).
+  aoReceber?: (mensagem: MensagemDaSala) => void;
+  // Voltou depois de cair: a sala manda o estado de novo.
+  aoReconectar?: () => void;
+  // O WebSocket do Node 22; os testes passam um falso.
+  WebSocket?: typeof WebSocket;
+};
 
 function lerJson(dados: unknown): unknown {
   try {
@@ -28,14 +38,7 @@ function motivoParaParar(e: unknown): string | null {
   return null;
 }
 
-export async function conectarNaSala(
-  amb: Ambiente,
-  sessao: string,
-  jamId: string,
-  aoConectar: () => void,
-  // O WebSocket do Node 22; os testes passam um falso.
-  WebSocketDaSala?: typeof WebSocket,
-): Promise<ConexaoSala> {
+export async function conectarNaSala(amb: Ambiente, sessao: string, jamId: string, opcoes: OpcoesDaSala): Promise<ConexaoSala> {
   const primeiro = await tokenDaSala(amb, sessao, jamId);
   const url = new URL(primeiro.salaUrl);
   let token: string | undefined = primeiro.token;
@@ -47,7 +50,7 @@ export async function conectarNaSala(
     protocol: url.protocol === "ws:" ? "ws" : "wss",
     party: "jam",
     room: jamId,
-    ...(WebSocketDaSala ? { WebSocket: WebSocketDaSala } : {}),
+    ...(opcoes.WebSocket ? { WebSocket: opcoes.WebSocket } : {}),
     query: async () => {
       try {
         const atual = token ?? (await tokenDaSala(amb, sessao, jamId)).token;
@@ -66,13 +69,16 @@ export async function conectarNaSala(
 
   let conectado = false;
   socket.addEventListener("open", () => {
-    if (!conectado) aoConectar();
-    else amb.escrever("Reconectado à jam.");
+    if (!conectado) opcoes.aoConectar();
+    else {
+      amb.escrever("Reconectado à jam.");
+      opcoes.aoReconectar?.();
+    }
     conectado = true;
   });
   socket.addEventListener("message", (evento) => {
-    // Por enquanto só a presença; os arquivos chegam na Story 3.3.
-    mensagemDaSala.safeParse(lerJson(evento.data));
+    const lido = mensagemDaSala.safeParse(lerJson(evento.data));
+    if (lido.success) opcoes.aoReceber?.(lido.data);
   });
   socket.addEventListener("close", (evento) => {
     // Token recusado pela sala: tentar de novo não resolve.
@@ -90,5 +96,7 @@ export async function conectarNaSala(
       avisarFim("");
     },
     fechou,
+    // Sem conexão, o partysocket guarda e manda ao reconectar.
+    enviar: (mensagem) => socket.send(JSON.stringify(mensagem)),
   };
 }

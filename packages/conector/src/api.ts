@@ -44,6 +44,10 @@ export type DadosDaJam = {
   estado: "aberta" | "fechando" | "fechada";
   repo: { owner: string; nome: string; id: number };
   branch: string;
+  // Base do merge da primeira escrita de cada arquivo (Story 3.3).
+  baseSha: string;
+  // Quem está usando o conector: separa as próprias escritas das dos outros.
+  eu: string;
 };
 
 export const dadosDaJam = (amb: Ambiente, sessao: string, jamId: string) =>

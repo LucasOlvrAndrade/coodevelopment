@@ -1,11 +1,12 @@
-import { idDeJamValido } from "@coodevelopment/protocolo";
+import { idDeJamValido, type MensagemEscrever } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
 import { esquecerPasta, registrarPasta } from "./descoberta";
 import { entrarPorDispositivo } from "./login";
 import { clonar, conferirPasta, destinoDoClone, raizDoRepositorio } from "./pasta";
-import { conectarNaSala } from "./sala";
+import { conectarNaSala, type ConexaoSala } from "./sala";
+import { Sincronizador } from "./sincronizar";
 
 // `npx coodevelopment entrar <jam>` (Story 3.1): login, pasta, sala. Fica
 // rodando até Ctrl+C; a pasta se desliga da jam quando ele para.
@@ -71,20 +72,36 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   const pasta = await prepararPasta(amb, sessao, jam);
   amb.escrever(`Pasta do projeto: ${pasta}`);
 
-  const conexao = await conectarNaSala(amb, sessao, jamId, () => {
-    amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`);
+  // Os arquivos da pasta sincronizam com a sala (Story 3.3). Antes de
+  // conectar, o sincronizador sabe gravar; só depois de conectar ele vigia a
+  // pasta, para nada sair sem conexão.
+  // O que sair antes de a conexão existir espera numa fila, em vez de se perder.
+  let conexaoDaSala: ConexaoSala | undefined = undefined;
+  const antesDaConexao: MensagemEscrever[] = [];
+  const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, {
+    enviar: (m) => (conexaoDaSala ? conexaoDaSala.enviar(m) : antesDaConexao.push(m)),
+  });
+  await sincronizador.preparar();
+  const conexao = await conectarNaSala(amb, sessao, jamId, {
+    aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
+    aoReceber: (m) => sincronizador.receber(m),
+    aoReconectar: () => sincronizador.reconectou(),
   }).catch((e: unknown) => {
     if (e instanceof ErroApi && e.status === 503) {
       throw new ErroDoUsuario("A sala ao vivo da jam ainda não está no ar. A pasta está pronta; tente conectar de novo mais tarde.");
     }
     throw e;
   });
+  conexaoDaSala = conexao;
+  for (const m of antesDaConexao.splice(0)) conexao.enviar(m);
   await registrarPasta(amb, { jamId, pid: process.pid, pasta });
   try {
+    await sincronizador.comecarAVigiar();
     const motivo = await Promise.race([conexao.fechou, parar.then(() => "")]);
     if (motivo) throw new ErroDoUsuario(motivo);
     amb.escrever("Desligado da jam.");
   } finally {
+    await sincronizador.parar();
     conexao.fechar();
     await esquecerPasta(amb, pasta);
   }
