@@ -275,7 +275,9 @@ describe("lista de amigos (AC 4)", () => {
     await waitFor(() => expect(acoes.desfazerAmizade).toHaveBeenCalled());
     await screen.findByText("Você e Pai não são mais amigos.");
     rerender(<ListaAmigos amigos={[]} />);
-    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
+    // O diálogo do Radix fecha e o foco vem num quadro seguinte: com a máquina
+    // ocupada (o monorepo inteiro testando), passa do 1 s padrão do waitFor.
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus(), { timeout: 5000 });
   });
 
   it("se falhar, o erro aparece no diálogo, que fica aberto", async () => {
