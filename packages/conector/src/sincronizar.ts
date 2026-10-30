@@ -365,8 +365,14 @@ export class Sincronizador {
         // tem, e o que cruzar vai para o histórico, em vez de a pasta
         // substituir a versão de outra pessoa (gate da 3.3, REL-007).
         this.emVoo.delete(m.caminho);
+        // Pasta já igual ao que veio: a versão da sala é a conhecida, e nada
+        // sai (marcar a versão 0 dava conflito falso depois; gate da 3.3, REL-009).
+        if (mesmo(local, m)) {
+          this.conhecidos.set(m.caminho, { versao: m.versao, hash: m.hash, apagado: m.apagado });
+          return;
+        }
         this.conhecidos.set(m.caminho, { versao: 0, hash: "", apagado: false });
-        if (!mesmo(local, m)) await this.enviarSePreciso(m.caminho);
+        await this.enviarSePreciso(m.caminho);
         return;
       } else {
         // A escrita de outra pessoa chegou antes da resposta à nossa: a sala
