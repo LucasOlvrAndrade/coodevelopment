@@ -1,4 +1,4 @@
-import type { Armazenamento, Conteudo, Registro } from "./sincronizacao";
+import { chaveDeCaixa, type Armazenamento, type Conteudo, type Registro } from "./sincronizacao";
 
 // Armazenamento da sincronização no SQLite do Durable Object (Story 3.3,
 // FR21): o estado dos arquivos sobrevive à hibernação e a nenhum PC ligado.
@@ -62,13 +62,13 @@ export class ArmazenamentoSqlite implements Armazenamento {
     const colunas = sql.exec<Linha>("pragma table_info(arquivo)").toArray().map((c) => String(c.name));
     if (!colunas.includes("chave")) sql.exec("alter table arquivo add column chave text");
     for (const l of sql.exec<Linha>("select caminho from arquivo where chave is null").toArray()) {
-      sql.exec("update arquivo set chave = ? where caminho = ?", String(l.caminho).toLowerCase(), String(l.caminho));
+      sql.exec("update arquivo set chave = ? where caminho = ?", chaveDeCaixa(String(l.caminho)), String(l.caminho));
     }
     sql.exec("create index if not exists arquivo_chave on arquivo (chave)");
   }
 
   outroComOutraCaixa(caminho: string): string | null {
-    const [l] = this.sql.exec<Linha>("select caminho from arquivo where chave = ? and caminho <> ? limit 1", caminho.toLowerCase(), caminho).toArray();
+    const [l] = this.sql.exec<Linha>("select caminho from arquivo where chave = ? and caminho <> ? limit 1", chaveDeCaixa(caminho), caminho).toArray();
     return l ? String(l.caminho) : null;
   }
 
@@ -84,7 +84,7 @@ export class ArmazenamentoSqlite implements Armazenamento {
        on conflict (caminho) do update set versao = excluded.versao, hash = excluded.hash, conteudo = excluded.conteudo,
          binario = excluded.binario, apagado = excluded.apagado, autor_id = excluded.autor_id, atualizado_em = excluded.atualizado_em`,
       r.caminho,
-      r.caminho.toLowerCase(),
+      chaveDeCaixa(r.caminho),
       r.versao,
       r.hash,
       r.conteudo,

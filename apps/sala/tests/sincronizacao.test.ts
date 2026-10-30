@@ -120,6 +120,14 @@ describe("Sincronizacao depois do gate (Story 3.3)", () => {
     expect(armazenamento.todos().map((r) => r.caminho)).toEqual(["README.md"]);
   });
 
+  it("o mesmo nome com o acento em outra forma Unicode (NFD do macOS) também colide (REL-011)", async () => {
+    const { sinc } = nova();
+    await sinc.escrever("lucas", await escrita("Ação.md", "a\n", 0, { conteudoBase: null }));
+    const nfd = "Ação.md".normalize("NFD");
+    expect(nfd).not.toBe("Ação.md");
+    expect((await sinc.escrever("pai", await escrita(nfd, "b\n", 0, { conteudoBase: null })))[0]!.mensagem).toMatchObject({ motivo: "caminho_invalido" });
+  });
+
   it("sem a base da versão 0, a escrita concorrente vai para o histórico em vez de ser juntada contra base errada (DATA-003)", async () => {
     const { sinc, armazenamento } = nova();
     // A primeira escrita veio sem conteudoBase (conector antigo).

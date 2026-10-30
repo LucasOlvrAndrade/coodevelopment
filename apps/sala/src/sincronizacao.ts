@@ -63,6 +63,13 @@ const comoArquivo = (r: Registro, origem: MensagemArquivo["origem"]): MensagemAr
 // O merge de três vias mora no protocolo: a sala e o conector usam o mesmo.
 export { juntar };
 
+// Chave para comparar caminhos sem diferenciar caixa nem a forma do acento:
+// o macOS manda "ç" decomposto (NFD) e o Windows composto (NFC), e os dois são
+// o mesmo nome (gate da 3.3, REL-001 e REL-011).
+export function chaveDeCaixa(caminho: string): string {
+  return caminho.normalize("NFC").toLowerCase();
+}
+
 export class Sincronizacao {
   // Uma escrita por vez: o hash é assíncrono, e duas escritas no mesmo
   // arquivo não podem ler a mesma versão e gravar as duas.
@@ -186,8 +193,8 @@ export class ArmazenamentoEmMemoria implements Armazenamento {
     return this.arquivos.get(caminho) ?? null;
   }
   outroComOutraCaixa(caminho: string) {
-    const baixo = caminho.toLowerCase();
-    return [...this.arquivos.keys()].find((c) => c !== caminho && c.toLowerCase() === baixo) ?? null;
+    const baixo = chaveDeCaixa(caminho);
+    return [...this.arquivos.keys()].find((c) => c !== caminho && chaveDeCaixa(c) === baixo) ?? null;
   }
   gravar(registro: Registro) {
     this.arquivos.set(registro.caminho, registro);
