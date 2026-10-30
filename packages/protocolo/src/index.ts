@@ -9,6 +9,7 @@ export {
   TAMANHO_MAXIMO,
   caminhoSincronizavel,
   hashDoConteudo,
+  juntar,
   mensagemAceito,
   mensagemArquivo,
   mensagemEscrever,

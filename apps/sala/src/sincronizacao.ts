@@ -2,13 +2,12 @@ import {
   TAMANHO_MAXIMO,
   caminhoSincronizavel,
   hashDoConteudo,
-  normalizarFinalDeLinha,
+  juntar,
   tamanhoDoConteudo,
   type MensagemArquivo,
   type MensagemDaSala,
   type MensagemEscrever,
 } from "@coodevelopment/protocolo";
-import { diff3Merge } from "node-diff3";
 
 // Regra da sincronização de arquivos (Story 3.3, decisão A2). Pura: recebe o
 // armazenamento por uma interface, para rodar no Durable Object (SQLite) e
@@ -61,18 +60,8 @@ const comoArquivo = (r: Registro, origem: MensagemArquivo["origem"]): MensagemAr
   origem,
 });
 
-// Merge de três vias por linha, com o texto em LF (NFR7). Devolve null quando
-// os trechos se cruzam (inclusive linhas vizinhas, como no diff3).
-export function juntar(base: string, nosso: string, deles: string): string | null {
-  const linhas = (t: string) => normalizarFinalDeLinha(t).split("\n");
-  const blocos = diff3Merge(linhas(nosso), linhas(base), linhas(deles), { excludeFalseConflicts: true });
-  const saida: string[] = [];
-  for (const bloco of blocos) {
-    if ("conflict" in bloco && bloco.conflict) return null;
-    if ("ok" in bloco && bloco.ok) saida.push(...bloco.ok);
-  }
-  return saida.join("\n");
-}
+// O merge de três vias mora no protocolo: a sala e o conector usam o mesmo.
+export { juntar };
 
 export class Sincronizacao {
   // Uma escrita por vez: o hash é assíncrono, e duas escritas no mesmo

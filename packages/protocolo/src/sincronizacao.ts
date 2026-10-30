@@ -1,3 +1,4 @@
+import { diff3Merge } from "node-diff3";
 import { z } from "zod";
 import { normalizarCaminho, normalizarFinalDeLinha } from "./normalizacao";
 
@@ -44,6 +45,20 @@ export function caminhoSincronizavel(caminho: string): { ok: true; caminho: stri
   const nome = partes.at(-1)!.toLowerCase();
   if (nome.startsWith(".env") && nome !== ".env.example") return { ok: false, motivo: "proibido" };
   return { ok: true, caminho: normal };
+}
+
+// Merge de três vias por linha (decisão A2), com o texto em LF (NFR7), usado
+// pela sala e pelo conector. Devolve null quando os trechos se cruzam
+// (inclusive linhas vizinhas, como no diff3).
+export function juntar(base: string, nosso: string, deles: string): string | null {
+  const linhas = (t: string) => normalizarFinalDeLinha(t).split("\n");
+  const blocos = diff3Merge(linhas(nosso), linhas(base), linhas(deles), { excludeFalseConflicts: true });
+  const saida: string[] = [];
+  for (const bloco of blocos) {
+    if ("conflict" in bloco && bloco.conflict) return null;
+    if ("ok" in bloco && bloco.ok) saida.push(...bloco.ok);
+  }
+  return saida.join("\n");
 }
 
 function base64ParaBytes(base64: string): Uint8Array<ArrayBuffer> {

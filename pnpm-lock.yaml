@@ -13,9 +13,6 @@ importers:
       '@coodevelopment/protocolo':
         specifier: workspace:*
         version: link:../../packages/protocolo
-      node-diff3:
-        specifier: 3.2.0
-        version: 3.2.0
       partyserver:
         specifier: 0.5.10
         version: 0.5.10(@cloudflare/workers-types@5.20261023.1)
@@ -184,6 +181,9 @@ importers:
 
   packages/protocolo:
     dependencies:
+      node-diff3:
+        specifier: 3.2.0
+        version: 3.2.0
       zod:
         specifier: 4.6.7
         version: 4.6.7

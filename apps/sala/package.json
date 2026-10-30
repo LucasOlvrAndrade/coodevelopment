@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@coodevelopment/protocolo": "workspace:*",
-    "node-diff3": "3.2.0",
     "partyserver": "0.5.10"
   },
   "devDependencies": {
