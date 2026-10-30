@@ -29,6 +29,9 @@ export type Conteudo = { conteudo: string; binario: boolean; apagado: boolean };
 
 export interface Armazenamento {
   ler(caminho: string): Registro | null;
+  // Outro arquivo com o mesmo caminho em outra caixa ("README.md" e
+  // "Readme.md"): um arquivo só no Windows e no macOS.
+  outroComOutraCaixa(caminho: string): string | null;
   gravar(registro: Registro): void;
   // O conteúdo de cada versão aceita, para servir de base a um merge; a
   // versão 0 é o conteúdo do baseSha, guardado na primeira escrita.
@@ -40,7 +43,7 @@ export interface Armazenamento {
 
 export type Envio = { para: "autor" | "outros" | "todos"; mensagem: MensagemDaSala };
 
-const recusado = (caminho: string, motivo: "conflito_guardado" | "caminho_invalido" | "proibido" | "grande_demais"): Envio => ({
+const recusado = (caminho: string, motivo: "conflito_guardado" | "caminho_invalido" | "proibido" | "grande_demais" | "erro"): Envio => ({
   para: "autor",
   mensagem: { v: 1, tipo: "recusado", caminho, motivo },
 });
@@ -91,8 +94,13 @@ export class Sincronizacao {
     ];
   }
 
+  // Qualquer erro no meio (base64 inválido, banco) volta como recusado para o
+  // autor: sem resposta, a escrita dele ficaria no ar (gate da 3.3, REL-002).
   escrever(autorId: string, msg: MensagemEscrever): Promise<Envio[]> {
-    const vez = this.fila.then(() => this.processar(autorId, msg));
+    const vez = this.fila.then(() => this.processar(autorId, msg)).catch((e: unknown) => {
+      console.error(JSON.stringify({ nivel: "erro", evento: "escrever", caminho: msg.caminho, erro: String(e) }));
+      return [recusado(msg.caminho, "erro")];
+    });
     this.fila = vez.catch(() => {});
     return vez;
   }
@@ -104,14 +112,23 @@ export class Sincronizacao {
     if (tamanhoDoConteudo(msg.conteudo, msg.binario) > TAMANHO_MAXIMO) return [recusado(caminho, "grande_demais")];
 
     const atual = this.armazenamento.ler(caminho);
+    // Caixa diferente de um caminho que já circula: no Windows seriam o mesmo
+    // arquivo, e as pastas nunca convergiriam (gate da 3.3, REL-001).
+    if (!atual && this.armazenamento.outroComOutraCaixa(caminho)) return [recusado(caminho, "caminho_invalido")];
     const versaoAtual = atual?.versao ?? 0;
     const chegou: Conteudo = { conteudo: msg.apagado ? "" : msg.conteudo, binario: msg.binario, apagado: msg.apagado };
 
     // Primeira escrita do arquivo: o conteúdo do baseSha vira a versão 0,
-    // base dos merges seguintes. Sem ele (arquivo novo), a base é vazia.
+    // base dos merges seguintes; null é arquivo que não existia no baseSha.
+    // Sem a base (não veio, ou acima do limite), a versão 0 fica sem registro,
+    // e uma escrita concorrente a partir dela vai para o histórico em vez de
+    // ser juntada contra uma base errada (gate da 3.3, DATA-003 e REL-002).
     if (!atual) {
       const base = msg.conteudoBase;
-      this.armazenamento.guardarVersao(caminho, 0, { conteudo: base ?? "", binario: msg.binario, apagado: base == null });
+      if (base === null) this.armazenamento.guardarVersao(caminho, 0, { conteudo: "", binario: msg.binario, apagado: true });
+      else if (base !== undefined && tamanhoDoConteudo(base, false) <= TAMANHO_MAXIMO) {
+        this.armazenamento.guardarVersao(caminho, 0, { conteudo: base, binario: false, apagado: false });
+      }
     }
 
     // Escreveu a partir da versão atual: entra como veio.
@@ -178,6 +195,10 @@ export class ArmazenamentoEmMemoria implements Armazenamento {
 
   ler(caminho: string) {
     return this.arquivos.get(caminho) ?? null;
+  }
+  outroComOutraCaixa(caminho: string) {
+    const baixo = caminho.toLowerCase();
+    return [...this.arquivos.keys()].find((c) => c !== caminho && c.toLowerCase() === baixo) ?? null;
   }
   gravar(registro: Registro) {
     this.arquivos.set(registro.caminho, registro);

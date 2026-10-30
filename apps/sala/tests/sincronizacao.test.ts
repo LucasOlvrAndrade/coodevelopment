@@ -112,6 +112,39 @@ describe("Sincronizacao.escrever (Story 3.3)", () => {
   });
 });
 
+describe("Sincronizacao depois do gate (Story 3.3)", () => {
+  it("caminho que só muda a caixa de um que já circula é recusado (REL-001)", async () => {
+    const { sinc, armazenamento } = nova();
+    await sinc.escrever("lucas", await escrita("README.md", "a\n", 0, { conteudoBase: null }));
+    expect((await sinc.escrever("pai", await escrita("Readme.md", "b\n", 0, { conteudoBase: null })))[0]!.mensagem).toMatchObject({ tipo: "recusado", motivo: "caminho_invalido" });
+    expect(armazenamento.todos().map((r) => r.caminho)).toEqual(["README.md"]);
+  });
+
+  it("sem a base da versão 0, a escrita concorrente vai para o histórico em vez de ser juntada contra base errada (DATA-003)", async () => {
+    const { sinc, armazenamento } = nova();
+    // A primeira escrita veio sem conteudoBase (conector antigo).
+    await sinc.escrever("lucas", await escrita("x.txt", "a\nB\nc\nd\ne\n", 0));
+    expect(armazenamento.lerVersao("x.txt", 0)).toBeNull();
+    const envios = await sinc.escrever("pai", await escrita("x.txt", "a\nb\nc\nd\nE\n", 0));
+    expect(envios[0]!.mensagem).toMatchObject({ tipo: "recusado", motivo: "conflito_guardado" });
+    expect(armazenamento.historico[0]).toMatchObject({ autorId: "pai", conteudo: "a\nb\nc\nd\nE\n" });
+  });
+
+  it("conteudoBase acima de 1 MB não é guardado (REL-002)", async () => {
+    const { sinc, armazenamento } = nova();
+    await sinc.escrever("lucas", await escrita("y.txt", "pequeno\n", 0, { conteudoBase: "x".repeat(1024 * 1024 + 1) }));
+    expect(armazenamento.lerVersao("y.txt", 0)).toBeNull();
+    expect(armazenamento.ler("y.txt")).toMatchObject({ versao: 1, conteudo: "pequeno\n" });
+  });
+
+  it("erro no meio (base64 inválido) volta como recusado, e a próxima escrita segue (REL-002)", async () => {
+    const { sinc } = nova();
+    const ruim = { ...(await escrita("img.png", "AAAA", 0, { binario: true })), conteudo: "isto não é base64!!" };
+    expect(await sinc.escrever("lucas", ruim)).toEqual([{ para: "autor", mensagem: { v: 1, tipo: "recusado", caminho: "img.png", motivo: "erro" } }]);
+    expect((await sinc.escrever("lucas", await escrita("ok.txt", "ok\n", 0, { conteudoBase: null })))[0]!.mensagem).toMatchObject({ tipo: "aceito" });
+  });
+});
+
 describe("Sincronizacao.estado (AC 5)", () => {
   it("quem conecta depois recebe o manifesto e cada arquivo atual", async () => {
     const { sinc } = nova();

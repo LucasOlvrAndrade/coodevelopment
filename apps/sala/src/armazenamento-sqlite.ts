@@ -7,7 +7,10 @@ import type { Armazenamento, Conteudo, Registro } from "./sincronizacao";
 
 // Versões guardadas por arquivo como base de merge; mais antigas que isso, a
 // escrita de quem ficou tão para trás vai para o histórico (sem perder nada).
-const VERSOES_GUARDADAS = 50;
+const VERSOES_GUARDADAS = 20;
+
+// Histórico guardado por jam: as entradas mais antigas saem (gate da 3.3, PERF-002).
+const HISTORICO_GUARDADO = 500;
 
 type Linha = Record<string, SqlStorageValue>;
 
@@ -52,6 +55,11 @@ export class ArmazenamentoSqlite implements Armazenamento {
       apagado integer not null,
       em text not null
     )`);
+  }
+
+  outroComOutraCaixa(caminho: string): string | null {
+    const [l] = this.sql.exec<Linha>("select caminho from arquivo where lower(caminho) = lower(?) and caminho <> ? limit 1", caminho, caminho).toArray();
+    return l ? String(l.caminho) : null;
   }
 
   ler(caminho: string): Registro | null {
@@ -104,6 +112,7 @@ export class ArmazenamentoSqlite implements Armazenamento {
       e.apagado ? 1 : 0,
       e.em,
     );
+    this.sql.exec("delete from historico where id <= (select max(id) from historico) - ?", HISTORICO_GUARDADO);
   }
 
   todos(): Registro[] {
