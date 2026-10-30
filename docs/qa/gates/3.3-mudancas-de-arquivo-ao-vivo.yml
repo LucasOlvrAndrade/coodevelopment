@@ -1,27 +1,64 @@
 schema: 1
 story: '3.3'
 story_title: 'Mudanças de arquivo ao vivo'
-gate: FAIL
-status_reason: 'Revisor independente em 30/10: dois achados altos. SEC-001 (reproduzido): o nome curto 8.3 do NTFS (GIT~1) e o fluxo alternativo (::$INDEX_ALLOCATION) passam pelo filtro de .git, e um participante grava um hook do git no PC do outro (execução de código no próximo commit). DATA-001: quando a sala junta a nossa escrita e a pasta mudou no meio, a escrita fica no ar para sempre e o arquivo para de circular até reconectar, sem aviso. Mais 8 médios (perda de trabalho no conflito, conflito falso depois de salvar sem mudança, .gitignore furado para nome acentuado, texto que não é UTF-8 corrompido, caixa diferente no mesmo arquivo, conteudoBase sem limite derrubando a sala, varredura cara, testes faltando). Medição em produção boa (20 de 20 abaixo de 2 s) e ACs 1, 4 e 5 cobertos.'
-reviewer: 'Quinn (@qa), via Claude, com revisor independente'
-reviewed_revision: 'commit:4566aae'
+gate: PASS
+status_reason: 'Revisor independente em três rodadas, 30/10. Rodada 1: FAIL com dois altos (SEC-001, gravar hook do git no PC do outro pelo nome curto GIT~1, reproduzido; DATA-001, arquivo travado depois de merge com a pasta mudada) e 8 médios. Rodada 2: CONCERNS, com os altos fechados e o DATA-005 novo (conflito falso quando o Claude edita duas vezes seguidas). Rodada 3: PASS. Todos os altos e médios corrigidos com teste; os testes de DATA-001, DATA-003, DATA-005, SEC-002 e REL-001 foram conferidos contra o código antigo (falham com ele). Produção: 20 de 20 mudanças abaixo de 2 s pela sala da Cloudflare (mediana 474 ms).'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em três rodadas'
+reviewed_revision: 'commit:725e852 (FAIL em 4566aae, CONCERNS em 1847393)'
 updated: '2026-10-30T00:00:00Z'
 
-top_issues:
-  - { id: 'SEC-001', severity: high, finding: '.git pelo nome curto 8.3 (GIT~1) e por fluxo NTFS (::$INDEX_ALLOCATION) passa no filtro e no caminhoSeguro; hook gravado no PC do outro (reproduzido)', action: 'recusar ~dígito, :, ponto ou espaço no fim e nomes reservados no protocolo; no conector, conferir o realpath da pasta pai contra .git antes do rename' }
-  - { id: 'DATA-001', severity: high, finding: 'merge da nossa escrita com a pasta mudada no meio não limpa a escrita no ar; o arquivo trava (o mesmo com versão base à frente)', action: 'todo arquivo que resolve a nossa escrita limpa o pendente; com a pasta mudada, reenviar com a base antiga para a sala juntar; prazo para escrita sem resposta' }
-  - { id: 'DATA-002', severity: medium, finding: 'no conflito, o que mudou na pasta depois do envio é sobrescrito sem histórico', action: 'com a pasta diferente do enviado, reenviar com a base antiga em vez de sobrescrever' }
-  - { id: 'DATA-003', severity: medium, finding: 'pasta igual ao baseSha marca versão 0 sem conteudoBase; a sala grava base vazia e a próxima escrita dos dois vira conflito falso', action: 'mandar conteudoBase sempre que versaoBase for 0' }
-  - { id: 'SEC-002', severity: medium, finding: 'check-ignore sem -z devolve nome acentuado entre aspas e em octal; arquivo ignorado sai (reproduzido)', action: 'check-ignore -z --stdin' }
-  - { id: 'DATA-004', severity: medium, finding: 'texto que não é UTF-8 é lido como UTF-8 e corrompido', action: 'UTF-8 inválido vira binário' }
-  - { id: 'REL-001', severity: medium, finding: 'README.md e Readme.md viram dois registros, um arquivo só no Windows', action: 'sala recusa caminho que colide sem diferenciar caixa' }
-  - { id: 'REL-002', severity: medium, finding: 'conteudoBase sem limite estoura a linha do SQLite; erro no onMessage não responde e trava a escrita', action: 'limitar conteudoBase; try/catch no onMessage com recusado' }
-  - { id: 'PERF-001', severity: medium, finding: 'varredura de 10 s relê e calcula hash de todo arquivo conhecido', action: 'só reler quando mtime ou tamanho mudam' }
-  - { id: 'TEST-001', severity: medium, finding: 'faltam testes dos casos acima', action: 'um teste por caso' }
+top_issues: []
+
+resolved_issues:
+  - { id: 'SEC-001', severity: high, fix: 'protocolo recusa ~dígito, :, ponto ou espaço no fim, nomes reservados e caracteres proibidos; conector confere o realpath da pasta contra a raiz e o .git antes de gravar e de apagar' }
+  - { id: 'DATA-001', severity: high, fix: 'todo merge da nossa escrita limpa a escrita no ar; escrita sem resposta em 30 s sai de novo, também pela varredura' }
+  - { id: 'DATA-005', severity: medium, fix: 'pasta mudada durante o nosso merge: o conector junta localmente (base = enviado, nosso = pasta, deles = merge) e manda a partir do merge; teste com a regra real da sala' }
+  - { id: 'DATA-002', severity: medium, fix: 'depois de conflito, pasta mudada sai de novo em vez de ser sobrescrita' }
+  - { id: 'DATA-003', severity: medium, fix: 'conteudoBase sempre que a base é a versão 0; a sala só guarda a versão 0 quando a base chega' }
+  - { id: 'DATA-004', severity: medium, fix: 'UTF-8 inválido circula como binário, sem corromper' }
+  - { id: 'SEC-002', severity: medium, fix: 'check-ignore -z: nome acentuado ignorado não sai' }
+  - { id: 'REL-001', severity: medium, fix: 'coluna chave (minúsculas e NFC no JavaScript) com índice; recusa caminho que colide em outra caixa ou forma de acento; salas antigas migradas' }
+  - { id: 'REL-002', severity: medium, fix: 'base acima de 1 MB não é guardada; qualquer erro em escrever responde recusado' }
+  - { id: 'PERF-001', severity: medium, fix: 'varredura só relê o que mudou de data ou tamanho' }
+  - { id: 'TEST-001', severity: medium, fix: 'testes de cada caso; pacotes testados um de cada vez (o teste de tempo falhava por CPU saturada com tudo junto)' }
+  - { id: 'SEC-003', severity: low, fix: 'nomes reservados do Windows recusados' }
+  - { id: 'SEC-004', severity: low, fix: 'aviso único no terminal para nome que não funciona no Windows' }
+  - { id: 'REL-003', severity: low, fix: 'gravação presa tenta de novo na varredura' }
+  - { id: 'REL-004', severity: low, fix: 'permissão de execução preservada' }
+  - { id: 'REL-006', severity: low, fix: 'temporário do conector nunca circula' }
+  - { id: 'REL-007', severity: low, fix: 'resposta estado com escrita no ar sai a partir da versão 0, sem passar por cima de outra pessoa' }
+  - { id: 'REL-008', severity: low, fix: 'varredura reenvia escrita perdida e só marca o arquivo depois do envio' }
+  - { id: 'REL-009', severity: low, fix: 'estado com a pasta igual marca a versão da sala' }
+  - { id: 'REL-011', severity: low, fix: 'chave de caixa normaliza o acento (NFC)' }
+  - { id: 'PERF-002', severity: low, fix: '20 versões por arquivo e histórico até 500 por jam' }
+  - { id: 'PERF-003', severity: low, fix: 'índice na chave de caixa' }
+  - { id: 'MNT-001', severity: low, fix: 'erro da varredura aparece uma vez no terminal' }
+
+waived_issues:
+  - { id: 'REL-005', severity: low, finding: 'binário em que a última vence não avisa quem perdeu', reason: 'a versão perdida fica no histórico; o feed da Story 3.4 vai mostrar' }
+  - { id: 'REL-010', severity: low, finding: 'a mesma pessoa com duas pastas na mesma jam: o merge de uma pasta parece "nosso" na outra e o arquivo oscila antes de convergir', reason: 'caso raro e sem perda silenciosa; corrigir pede um id por escrita no protocolo' }
+  - { id: 'PERF-002b', severity: low, finding: 'o estado() carrega todos os conteúdos na memória da sala a cada conexão', reason: 'jams de até 3 pessoas e arquivos de até 1 MB; rever se as jams crescerem' }
+  - { id: 'TEST-002', severity: low, finding: 'o teste do AC 1 aceita até 5 s, com até 2 repetições; os 2 s do NFR2 ficam na medição de produção', reason: 'um limite de 2 s por mudança falhava à toa na máquina compartilhada do CI; vigia quebrado falha sempre e continua sendo pego' }
+  - { id: 'MNT-002', severity: low, finding: 'testes do conector importam a regra da sala por caminho relativo', reason: 'é o que dá valor ao teste (a regra de verdade); aceitável' }
 
 evidence:
-  tools: 'pnpm -r test, typecheck e lint ok (conector 67, sala 25, protocolo 25, web 313); sonda do revisor reproduziu SEC-001 e SEC-002'
-  production: '20 de 20 mudanças abaixo de 2 s pela sala da Cloudflare (mediana 474 ms), 30/10'
+  tests_reviewed: 455
+  tools: 'pnpm test (pacotes um de cada vez): plugin 3, protocolo 27, sala 31, web 313, conector 80 e 1 pulado (só fora do Windows); typecheck e lint ok; CI verde no Windows'
+  production: '30/10: duas pastas na mesma jam pela sala da Cloudflare, 20 de 20 abaixo de 2 s nos dois sentidos (mediana 474 ms, p95 490 ms, máximo 535 ms), sem erro nos terminais'
   trace:
-    ac_covered: [1, 4, 5]
-    ac_gaps: [2, 3, 6, 7]
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Gravação no disco do outro com duas camadas (filtro de nomes e realpath da pasta); nada em .git, fora da raiz ou por link; .gitignore com -z.'
+  reliability:
+    status: PASS
+    notes: 'Sem trava e sem perda silenciosa: merge local, reenvio, varredura do que o vigia perde, gravação presa tentada de novo.'
+  performance:
+    status: PASS
+    notes: 'NFR2 medido em produção. Varredura de 10 s com cache de data e tamanho (cerca de 250 ms por varredura num repositório de 1.683 arquivos). Sob CPU saturada, uma mudança pode esperar a varredura.'
+  maintainability:
+    status: PASS
+    notes: 'Regra da sala pura e testada em Node e no workerd; merge de três vias único no protocolo.'
