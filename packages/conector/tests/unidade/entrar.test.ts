@@ -7,18 +7,36 @@ import { ambienteFalso, type RespostaFalsa } from "../apoio/ambiente-falso";
 // conecta na hora e fica aberta até fechar.
 const sala = vi.hoisted(() => ({ conectar: vi.fn() }));
 vi.mock("../../src/sala", () => ({ conectarNaSala: sala.conectar }));
+// A sincronização de verdade tem o próprio teste de integração; aqui ela é muda.
+const sinc = vi.hoisted(() => ({ criado: vi.fn(), vigiando: vi.fn(), parou: vi.fn() }));
+vi.mock("../../src/sincronizar", () => ({
+  Sincronizador: class {
+    constructor(...args: unknown[]) {
+      sinc.criado(...args);
+    }
+    async preparar() {}
+    async comecarAVigiar() {
+      sinc.vigiando();
+    }
+    async parar() {
+      sinc.parou();
+    }
+    receber() {}
+    reconectou() {}
+  },
+}));
 
 const { executar } = await import("../../src/comandos");
 
-const JAM = { jamId: "k7m2-rbq9", nome: "projeto", estado: "aberta", repo: { owner: "lucas", nome: "projeto", id: 1296269 }, branch: "main" };
+const JAM = { jamId: "k7m2-rbq9", nome: "projeto", estado: "aberta", repo: { owner: "lucas", nome: "projeto", id: 1296269 }, branch: "main", baseSha: "abc123", eu: "lucas" };
 
 function salaQueConecta(recusa?: string) {
-  sala.conectar.mockImplementation(async (_amb, _sessao, _jam, aoConectar: () => void) => {
-    aoConectar();
+  sala.conectar.mockImplementation(async (_amb, _sessao, _jam, opcoes: { aoConectar: () => void }) => {
+    opcoes.aoConectar();
     let fechar: (m: string) => void = () => {};
     const fechou = new Promise<string>((r) => (fechar = r));
     if (recusa) fechar(recusa);
-    return { fechar: () => fechar(""), fechou };
+    return { fechar: () => fechar(""), fechou, enviar: vi.fn() };
   });
 }
 
@@ -52,10 +70,14 @@ describe("entrar (Story 3.1)", () => {
     await vi.waitFor(async () => expect(await lerPasta(amb, raiz)).toMatchObject({ jamId: "k7m2-rbq9", pid: process.pid }));
     expect(linhas).toContain("Conectado à jam projeto. Deixe esta janela aberta; Ctrl+C desliga.");
     expect(pedidos[0]).toMatchObject({ caminho: "/api/jams/k7m2-rbq9/conector", cabecalhos: { authorization: "Bearer sessao-guardada" } });
-    expect(sala.conectar).toHaveBeenCalledWith(amb, "sessao-guardada", "k7m2-rbq9", expect.any(Function));
+    expect(sala.conectar).toHaveBeenCalledWith(amb, "sessao-guardada", "k7m2-rbq9", expect.objectContaining({ aoConectar: expect.any(Function) }));
+    // A pasta sincroniza com a base e o id que vieram do app (Story 3.3).
+    expect(sinc.criado).toHaveBeenCalledWith(amb, raiz, "abc123", "lucas", expect.anything());
+    expect(sinc.vigiando).toHaveBeenCalled();
 
     ctrlC();
     expect(await resultado).toEqual({ saida: "", codigo: 0 });
+    expect(sinc.parou).toHaveBeenCalled();
     expect(await lerPasta(amb, raiz)).toBeNull();
     expect(linhas.at(-1)).toBe("Desligado da jam.");
   });

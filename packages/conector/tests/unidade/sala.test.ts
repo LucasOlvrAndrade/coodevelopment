@@ -52,7 +52,7 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
       { corpo: { token: "t1", ...SALA } },
       { corpo: { token: "t2", ...SALA } },
     ]);
-    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", aoConectar, WebSocketFalso as unknown as typeof WebSocket);
+    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, WebSocket: WebSocketFalso as unknown as typeof WebSocket });
     await vi.waitFor(() => expect(conexoes).toHaveLength(1));
     expect(conexoes[0]!.url).toMatch(/^wss:\/\/sala\.teste\/parties\/jam\/k7m2-rbq9\?/);
     expect(tokenDaUrl(conexoes[0]!)).toBe("t1");
@@ -73,7 +73,7 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
 
   it("a sala recusa o token (4401): o conector para com a explicação", async () => {
     const { amb, aoConectar } = preparar([{ corpo: { token: "t1", ...SALA } }]);
-    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", aoConectar, WebSocketFalso as unknown as typeof WebSocket);
+    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, WebSocket: WebSocketFalso as unknown as typeof WebSocket });
     await vi.waitFor(() => expect(conexoes).toHaveLength(1));
     conexoes[0]!.cair(4401);
     expect(await conexao.fechou).toBe("A sala recusou a entrada. Rode o comando de novo.");
@@ -85,7 +85,7 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
     [409, "A jam foi fechada."],
   ])("na reconexão, o app responde %i: o conector para em vez de tentar para sempre (REL-001)", async (status, motivo) => {
     const { amb, aoConectar } = preparar([{ corpo: { token: "t1", ...SALA } }, { status, corpo: { error: { code: "x", message: "x" } } }]);
-    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", aoConectar, WebSocketFalso as unknown as typeof WebSocket);
+    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, WebSocket: WebSocketFalso as unknown as typeof WebSocket });
     await vi.waitFor(() => expect(conexoes).toHaveLength(1));
     conexoes[0]!.abrir();
     conexoes[0]!.cair(1006);
@@ -94,7 +94,7 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
 
   it("sem a sala no ar (503 no primeiro token), nem tenta conectar", async () => {
     const { amb, aoConectar } = preparar([{ status: 503, corpo: { error: { code: "sala_indisponivel", message: "x" } } }]);
-    await expect(conectarNaSala(amb, "sessao", "k7m2-rbq9", aoConectar, WebSocketFalso as unknown as typeof WebSocket)).rejects.toMatchObject({ status: 503 });
+    await expect(conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, WebSocket: WebSocketFalso as unknown as typeof WebSocket })).rejects.toMatchObject({ status: 503 });
     expect(conexoes).toHaveLength(0);
   });
 });
