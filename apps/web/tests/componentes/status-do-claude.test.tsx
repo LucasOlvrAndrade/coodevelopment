@@ -93,3 +93,11 @@ describe("status do Claude na página da jam (Story 4.1)", () => {
     expect(screen.queryByText(/está trabalhando/)).toBeNull();
   });
 });
+
+describe("resumo do aviso no status (Story 4.2)", () => {
+  it("com aviso, o status diz em que ele está trabalhando (AC 1)", async () => {
+    await pagina();
+    daSala({ tipo: "claudes", trabalhando: [{ usuarioId: "lucas", desde: "2026-11-03T12:00:00.000Z", resumo: "Login com Google" }] });
+    expect(screen.getByText(/Claude Code de Lucas Andrade está trabalhando/)).toHaveTextContent("Claude Code de Lucas Andrade está trabalhando em: Login com Google");
+  });
+});

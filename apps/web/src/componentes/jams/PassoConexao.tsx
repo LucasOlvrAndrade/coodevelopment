@@ -185,6 +185,11 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
             </p>
           </div>
           <BlocoCopiar texto={comandoDeEntrar(jamId, pasta)} rotulo="Comando para entrar na jam" />
+          {/* Plugin com servidor MCP (Story 4.2): o Claude Code pede aprovação uma vez. */}
+          <p className="text-pequeno text-texto-suave">
+            Na primeira vez que abrir o Claude Code nessa pasta, ele pede para aprovar o servidor <span className="font-mono">coodevelopment</span>:
+            aprove, para ele poder anunciar o que vai fazer.
+          </p>
           <AguardandoConexao />
           <div>
             <button type="button" onClick={() => marcar(false)} className={`${link} text-pequeno`}>

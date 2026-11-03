@@ -17,19 +17,23 @@ export const MOTIVO: Record<MotivoDeParada, string> = {
   unknown: "erro",
 };
 
-// "Claude Code de {nome} está trabalhando" na faixa do participante (Story
-// 4.1, FR12, D9). O resumo do que ele faz vem com o anunciar (Story 4.2).
+// "Claude Code de {nome} está trabalhando em: {resumo}" na faixa do
+// participante (Story 4.1, FR12, D9); o resumo vem do anunciar (Story 4.2).
 // A região é anunciada ao leitor de tela quando muda.
 export function StatusDoClaude({ usuarioId, nome, eu }: { usuarioId: string; nome: string; eu: string }) {
   const { trabalhando, parou } = useClaudes();
   const de = usuarioId === eu ? "Seu Claude Code" : `Claude Code de ${nome}`;
   const motivo = parou.get(usuarioId);
+  const agora = trabalhando.get(usuarioId);
   return (
     <p aria-live="polite" className="min-h-0 text-pequeno">
-      {trabalhando.has(usuarioId) ? (
-        <span className="inline-flex items-center gap-2 font-medium text-texto">
-          <span aria-hidden className="size-2 shrink-0 rounded-full bg-sucesso motion-safe:animate-pulse" />
-          {de} está trabalhando
+      {agora ? (
+        <span className="inline-flex items-start gap-2 font-medium text-texto">
+          <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-sucesso motion-safe:animate-pulse" />
+          <span className="min-w-0 break-words">
+            {de} está trabalhando
+            {agora.resumo && <span className="font-normal">{` em: ${agora.resumo}`}</span>}
+          </span>
         </span>
       ) : motivo ? (
         <span className="text-alerta">

@@ -17,7 +17,9 @@ const Feed = createContext<EstadoFeed>(SEM_FEED);
 
 // Status do Claude de cada participante (Story 4.1): quem está trabalhando,
 // desde quando, e quem parou por erro há pouco (com o motivo).
-export type EstadoClaudes = { trabalhando: ReadonlyMap<string, string>; parou: ReadonlyMap<string, MotivoDeParada> };
+// O resumo é o do aviso ativo (Story 4.2), ou null antes de o Claude anunciar.
+export type Trabalhando = { desde: string; resumo: string | null };
+export type EstadoClaudes = { trabalhando: ReadonlyMap<string, Trabalhando>; parou: ReadonlyMap<string, MotivoDeParada> };
 const NENHUM_CLAUDE: EstadoClaudes = { trabalhando: new Map(), parou: new Map() };
 const Claudes = createContext<EstadoClaudes>(NENHUM_CLAUDE);
 
@@ -128,7 +130,7 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
           const msg = lido.data;
           if (msg.tipo === "presenca") setPresenca({ online: new Set(msg.online), conectados: new Set(msg.conectados) });
           else if (msg.tipo === "claudes") {
-            const trabalhando = new Map(msg.trabalhando.map((c) => [c.usuarioId, c.desde]));
+            const trabalhando = new Map(msg.trabalhando.map((c) => [c.usuarioId, { desde: c.desde, resumo: c.resumo ?? null }]));
             // Quem voltou a trabalhar não continua "parado".
             setClaudes((atual) => ({ trabalhando, parou: new Map([...atual.parou].filter(([id]) => !trabalhando.has(id))) }));
           } else if (msg.tipo === "parou") {

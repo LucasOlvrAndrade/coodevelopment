@@ -56,6 +56,8 @@ export function fraseDoEvento(e: EventoFeed, nome: Nomear): string {
       return `${maiuscula(nome(e.autorId))} mudou ${quantos(e)}`;
     case "dependencias":
       return `${maiuscula(nome(e.autorId))} mudou as dependências`;
+    case "aviso":
+      return `${maiuscula(nome(e.autorId))} anunciou: ${e.resumo}`;
     case "conflito":
       return `Conflito em ${e.caminho}`;
     case "grande":
@@ -107,6 +109,8 @@ function ListaDeArquivos({ arquivos, outros }: { arquivos: ArquivoNoFeed[]; outr
                 <span aria-hidden>{r.visivel}</span>
                 <span className="sr-only">{r.lido}</span>
                 {a.juntado && ", juntado com outra mudança"}
+                {/* Veio sem aviso do Claude: terminal, edição à mão (Story 4.2, FR19). */}
+                {a.semAviso && <span className="ml-2 rounded-full px-1.5 text-alerta ring-1 ring-alerta/50">sem aviso</span>}
               </span>
             </li>
           );
@@ -130,6 +134,16 @@ function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
           </p>
         </>
       );
+    case "aviso":
+      return e.arquivos.length ? (
+        <ul aria-label="Arquivos que ele vai mexer" className="flex flex-wrap gap-1.5">
+          {e.arquivos.map((c) => (
+            <li key={c} className="rounded-full bg-texto/5 px-2 py-0.5 ring-1 ring-divisoria">
+              <Caminho>{c}</Caminho>
+            </li>
+          ))}
+        </ul>
+      ) : null;
     case "conflito":
       return (
         <>
@@ -164,6 +178,7 @@ const DESTAQUE: Record<EventoFeed["tipo"], string> = {
   dependencias: "ring-1 ring-alerta/60 bg-alerta/5",
   conflito: "ring-1 ring-erro/50 bg-erro/5",
   grande: "",
+  aviso: "ring-1 ring-sucesso/40",
 };
 
 // Feed da jam (Story 3.4): o que mudou, quem mudou e o resumo, ao vivo pela

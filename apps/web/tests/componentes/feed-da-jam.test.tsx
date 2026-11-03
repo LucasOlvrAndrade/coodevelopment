@@ -219,3 +219,32 @@ describe("aplicarFeed e quando", () => {
     expect(quando("2026-11-01T11:10:00.000Z", AGORA)).toMatch(/1 de nov/);
   });
 });
+
+describe("aviso e sem aviso no feed (Story 4.2)", () => {
+  it("o aviso aparece com autor, resumo e arquivos (AC 2)", async () => {
+    await pagina();
+    feed([{ ...comum, id: 1, tipo: "aviso", autorId: "lucas", resumo: "Login com Google", arquivos: ["src/auth.ts", "src/login.tsx"] }], true);
+    const [item] = itens();
+    expect(item).toHaveTextContent("Lucas Andrade anunciou: Login com Google");
+    expect(item).toHaveTextContent("src/auth.ts");
+    expect(item).toHaveTextContent("src/login.tsx");
+  });
+
+  it("mudança sem aviso leva a marca (AC 5)", async () => {
+    await pagina();
+    feed(
+      [
+        arquivos(1, "lucas", {
+          arquivos: [
+            { caminho: "gerado.ts", mudanca: "criado", binario: false, adicionadas: 3, removidas: 0, juntado: false, semAviso: true },
+            { caminho: "anunciado.ts", mudanca: "alterado", binario: false, adicionadas: 1, removidas: 0, juntado: false, semAviso: false },
+          ],
+        }),
+      ],
+      true,
+    );
+    const linhas = [...itens()[0]!.querySelectorAll("li")];
+    expect(linhas[0]).toHaveTextContent("sem aviso");
+    expect(linhas[1]).not.toHaveTextContent("sem aviso");
+  });
+});
