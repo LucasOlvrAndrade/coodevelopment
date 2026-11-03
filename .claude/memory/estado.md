@@ -156,3 +156,11 @@ banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 - O que aprendi do Claude Code: marketplace de pasta é lido no lugar, mas o registro (`~/.claude/plugins/installed_plugins.json`) guarda a versão e só muda com `claude plugin update ... --scope local` (idempotente). O `Stop` não vem quando a pessoa aperta Esc: o conector usa `Notification` com matcher `idle_prompt` e uma validade de 10 min renovada pelo `PostToolUse`.
 - Armadilha: com a máquina ocupada (subagente rodando a suíte), o Node do hook pode levar mais de 800 ms para subir; o aviso tem prazo mínimo garantido.
 - **Próximo:** Story 4.2 (`anunciar`: servidor MCP, aviso no feed, Edit/Write sem aviso recusado, "sem aviso" no feed). Pendências: prévia do site do projeto ainda não vista em produção (o `testejam` não tem Website); `aoReconectar` sem teste.
+
+**03/11 (noite): Story 4.2 Done (anunciar), conector 0.5.0 no npm.**
+- Ferramenta `anunciar` (servidor MCP do plugin, `scripts/mcp.mjs` + `anunciar.mjs`, sem dependências); `PreToolUse` de Edit/Write/MultiEdit/NotebookEdit recusa sem aviso; aviso no status ("trabalhando em: ..."), item no feed e marca "sem aviso" (folga de 30 s). Decisão A18.
+- **Aviso por sessão do Claude:** o PreToolUse da própria ferramenta anunciar chega com o `session_id` antes do MCP (conferido no 2.1.316); prompt novo pede anúncio novo (depois de Esc o Stop não vem). Mensagem `aviso_fim` para a sala.
+- Gate PASS depois de duas rodadas CONCERNS. Conferência real com o Claude Code e conector simulado (`anunciar-local.mjs` no scratchpad): Edit recusado → anunciar → Edit liberado. O MCP do plugin não pediu aprovação.
+- **O Lucas apagou o repositório `testejam` e as pastas `teste-jam`/`teste-jam2`.** A jam `vsud-6ykt` aponta para um repositório que não existe; para conferir em produção de ponta a ponta, precisa de uma jam nova (com um repositório de teste que ele crie ou autorize).
+- Achado de carona: `entrar --pasta` numa pasta vazia dentro de outro repositório git (o `%TEMP%` desta máquina é um) pegava o repositório de cima; agora clona na pasta escolhida.
+- **Próximo:** 4.3 (contexto cruzado: avisos dos outros injetados no prompt) e 4.4 (conflito em arquivo reservado).
