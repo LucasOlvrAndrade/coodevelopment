@@ -12,13 +12,25 @@ const CORPO_MAXIMO = 16 * 1024;
 const motivo = (erro: unknown): MotivoDeParada =>
   typeof erro === "string" && (MOTIVOS_DE_PARADA as readonly string[]).includes(erro) ? (erro as MotivoDeParada) : "unknown";
 
+// Sem nenhum evento por esse tempo, a sessão conta como parada: o Stop não
+// vem quando a pessoa interrompe com Esc nem quando a janela é fechada à
+// força (gate da 4.1, REL-001). O fim de cada ferramenta renova.
+export const SESSAO_VALE_MS = 10 * 60 * 1000;
+
+const TERMINA = new Set(["Stop", "StopFailure", "SessionEnd", "Notification"]);
+
 // O Claude da pasta trabalha enquanto alguma sessão dele estiver no meio de
 // um prompt (pode haver mais de um Claude Code aberto na mesma pasta). O
-// status muda só quando a primeira começa ou a última termina.
+// status muda só quando a primeira começa ou a última termina. Notification
+// chega só com o Claude ocioso, esperando a pessoa (matcher idle_prompt).
 export class StatusDoClaude {
-  private sessoes = new Set<string>();
+  // Sessão → último evento dela.
+  private sessoes = new Map<string, number>();
 
-  constructor(private aoMudar: (m: MensagemStatus) => void) {}
+  constructor(
+    private aoMudar: (m: MensagemStatus) => void,
+    private agora: () => number = Date.now,
+  ) {}
 
   get trabalhando(): boolean {
     return this.sessoes.size > 0;
@@ -28,11 +40,24 @@ export class StatusDoClaude {
     const sessao = typeof corpo.session_id === "string" ? corpo.session_id : null;
     if (!sessao) return;
     const antes = this.trabalhando;
-    if (nome === "UserPromptSubmit") this.sessoes.add(sessao);
-    else if (nome === "Stop" || nome === "StopFailure" || nome === "SessionEnd") this.sessoes.delete(sessao);
+    if (nome === "UserPromptSubmit" || nome === "PostToolUse") this.sessoes.set(sessao, this.agora());
+    else if (TERMINA.has(nome)) this.sessoes.delete(sessao);
     else return;
+    this.avisar(antes, nome === "StopFailure" ? motivo(corpo.error) : null);
+  }
+
+  // Tira as sessões sem evento há mais que a validade; o conector chama de
+  // tempos em tempos.
+  vencer(): void {
+    const antes = this.trabalhando;
+    const limite = this.agora() - SESSAO_VALE_MS;
+    for (const [sessao, ultimo] of this.sessoes) if (ultimo < limite) this.sessoes.delete(sessao);
+    this.avisar(antes, null);
+  }
+
+  private avisar(antes: boolean, motivoDaParada: MotivoDeParada | null) {
     if (!antes && this.trabalhando) this.aoMudar({ v: 1, tipo: "status", estado: "trabalhando", motivo: null });
-    else if (antes && !this.trabalhando) this.aoMudar({ v: 1, tipo: "status", estado: "parado", motivo: nome === "StopFailure" ? motivo(corpo.error) : null });
+    else if (antes && !this.trabalhando) this.aoMudar({ v: 1, tipo: "status", estado: "parado", motivo: motivoDaParada });
   }
 }
 

@@ -83,7 +83,9 @@ export async function executar(argumentos: string[], amb: Ambiente, parar: Promi
         // A pasta escolhida faz o papel da pasta atual: o repositório já
         // clonado, ou onde clonar.
         if (lido.pasta) {
-          const pasta = resolve(amb.cwd, lido.pasta);
+          // Uma aspa no fim é o "\" + aspa do terminal do Windows engolindo a
+          // aspa de fechamento (gate da 4.1, REL-003).
+          const pasta = resolve(amb.cwd, lido.pasta.replace(/"+$/, ""));
           await mkdir(pasta, { recursive: true });
           await entrar({ ...amb, cwd: pasta }, segundo, parar);
         } else await entrar(amb, segundo, parar);

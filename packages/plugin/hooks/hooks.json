@@ -4,11 +4,20 @@
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "timeout": 5 }] }
     ],
+    "PostToolUse": [
+      { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "async": true }] }
+    ],
     "Stop": [
       { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "timeout": 5 }] }
     ],
     "StopFailure": [
       { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "timeout": 5 }] }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "async": true }]
+      }
     ],
     "SessionEnd": [
       { "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs"], "timeout": 5 }] }

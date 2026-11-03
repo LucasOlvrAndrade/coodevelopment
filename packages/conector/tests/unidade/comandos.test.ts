@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { executar, lerPasta } from "../../src/comandos";
 import { ambienteFalso } from "../apoio/ambiente-falso";
@@ -81,12 +83,25 @@ describe("sair", () => {
 
 describe("--pasta (escolher onde clonar)", () => {
   it("lê o caminho nas duas formas e tira do resto dos argumentos", () => {
-    expect(lerPasta(["entrar", "k7m2-rbq9", "--pasta", "C:\Projetos\jam"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: "C:\Projetos\jam" });
+    expect(lerPasta(["entrar", "k7m2-rbq9", "--pasta", "C:\\Projetos\\jam"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: "C:\\Projetos\\jam" });
     expect(lerPasta(["entrar", "--pasta=D:\\Meus projetos", "k7m2-rbq9"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: "D:\\Meus projetos" });
     expect(lerPasta(["entrar", "k7m2-rbq9"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: null });
   });
 
   it("sem o caminho, explica", async () => {
     expect(await executar(["entrar", "k7m2-rbq9", "--pasta"], ambienteFalso().amb)).toEqual({ saida: "Falta o caminho depois de --pasta.", codigo: 1 });
+  });
+});
+
+describe("--pasta no entrar", () => {
+  it("cria a pasta escolhida, relativa à atual, sem a aspa que o terminal deixa no fim (gate da 4.1, REL-003)", async () => {
+    const raiz = mkdtempSync(join(tmpdir(), "coodev-pasta-"));
+    try {
+      const { amb } = ambienteFalso();
+      await executar(["entrar", "k7m2-rbq9", "--pasta", 'projetos/nova jam"'], { ...amb, cwd: raiz });
+      expect(existsSync(join(raiz, "projetos", "nova jam"))).toBe(true);
+    } finally {
+      rmSync(raiz, { recursive: true, force: true });
+    }
   });
 });

@@ -85,6 +85,8 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
   const status = new StatusDoClaude(enviar);
   const hooks = await abrirServidorDeHooks((nome, corpo) => status.evento(nome, corpo));
+  const vencerSessoes = setInterval(() => status.vencer(), 60_000);
+  vencerSessoes.unref();
   await sincronizador.preparar();
   const conexao = await conectarNaSala(amb, sessao, jamId, {
     aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
@@ -105,12 +107,15 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   for (const m of antesDaConexao.splice(0)) conexao.enviar(m);
   await registrarPasta(amb, { jamId, pid: process.pid, pasta, porta: hooks.porta, segredo: hooks.segredo });
   try {
-    await instalarPlugin(amb, pasta);
+    // Em paralelo: a instalação leva alguns segundos (e pode travar no
+    // Claude Code), e a sincronização não espera por ela (gate da 4.1, REL-004).
+    void instalarPlugin(amb, pasta).catch(() => {});
     await sincronizador.comecarAVigiar();
     const motivo = await Promise.race([conexao.fechou, parar.then(() => "")]);
     if (motivo) throw new ErroDoUsuario(motivo);
     amb.escrever("Desligado da jam.");
   } finally {
+    clearInterval(vencerSessoes);
     await sincronizador.parar();
     await hooks.fechar();
     conexao.fechar();

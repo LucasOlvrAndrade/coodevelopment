@@ -8,14 +8,17 @@ import type { Ambiente } from "./ambiente";
 // plugin vai dentro do pacote do conector; ele é copiado para um marketplace
 // local em %LOCALAPPDATA%\coodevelopment\marketplace e instalado com escopo
 // local, que grava em .claude/settings.local.json (fora do git e fora da
-// sincronização). O Claude Code lê o plugin direto dessa pasta: copiar a
-// versão nova já atualiza, valendo na próxima sessão ou com /reload-plugins
-// (conferido no Claude Code 2.1.316 em 03/11).
+// sincronização). O Claude Code lê o plugin direto dessa pasta, valendo na
+// próxima sessão ou com /reload-plugins, e guarda a versão no registro
+// dele, que o `plugin update` atualiza (conferido no Claude Code 2.1.316 em
+// 03/11).
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
 const NOME = "coodevelopment";
+// Cada comando do claude; travou, a jam segue sem o plugin.
+const PRAZO_DO_CLAUDE_MS = 60_000;
 // Só o que o Claude Code usa; testes e configuração de build ficam de fora.
 const PARTES = [".claude-plugin", "hooks", "scripts", ".mcp.json"];
 
@@ -35,6 +38,17 @@ export async function pastaDoPlugin(): Promise<string> {
 
 // Copia o plugin desta versão do conector para o marketplace local.
 export async function prepararMarketplace(amb: Ambiente, origem: string): Promise<string> {
+  // Duas jams ligadas ao mesmo tempo copiam para o mesmo lugar: a que falhar
+  // tenta de novo uma vez (gate da 4.1, REL-007).
+  try {
+    return await copiarParaOMarketplace(amb, origem);
+  } catch {
+    await new Promise((r) => setTimeout(r, 500));
+    return copiarParaOMarketplace(amb, origem);
+  }
+}
+
+async function copiarParaOMarketplace(amb: Ambiente, origem: string): Promise<string> {
   const marketplace = join(amb.pastaDados, "marketplace");
   const destino = join(marketplace, "plugins", NOME);
   await rm(destino, { recursive: true, force: true });
@@ -90,11 +104,16 @@ export async function instalarPlugin(amb: Ambiente, pasta: string): Promise<Resu
     amb.escrever(`Não consegui preparar o plugin do Claude Code (${String(e)}). Os arquivos sincronizam normalmente.`);
     return "falhou";
   }
+  // Pelo shell (o .cmd do npm), todo argumento vai entre aspas (gate da 4.1, REL-006).
   const rodar = (argumentos: string[]) =>
-    amb.rodar(claude.programa, claude.shell ? argumentos.map((a) => (/\s/.test(a) ? `"${a}"` : a)) : argumentos, { cwd: pasta, shell: claude.shell });
+    amb.rodar(claude.programa, claude.shell ? argumentos.map((a) => `"${a}"`) : argumentos, { cwd: pasta, shell: claude.shell, prazoMs: PRAZO_DO_CLAUDE_MS });
+  // O update grava a versão nova no registro do Claude Code; o plugin de
+  // pasta já é lido no lugar (conferido no 2.1.316: sem nada novo, ele só
+  // diz que está na última versão; gate da 4.1, REL-002).
   for (const argumentos of [
     ["plugin", "marketplace", "add", marketplace, "--scope", "local"],
     ["plugin", "install", `${NOME}@${NOME}`, "--scope", "local"],
+    ["plugin", "update", `${NOME}@${NOME}`, "--scope", "local"],
   ]) {
     const r = await rodar(argumentos);
     if (r.codigo !== 0) {

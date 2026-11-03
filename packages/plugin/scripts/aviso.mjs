@@ -9,7 +9,9 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-// Prazo total do hook: o prompt espera por ele.
+// Prazos: o POST ao conector e o hook inteiro, contado desde o início do
+// processo (o prompt espera por ele; gate da 4.1, REL-005).
+export const PRAZO_DO_AVISO_MS = 500;
 export const PRAZO_MS = 800;
 
 // A mesma chave do conector (packages/conector/src/descoberta.ts).
@@ -65,6 +67,6 @@ export async function rodar(entrada, env = process.env) {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${jam.segredo}` },
     body: JSON.stringify(corpoDoAviso(entrada)),
-    signal: AbortSignal.timeout(PRAZO_MS),
+    signal: AbortSignal.timeout(PRAZO_DO_AVISO_MS),
   });
 }

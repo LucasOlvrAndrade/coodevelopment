@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Ambiente } from "../../src/ambiente";
 import { registrarPasta } from "../../src/descoberta";
-import { StatusDoClaude, abrirServidorDeHooks } from "../../src/hooks";
+import { SESSAO_VALE_MS, StatusDoClaude, abrirServidorDeHooks } from "../../src/hooks";
 import { instalarPlugin, prepararMarketplace } from "../../src/plugin";
 
 // Story 4.1: o servidor local dos hooks, o status do Claude e a instalação
@@ -43,6 +43,27 @@ describe("StatusDoClaude", () => {
       { v: 1, tipo: "status", estado: "trabalhando", motivo: null },
       { v: 1, tipo: "status", estado: "parado", motivo: null },
     ]);
+  });
+
+  it("Esc ou janela fechada sem Stop: o Claude ocioso (Notification) ou a validade tiram o status (gate da 4.1, REL-001)", () => {
+    let agora = 0;
+    const mensagens: MensagemStatus[] = [];
+    const s = new StatusDoClaude((m) => mensagens.push(m), () => agora);
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.evento("Notification", { session_id: "a" });
+    expect(s.trabalhando).toBe(false);
+
+    s.evento("UserPromptSubmit", { session_id: "b" });
+    agora += SESSAO_VALE_MS - 1000;
+    // O fim de cada ferramenta renova: tarefa longa continua trabalhando.
+    s.evento("PostToolUse", { session_id: "b" });
+    agora += SESSAO_VALE_MS - 1000;
+    s.vencer();
+    expect(s.trabalhando).toBe(true);
+    agora += 2000;
+    s.vencer();
+    expect(s.trabalhando).toBe(false);
+    expect(mensagens.map((m) => m.estado)).toEqual(["trabalhando", "parado", "trabalhando", "parado"]);
   });
 
   it("evento sem sessão, desconhecido ou Stop de sessão que não começou não muda nada", () => {
@@ -135,6 +156,8 @@ describe("instalação do plugin (AC 1)", () => {
     expect(rodou.slice(1)).toEqual([
       { programa: "C:\\Users\\Lucas\\.local\\bin\\claude.exe", argumentos: ["plugin", "marketplace", "add", marketplace, "--scope", "local"], cwd: "C:\\jam", shell: false },
       { programa: "C:\\Users\\Lucas\\.local\\bin\\claude.exe", argumentos: ["plugin", "install", "coodevelopment@coodevelopment", "--scope", "local"], cwd: "C:\\jam", shell: false },
+      // O update grava a versão nova no registro do Claude Code (gate da 4.1, REL-002).
+      { programa: "C:\\Users\\Lucas\\.local\\bin\\claude.exe", argumentos: ["plugin", "update", "coodevelopment@coodevelopment", "--scope", "local"], cwd: "C:\\jam", shell: false },
     ]);
     const { version } = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf8")) as { version: string };
     const manifesto = JSON.parse(readFileSync(join(marketplace, "plugins", "coodevelopment", ".claude-plugin", "plugin.json"), "utf8"));
@@ -147,12 +170,12 @@ describe("instalação do plugin (AC 1)", () => {
     expect(linhas.at(-1)).toContain("/reload-plugins");
   });
 
-  it("claude do npm (.cmd) roda por shell, com o caminho entre aspas", async () => {
+  it("claude do npm (.cmd) roda por shell, com todo argumento entre aspas (REL-006)", async () => {
     const dados = join(temporaria(), "com espaço");
     const { amb, rodou } = ambienteFalso(dados, { where: { codigo: 0, saida: "C:\\Program Files\\nodejs\\claude.cmd\r\n" } });
     await instalarPlugin(amb, "C:\\jam");
     expect(rodou[1]).toMatchObject({ programa: '"C:\\Program Files\\nodejs\\claude.cmd"', shell: true });
-    expect(rodou[1]!.argumentos[3]).toBe(`"${join(dados, "marketplace")}"`);
+    expect(rodou[1]!.argumentos).toEqual(["\"plugin\"", "\"marketplace\"", "\"add\"", `"${join(dados, "marketplace")}"`, "\"--scope\"", "\"local\""]);
   });
 
   it("sem o Claude Code, ou se ele recusar, a jam segue e o terminal explica", async () => {

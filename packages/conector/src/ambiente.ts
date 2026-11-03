@@ -18,7 +18,12 @@ export type Ambiente = {
   fetch: typeof fetch;
   // Roda um programa sem shell; a entrada vai pela entrada padrão.
   // Com shell só para o .cmd do Windows (o claude instalado pelo npm), com os argumentos já entre aspas.
-  rodar(programa: string, argumentos: string[], opcoes?: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean }): Promise<ResultadoProcesso>;
+  // prazoMs: passou, o processo é encerrado e o resultado vem com código 124.
+  rodar(
+    programa: string,
+    argumentos: string[],
+    opcoes?: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean; prazoMs?: number },
+  ): Promise<ResultadoProcesso>;
   abrirNavegador(url: string): void;
   esperar(ms: number): Promise<void>;
   escrever(linha: string): void;
@@ -26,7 +31,11 @@ export type Ambiente = {
 
 export const URL_APP_PADRAO = "https://coodevelopment.lucas-andrade.dev";
 
-function rodar(programa: string, argumentos: string[], opcoes: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean } = {}) {
+function rodar(
+  programa: string,
+  argumentos: string[],
+  opcoes: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean; prazoMs?: number } = {},
+) {
   return new Promise<ResultadoProcesso>((resolve) => {
     const filho = spawn(programa, argumentos, {
       cwd: opcoes.cwd,
@@ -41,7 +50,17 @@ function rodar(programa: string, argumentos: string[], opcoes: { cwd?: string; e
     filho.stderr.setEncoding("utf8").on("data", (d: string) => (erro += d));
     // Programa que não existe (git ou PowerShell fora do PATH): código 127, como no shell.
     filho.on("error", (e) => resolve({ codigo: 127, saida, erro: String(e) }));
-    filho.on("close", (codigo) => resolve({ codigo: codigo ?? 1, saida, erro }));
+    let estourou = false;
+    const prazo = opcoes.prazoMs
+      ? setTimeout(() => {
+          estourou = true;
+          filho.kill();
+        }, opcoes.prazoMs)
+      : undefined;
+    filho.on("close", (codigo) => {
+      clearTimeout(prazo);
+      resolve({ codigo: estourou ? 124 : (codigo ?? 1), saida, erro: estourou ? `${erro}\nPassou do prazo de ${opcoes.prazoMs} ms.` : erro });
+    });
     filho.stdin.end(opcoes.entrada ?? "");
   });
 }
