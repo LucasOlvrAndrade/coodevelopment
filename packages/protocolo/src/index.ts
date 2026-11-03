@@ -14,6 +14,17 @@ export {
   type MensagemFeed,
   type MensagemIgnorado,
 } from "./feed";
+export {
+  MOTIVOS_DE_PARADA,
+  mensagemClaudes,
+  mensagemParou,
+  mensagemStatus,
+  motivoDeParada,
+  type MensagemClaudes,
+  type MensagemParou,
+  type MensagemStatus,
+  type MotivoDeParada,
+} from "./status";
 export { normalizarCaminho, normalizarFinalDeLinha } from "./normalizacao";
 export type { Amizade, PedidoAmizade, Usuario } from "./modelos";
 export { mensagemDaSala, mensagemDoConector, mensagemPresenca, type MensagemDaSala, type MensagemDoConector, type MensagemPresenca } from "./mensagens";

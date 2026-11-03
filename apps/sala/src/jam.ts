@@ -1,10 +1,21 @@
-import { mensagemDoConector, type MensagemFeed, type MensagemPresenca, type QuemNaSala, validarTokenSala } from "@coodevelopment/protocolo";
+import {
+  mensagemDoConector,
+  type MensagemClaudes,
+  type MensagemFeed,
+  type MensagemParou,
+  type MensagemPresenca,
+  type MensagemStatus,
+  type QuemNaSala,
+  validarTokenSala,
+} from "@coodevelopment/protocolo";
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
 import { ArmazenamentoFeedSqlite, ArmazenamentoSqlite } from "./armazenamento-sqlite";
 import { Feed } from "./feed";
 import { Sincronizacao, type Envio } from "./sincronizacao";
 
-type Estado = Pick<QuemNaSala, "usuarioId" | "via">;
+// O estado de cada conexão sobrevive à hibernação. No conector, desde quando
+// o Claude daquela pasta está trabalhando (Story 4.1); null quando parado.
+type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & { trabalhandoDesde?: string | null };
 
 // Uma sala por jam (Story 2.5). Só entra quem traz o token que o app emitiu
 // para esta jam, conferido aqui na entrada; a cada entrada e saída a sala
@@ -12,7 +23,8 @@ type Estado = Pick<QuemNaSala, "usuarioId" | "via">;
 // ligado, uma vez por pessoa mesmo com várias abas.
 // O estado de cada conexão sobrevive à hibernação. Os arquivos da jam
 // circulam entre os conectores e ficam guardados no SQLite da sala (Story 3.3),
-// e cada mudança entra no feed, que as páginas recebem (Story 3.4).
+// e cada mudança entra no feed, que as páginas recebem (Story 3.4). O status
+// do Claude de cada um vem dos hooks pelo conector e vai às páginas (Story 4.1).
 export class Jam extends Server<Env> {
   static options = { hibernate: true };
 
@@ -46,7 +58,10 @@ export class Jam extends Server<Env> {
     // O conector que chega recebe o que mudou desde o baseSha (FR21).
     if (quem.via === "conector") for (const m of this.sincronizacao.estado()) conexao.send(JSON.stringify(m));
     // A página que abre recebe os últimos itens do feed (Story 3.4, AC 6).
-    else conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feedGuardado(), inicial: true } satisfies MensagemFeed));
+    else {
+      conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feedGuardado(), inicial: true } satisfies MensagemFeed));
+      conexao.send(JSON.stringify(this.claudes()));
+    }
   }
 
   // Erro ao ler o feed: a página recebe o feed vazio em vez de esperar para
@@ -71,6 +86,10 @@ export class Jam extends Server<Env> {
     }
     const msg = mensagemDoConector.safeParse(lido);
     if (!msg.success) return;
+    if (msg.data.tipo === "status") {
+      this.mudarStatus(conexao, msg.data);
+      return;
+    }
     const envios =
       msg.data.tipo === "ignorado"
         ? this.sincronizacao.ignorado(conexao.state.usuarioId, msg.data)
@@ -97,10 +116,48 @@ export class Jam extends Server<Env> {
 
   onClose(conexao: Connection<Estado>) {
     this.anunciarPresenca(conexao.id);
+    if (conexao.state?.trabalhandoDesde) this.anunciarClaudes(conexao.id);
   }
 
   onError(conexao: Connection<Estado>) {
     this.anunciarPresenca(conexao.id);
+    if (conexao.state?.trabalhandoDesde) this.anunciarClaudes(conexao.id);
+  }
+
+  // O Claude da pasta deste conector começou ou parou (Story 4.1). Parada
+  // por erro vai às páginas como "parou", que elas mostram por alguns segundos.
+  private mudarStatus(conexao: Connection<Estado>, msg: MensagemStatus) {
+    const estado = conexao.state!;
+    const antes = estado.trabalhandoDesde ?? null;
+    const depois = msg.estado === "trabalhando" ? (antes ?? new Date().toISOString()) : null;
+    conexao.setState({ ...estado, trabalhandoDesde: depois });
+    if (antes !== depois) this.anunciarClaudes();
+    if (msg.estado === "parado" && msg.motivo) {
+      const parou: MensagemParou = { v: 1, tipo: "parou", usuarioId: estado.usuarioId, motivo: msg.motivo };
+      this.paraAsPaginas(JSON.stringify(parou));
+    }
+  }
+
+  // Quem está com o Claude trabalhando, uma vez por pessoa (o desde mais
+  // antigo, se ela tem duas pastas ligadas). O conector que está saindo fica
+  // de fora pelo id.
+  private claudes(saindo?: string): MensagemClaudes {
+    const desde = new Map<string, string>();
+    for (const c of this.getConnections<Estado>()) {
+      const d = c.id === saindo ? null : c.state?.trabalhandoDesde;
+      if (!d || c.state?.via !== "conector") continue;
+      const atual = desde.get(c.state.usuarioId);
+      if (!atual || d < atual) desde.set(c.state.usuarioId, d);
+    }
+    return { v: 1, tipo: "claudes", trabalhando: [...desde].sort(([a], [b]) => a.localeCompare(b)).map(([usuarioId, d]) => ({ usuarioId, desde: d })) };
+  }
+
+  private anunciarClaudes(saindo?: string) {
+    this.paraAsPaginas(JSON.stringify(this.claudes(saindo)));
+  }
+
+  private paraAsPaginas(texto: string) {
+    for (const c of this.getConnections<Estado>()) if (c.state?.via === "pagina") c.send(texto);
   }
 
   // Quem está saindo fica de fora pelo id, mesmo se o fechamento ainda corre.
