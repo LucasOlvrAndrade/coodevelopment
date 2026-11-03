@@ -48,6 +48,9 @@ export function caminhoSincronizavel(caminho: string): { ok: true; caminho: stri
   if (partes.some((p) => PASTAS_PROIBIDAS.has(p.toLowerCase()))) return { ok: false, motivo: "proibido" };
   const nome = partes.at(-1)!.toLowerCase();
   if (nome.startsWith(".env") && nome !== ".env.example") return { ok: false, motivo: "proibido" };
+  // Configuração do Claude Code só deste PC: é onde o conector instala o
+  // plugin da jam, com caminhos desta máquina (Story 4.1).
+  if (nome === "settings.local.json" && partes.at(-2)?.toLowerCase() === ".claude") return { ok: false, motivo: "proibido" };
   return { ok: true, caminho: normal };
 }
 

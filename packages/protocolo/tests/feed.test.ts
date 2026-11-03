@@ -105,3 +105,11 @@ describe("resumoDaDiferenca com custo limitado (gate da 3.4, PERF-001)", () => {
     expect(resumoDaDiferenca(antes, depois)).toEqual({ adicionadas: 300, removidas: 300 });
   });
 });
+
+describe("configuração local do Claude Code (Story 4.1)", () => {
+  it(".claude/settings.local.json nunca sincroniza; o settings.json do projeto sim", () => {
+    expect(caminhoSincronizavel(".claude/settings.local.json")).toEqual({ ok: false, motivo: "proibido" });
+    expect(caminhoSincronizavel("apps/web/.claude/settings.local.json")).toEqual({ ok: false, motivo: "proibido" });
+    expect(caminhoSincronizavel(".claude/settings.json")).toMatchObject({ ok: true });
+  });
+});
