@@ -96,3 +96,40 @@ describe("arquivos na sala (Story 3.3)", () => {
     pai.ws.close();
   });
 });
+
+describe("feed na sala (Story 3.4)", () => {
+  it("a página recebe o feed guardado ao abrir e cada mudança ao vivo; o conector não recebe o feed", async () => {
+    const lucas = await conectar("jam-feed", "lucas");
+    await lucas.escrever("src/a.ts", "um\ndois\n", 0, "um\n");
+    await lucas.esperar((m) => m.tipo === "aceito");
+
+    const pagina = await conectar("jam-feed", "pai", "pagina");
+    expect(await pagina.esperar((m) => m.tipo === "feed" && m.inicial === true)).toMatchObject({
+      eventos: [{ tipo: "arquivos", autorId: "lucas", arquivos: [{ caminho: "src/a.ts", mudanca: "alterado", adicionadas: 1, removidas: 0 }] }],
+    });
+
+    await lucas.escrever("package.json", "{}\n", 0, null);
+    expect(await pagina.esperar((m) => m.tipo === "feed" && m.inicial === false)).toMatchObject({
+      eventos: [{ tipo: "dependencias", autorId: "lucas", caminhos: ["package.json"] }],
+    });
+
+    lucas.ws.send(JSON.stringify({ v: 1, tipo: "ignorado", caminho: "video.mp4", motivo: "grande_demais", tamanho: 9_000_000 }));
+    expect(await pagina.esperar((m) => m.tipo === "feed" && (m.eventos as { tipo: string }[])[0]?.tipo === "grande")).toMatchObject({
+      eventos: [{ tipo: "grande", caminho: "video.mp4", tamanho: 9_000_000 }],
+    });
+    expect(lucas.recebidas.some((m) => m.tipo === "feed")).toBe(false);
+    lucas.ws.close();
+    pagina.ws.close();
+  });
+
+  it("a página não manda o aviso de arquivo grande", async () => {
+    const pagina = await conectar("jam-feed-pagina", "lucas", "pagina");
+    const outra = await conectar("jam-feed-pagina", "pai", "pagina");
+    await outra.esperar((m) => m.tipo === "feed");
+    pagina.ws.send(JSON.stringify({ v: 1, tipo: "ignorado", caminho: "x.bin", motivo: "grande_demais", tamanho: 9_000_000 }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(outra.recebidas.filter((m) => m.tipo === "feed")).toHaveLength(1);
+    pagina.ws.close();
+    outra.ws.close();
+  });
+});

@@ -3,11 +3,15 @@ import {
   caminhoSincronizavel,
   hashDoConteudo,
   juntar,
+  resumoDaDiferenca,
   tamanhoDoConteudo,
+  type EventoFeed,
   type MensagemArquivo,
   type MensagemDaSala,
   type MensagemEscrever,
+  type MensagemIgnorado,
 } from "@coodevelopment/protocolo";
+import type { Feed, Mudanca } from "./feed";
 
 // Regra da sincronização de arquivos (Story 3.3, decisão A2). Pura: recebe o
 // armazenamento por uma interface, para rodar no Durable Object (SQLite) e
@@ -40,7 +44,33 @@ export interface Armazenamento {
   todos(): Registro[];
 }
 
-export type Envio = { para: "autor" | "outros" | "todos"; mensagem: MensagemDaSala };
+// "outros" e "todos" são os conectores; "paginas", as páginas da jam abertas (feed).
+export type Envio = { para: "autor" | "outros" | "todos" | "paginas"; mensagem: MensagemDaSala };
+
+const paraAsPaginas = (eventos: EventoFeed[]): Envio[] =>
+  eventos.length ? [{ para: "paginas", mensagem: { v: 1, tipo: "feed", eventos, inicial: false } }] : [];
+
+// Como o arquivo estava antes da escrita, para o resumo do feed: se existia
+// e, quando é texto conhecido, o conteúdo. Sem registro na sala, a base é o
+// conteudoBase (null: não existia no baseSha; ausente: não se sabe, e conta
+// como alterado sem contagem).
+type Anterior = { existia: boolean; texto: string | null; hash: string | null };
+
+function anteriorDe(atual: Registro | null, msg: MensagemEscrever): Anterior {
+  if (atual) return { existia: !atual.apagado, texto: atual.apagado || atual.binario ? null : atual.conteudo, hash: atual.hash };
+  if (msg.conteudoBase === null) return { existia: false, texto: null, hash: null };
+  return { existia: true, texto: msg.conteudoBase ?? null, hash: null };
+}
+
+// A mudança que vai para o feed, ou null quando nada mudou de verdade
+// (apagar o que não existia, o mesmo conteúdo, só o final de linha).
+function mudancaDe(autorId: string, caminho: string, antes: Anterior, novo: Registro, juntado: boolean): Mudanca | null {
+  if (novo.apagado) return antes.existia ? { autorId, caminho, mudanca: "apagado", binario: novo.binario, diferenca: null, juntado } : null;
+  if (antes.existia && antes.hash === novo.hash) return null;
+  const diferenca = novo.binario ? null : antes.existia ? (antes.texto === null ? null : resumoDaDiferenca(antes.texto, novo.conteudo)) : resumoDaDiferenca("", novo.conteudo);
+  if (antes.existia && diferenca && diferenca.adicionadas === 0 && diferenca.removidas === 0) return null;
+  return { autorId, caminho, mudanca: antes.existia ? "alterado" : "criado", binario: novo.binario, diferenca, juntado };
+}
 
 const recusado = (caminho: string, motivo: "conflito_guardado" | "caminho_invalido" | "proibido" | "grande_demais" | "erro"): Envio => ({
   para: "autor",
@@ -78,7 +108,27 @@ export class Sincronizacao {
   constructor(
     private armazenamento: Armazenamento,
     private agora: () => string = () => new Date().toISOString(),
+    private feed?: Feed,
   ) {}
+
+  // O feed nunca derruba a sincronização: a escrita já entrou, e um erro
+  // aqui viraria "recusado" para o autor de uma escrita aceita.
+  private noFeed(registrar: (feed: Feed) => (EventoFeed | null)[]): Envio[] {
+    if (!this.feed) return [];
+    try {
+      return paraAsPaginas(registrar(this.feed).filter((e): e is EventoFeed => e !== null));
+    } catch (e) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "feed", erro: String(e) }));
+      return [];
+    }
+  }
+
+  // Arquivo que o conector deixou de fora por ser grande demais (A14).
+  ignorado(autorId: string, msg: MensagemIgnorado): Envio[] {
+    const permitido = caminhoSincronizavel(msg.caminho);
+    if (!permitido.ok) return [];
+    return this.noFeed((feed) => [feed.grande(autorId, permitido.caminho, msg.tamanho)]);
+  }
 
   // O que mudou desde o baseSha, para quem conecta (FR21): o manifesto e
   // cada arquivo em seguida.
@@ -105,13 +155,15 @@ export class Sincronizacao {
     const permitido = caminhoSincronizavel(msg.caminho);
     if (!permitido.ok) return [recusado(msg.caminho, permitido.motivo)];
     const caminho = permitido.caminho;
-    if (tamanhoDoConteudo(msg.conteudo, msg.binario) > TAMANHO_MAXIMO) return [recusado(caminho, "grande_demais")];
+    const tamanho = tamanhoDoConteudo(msg.conteudo, msg.binario);
+    if (tamanho > TAMANHO_MAXIMO) return [recusado(caminho, "grande_demais"), ...this.noFeed((feed) => [feed.grande(autorId, caminho, tamanho)])];
 
     const atual = this.armazenamento.ler(caminho);
     // Caixa diferente de um caminho que já circula: no Windows seriam o mesmo
     // arquivo, e as pastas nunca convergiriam (gate da 3.3, REL-001).
     if (!atual && this.armazenamento.outroComOutraCaixa(caminho)) return [recusado(caminho, "caminho_invalido")];
     const versaoAtual = atual?.versao ?? 0;
+    const antes = anteriorDe(atual, msg);
     const chegou: Conteudo = { conteudo: msg.apagado ? "" : msg.conteudo, binario: msg.binario, apagado: msg.apagado };
 
     // Primeira escrita do arquivo: o conteúdo do baseSha vira a versão 0,
@@ -133,6 +185,10 @@ export class Sincronizacao {
       return [
         { para: "autor", mensagem: { v: 1, tipo: "aceito", caminho, versao: novo.versao, hash: novo.hash } },
         { para: "outros", mensagem: comoArquivo(novo, "escrita") },
+        ...this.noFeed((feed) => {
+          const m = mudancaDe(autorId, caminho, antes, novo, false);
+          return m ? [feed.mudanca(m)] : [];
+        }),
       ];
     }
 
@@ -150,6 +206,12 @@ export class Sincronizacao {
       return [
         { para: "autor", mensagem: { v: 1, tipo: "aceito", caminho, versao: novo.versao, hash: novo.hash } },
         { para: "outros", mensagem: comoArquivo(novo, "escrita") },
+        ...this.noFeed((feed) => {
+          const m = mudancaDe(autorId, caminho, antes, novo, false);
+          // A versão de outra pessoa foi para o histórico: item próprio no feed.
+          const perdeu = atual.autorId !== autorId && atual.hash !== novo.hash;
+          return [...(m ? [feed.mudanca(m)] : []), ...(perdeu ? [feed.conflito(autorId, atual.autorId, caminho, "sobrescrito")] : [])];
+        }),
       ];
     }
 
@@ -161,10 +223,20 @@ export class Sincronizacao {
       base && !base.binario && !atual.apagado && !chegou.apagado ? juntar(base.apagado ? "" : base.conteudo, atual.conteudo, chegou.conteudo) : null;
     if (resultado === null) {
       this.armazenamento.guardarNoHistorico({ caminho, autorId, motivo: "conflito", em: this.agora(), ...chegou });
-      return [recusado(caminho, "conflito_guardado"), { para: "autor", mensagem: comoArquivo(atual, "escrita") }];
+      return [
+        recusado(caminho, "conflito_guardado"),
+        { para: "autor", mensagem: comoArquivo(atual, "escrita") },
+        ...this.noFeed((feed) => [feed.conflito(autorId, atual.autorId, caminho, "guardado")]),
+      ];
     }
     const novo = await this.gravar(caminho, versaoAtual + 1, { conteudo: resultado, binario: false, apagado: false }, autorId);
-    return [{ para: "todos", mensagem: comoArquivo(novo, "merge") }];
+    return [
+      { para: "todos", mensagem: comoArquivo(novo, "merge") },
+      ...this.noFeed((feed) => {
+        const m = mudancaDe(autorId, caminho, antes, novo, true);
+        return m ? [feed.mudanca(m)] : [];
+      }),
+    ];
   }
 
   private async gravar(caminho: string, versao: number, conteudo: Conteudo, autorId: string): Promise<Registro> {

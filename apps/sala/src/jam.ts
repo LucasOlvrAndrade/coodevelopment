@@ -1,6 +1,7 @@
-import { mensagemDoConector, type MensagemPresenca, type QuemNaSala, validarTokenSala } from "@coodevelopment/protocolo";
+import { mensagemDoConector, type MensagemFeed, type MensagemPresenca, type QuemNaSala, validarTokenSala } from "@coodevelopment/protocolo";
 import { Server, type Connection, type ConnectionContext, type WSMessage } from "partyserver";
-import { ArmazenamentoSqlite } from "./armazenamento-sqlite";
+import { ArmazenamentoFeedSqlite, ArmazenamentoSqlite } from "./armazenamento-sqlite";
+import { Feed } from "./feed";
 import { Sincronizacao, type Envio } from "./sincronizacao";
 
 type Estado = Pick<QuemNaSala, "usuarioId" | "via">;
@@ -10,14 +11,21 @@ type Estado = Pick<QuemNaSala, "usuarioId" | "via">;
 // avisa a todos quem está com a página aberta e quem está com o conector
 // ligado, uma vez por pessoa mesmo com várias abas.
 // O estado de cada conexão sobrevive à hibernação. Os arquivos da jam
-// circulam entre os conectores e ficam guardados no SQLite da sala (Story 3.3).
+// circulam entre os conectores e ficam guardados no SQLite da sala (Story 3.3),
+// e cada mudança entra no feed, que as páginas recebem (Story 3.4).
 export class Jam extends Server<Env> {
   static options = { hibernate: true };
 
   private sincronizacaoCriada?: Sincronizacao;
+  private feedCriado?: Feed;
+
+  private get feed() {
+    this.feedCriado ??= new Feed(new ArmazenamentoFeedSqlite(this.ctx.storage.sql));
+    return this.feedCriado;
+  }
 
   private get sincronizacao() {
-    this.sincronizacaoCriada ??= new Sincronizacao(new ArmazenamentoSqlite(this.ctx.storage.sql));
+    this.sincronizacaoCriada ??= new Sincronizacao(new ArmazenamentoSqlite(this.ctx.storage.sql), undefined, this.feed);
     return this.sincronizacaoCriada;
   }
 
@@ -37,6 +45,8 @@ export class Jam extends Server<Env> {
     this.anunciarPresenca();
     // O conector que chega recebe o que mudou desde o baseSha (FR21).
     if (quem.via === "conector") for (const m of this.sincronizacao.estado()) conexao.send(JSON.stringify(m));
+    // A página que abre recebe os últimos itens do feed (Story 3.4, AC 6).
+    else conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feed.ultimos(), inicial: true } satisfies MensagemFeed));
   }
 
   // Só o conector escreve arquivo; a página só lê a presença.
@@ -50,11 +60,15 @@ export class Jam extends Server<Env> {
     }
     const msg = mensagemDoConector.safeParse(lido);
     if (!msg.success) return;
-    const envios = await this.sincronizacao.escrever(conexao.state.usuarioId, msg.data);
+    const envios =
+      msg.data.tipo === "ignorado"
+        ? this.sincronizacao.ignorado(conexao.state.usuarioId, msg.data)
+        : await this.sincronizacao.escrever(conexao.state.usuarioId, msg.data);
     this.entregar(conexao, envios);
   }
 
-  // Para o autor, para os outros conectores ou para todos os conectores.
+  // Para o autor, para os outros conectores, para todos os conectores ou
+  // para as páginas abertas.
   private entregar(autor: Connection<Estado>, envios: Envio[]) {
     for (const { para, mensagem } of envios) {
       const texto = JSON.stringify(mensagem);
@@ -63,7 +77,8 @@ export class Jam extends Server<Env> {
         continue;
       }
       for (const c of this.getConnections<Estado>()) {
-        if (c.state?.via !== "conector" || (para === "outros" && c.id === autor.id)) continue;
+        if (!c.state) continue;
+        if (para === "paginas" ? c.state.via !== "pagina" : c.state.via !== "conector" || (para === "outros" && c.id === autor.id)) continue;
         c.send(texto);
       }
     }

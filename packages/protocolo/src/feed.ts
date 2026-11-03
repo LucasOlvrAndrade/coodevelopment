@@ -71,12 +71,19 @@ export function arquivoDeDependencias(caminho: string): boolean {
 const LINHAS_PARA_COMPARAR = 5000;
 const CARACTERES_PARA_COMPARAR = 200_000;
 
+// O texto em linhas, sem a linha vazia depois do último "\n".
+function linhas(texto: string): string[] {
+  const normal = normalizarFinalDeLinha(texto);
+  if (normal === "") return [];
+  return (normal.endsWith("\n") ? normal.slice(0, -1) : normal).split("\n");
+}
+
 // Linhas acrescentadas e tiradas de um texto para outro, com o final de linha
 // normalizado (NFR7). O começo e o fim iguais saem antes da comparação, que
 // assim só olha o trecho que mudou. null quando o trecho é grande demais.
 export function resumoDaDiferenca(antes: string, depois: string): { adicionadas: number; removidas: number } | null {
-  const a = antes === "" ? [] : normalizarFinalDeLinha(antes).split("\n");
-  const b = depois === "" ? [] : normalizarFinalDeLinha(depois).split("\n");
+  const a = linhas(antes);
+  const b = linhas(depois);
   let inicio = 0;
   while (inicio < a.length && inicio < b.length && a[inicio] === b[inicio]) inicio++;
   let fimA = a.length;
@@ -130,10 +137,10 @@ export const eventoFeed = z.discriminatedUnion("tipo", [
   // Arquivos de dependências: quem está na jam reinstala (AC 2).
   z.object({ ...comum, tipo: z.literal("dependencias"), caminhos: z.array(caminho).max(ARQUIVOS_POR_ITEM) }),
   // Escrita que perdeu e foi para o histórico da sala (A2, gate da 3.3
-  // REL-005): "guardado" é a escrita do autor que cruzou trechos com a de
-  // outra pessoa; "sobrescrito" é o binário do perdedorId substituído pelo
-  // do autor.
-  z.object({ ...comum, tipo: z.literal("conflito"), caminho, resolvido: z.enum(["guardado", "sobrescrito"]), perdedorId: z.string() }),
+  // REL-005): "guardado" é a escrita do autor que cruzou trechos com a do
+  // outroId e ficou de fora; "sobrescrito" é o binário do outroId
+  // substituído pelo do autor.
+  z.object({ ...comum, tipo: z.literal("conflito"), caminho, resolvido: z.enum(["guardado", "sobrescrito"]), outroId: z.string() }),
   // Arquivo acima do limite, que não foi para a jam (A14).
   z.object({ ...comum, tipo: z.literal("grande"), caminho, tamanho: z.number().int().min(0) }),
 ]);

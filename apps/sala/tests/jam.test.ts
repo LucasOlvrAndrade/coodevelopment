@@ -17,7 +17,9 @@ async function conectar(jamId: string, comToken?: string) {
   const recebidas: Presenca[] = [];
   const esperando: { teste: (p: Presenca) => boolean; resolver: (p: Presenca) => void }[] = [];
   ws.addEventListener("message", (e) => {
-    const p = JSON.parse(String(e.data)) as Presenca;
+    const p = JSON.parse(String(e.data)) as Presenca & { tipo: string };
+    // A página também recebe o feed (Story 3.4); aqui só interessa a presença.
+    if (p.tipo !== "presenca") return;
     recebidas.push(p);
     for (const espera of esperando.splice(0).filter((x) => !x.teste(p) || (x.resolver(p), false))) esperando.push(espera);
   });

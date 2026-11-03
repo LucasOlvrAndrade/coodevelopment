@@ -1,3 +1,5 @@
+import { eventoFeed, type EventoFeed } from "@coodevelopment/protocolo";
+import type { ArmazenamentoFeed, EventoNovo } from "./feed";
 import { chaveDeCaixa, type Armazenamento, type Conteudo, type Registro } from "./sincronizacao";
 
 // Armazenamento da sincronização no SQLite do Durable Object (Story 3.3,
@@ -128,5 +130,49 @@ export class ArmazenamentoSqlite implements Armazenamento {
 
   todos(): Registro[] {
     return this.sql.exec<Linha>("select * from arquivo order by caminho").toArray().map(comoRegistro);
+  }
+}
+
+// Itens do feed guardados por jam: os mais antigos saem. A página recebe os
+// últimos 100 ao abrir (Story 3.4); a retenção ligada ao commit fica para o
+// Epic 5.
+const FEED_GUARDADO = 200;
+
+// Feed no SQLite do Durable Object (Story 3.4). Cada item é um JSON validado
+// pelo protocolo na leitura: linha que não passa (versão antiga) fica de fora.
+export class ArmazenamentoFeedSqlite implements ArmazenamentoFeed {
+  constructor(private sql: SqlStorage) {
+    sql.exec(`create table if not exists feed (
+      id integer primary key autoincrement,
+      dados text not null
+    )`);
+  }
+
+  inserir(evento: EventoNovo): number {
+    const [l] = this.sql.exec<Linha>("insert into feed (dados) values (?) returning id", JSON.stringify(evento)).toArray();
+    const id = Number(l!.id);
+    this.sql.exec("delete from feed where id <= ?", id - FEED_GUARDADO);
+    return id;
+  }
+
+  atualizar(evento: EventoFeed): void {
+    const { id, ...dados } = evento;
+    this.sql.exec("update feed set dados = ? where id = ?", JSON.stringify(dados), id);
+  }
+
+  ultimos(n: number): EventoFeed[] {
+    return this.sql
+      .exec<Linha>("select id, dados from feed order by id desc limit ?", n)
+      .toArray()
+      .flatMap((l) => {
+        let dados: unknown;
+        try {
+          dados = JSON.parse(String(l.dados));
+        } catch {
+          return [];
+        }
+        const lido = eventoFeed.safeParse({ ...(dados as object), id: Number(l.id) });
+        return lido.success ? [lido.data] : [];
+      });
   }
 }
