@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ChamarMaisAmigos } from "@/componentes/jams/ChamarMaisAmigos";
 import { ExcluirJam } from "@/componentes/jams/ExcluirJam";
+import { FeedDaJam } from "@/componentes/jams/FeedDaJam";
 import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
 import { PassoConexao } from "@/componentes/jams/PassoConexao";
 import { PresencaDaJam } from "@/componentes/jams/PresencaDaJam";
@@ -22,7 +23,8 @@ const MAXIMO_NA_JAM = 3;
 // Página da jam (Story 2.4): repositório, quem está nela e, para o criador,
 // chamar mais amigos, tentar de novo e excluir. Só para participantes (AC 3).
 // Quem está com a página aberta aparece ao vivo pela sala (Story 2.5), e quem
-// ainda não ligou o conector vê o passo de conexão (Story 3.2).
+// ainda não ligou o conector vê o passo de conexão (Story 3.2). O feed mostra o
+// que mudou na pasta da jam, ao vivo (Story 3.4).
 export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, eu] = await Promise.all([params, exigirSessao()]);
   // Id fora do formato nem vai ao banco (gate da 2.4, REL-001).
@@ -84,6 +86,7 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
             {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
           </ResultadoDaAcao>
         </section>
+        <FeedDaJam pessoas={jam.participantes.map(({ id: pessoaId, nome, foto, vaga }) => ({ id: pessoaId, nome, foto, vaga }))} eu={eu.id} />
       </PresencaDaJam>
 
       {souCriador && (

@@ -7,7 +7,7 @@ import { TentarDeNovo } from "./TentarDeNovo";
 // Cor de cada participante pela vaga, no anel da foto (front-end spec: a cor
 // dos participantes é o único elemento colorido forte). Classes fixas, para o
 // Tailwind achar.
-const COR_DA_VAGA: Record<number, string> = {
+export const COR_DA_VAGA: Record<number, string> = {
   1: "ring-participante-1",
   2: "ring-participante-2",
   3: "ring-participante-3",

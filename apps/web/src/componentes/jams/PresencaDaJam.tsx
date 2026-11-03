@@ -1,12 +1,31 @@
 "use client";
 
-import { mensagemDaSala } from "@coodevelopment/protocolo";
+import { mensagemDaSala, type EventoFeed, type MensagemFeed } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 type Presenca = { online: ReadonlySet<string>; conectados: ReadonlySet<string> };
 const NINGUEM: Presenca = { online: new Set(), conectados: new Set() };
 const Online = createContext<Presenca>(NINGUEM);
+
+// Feed da jam (Story 3.4): do mais novo ao mais antigo. "carregado" depois
+// que a sala mandou o feed guardado; "novo" é o último item que chegou ao
+// vivo, para o anúncio do leitor de tela.
+export type EstadoFeed = { eventos: EventoFeed[]; carregado: boolean; novo: EventoFeed | null };
+const SEM_FEED: EstadoFeed = { eventos: [], carregado: false, novo: null };
+const Feed = createContext<EstadoFeed>(SEM_FEED);
+
+// Itens guardados na memória da aba.
+const ITENS_NA_PAGINA = 200;
+
+// O feed guardado substitui tudo (também ao reconectar); o item ao vivo
+// entra no lugar do de mesmo id (grupo atualizado) ou como novo.
+export function aplicarFeed(atual: EstadoFeed, msg: MensagemFeed): EstadoFeed {
+  if (msg.inicial) return { eventos: [...msg.eventos].reverse().slice(0, ITENS_NA_PAGINA), carregado: true, novo: null };
+  const chegaram = new Map(msg.eventos.map((e) => [e.id, e]));
+  const eventos = [...msg.eventos, ...atual.eventos.filter((e) => !chegaram.has(e.id))].sort((a, b) => b.id - a.id).slice(0, ITENS_NA_PAGINA);
+  return { eventos, carregado: atual.carregado, novo: msg.eventos.at(-1) ?? atual.novo };
+}
 
 class ErroDoToken extends Error {
   constructor(public status: number) {
@@ -34,6 +53,7 @@ function lerJson(dados: unknown): unknown {
 // ficam vazios e a página segue igual (AC 4). O token fica só na memória da aba.
 export function PresencaDaJam({ jamId, children }: { jamId: string; children: ReactNode }) {
   const [presenca, setPresenca] = useState<Presenca>(NINGUEM);
+  const [feed, setFeed] = useState<EstadoFeed>(SEM_FEED);
 
   useEffect(() => {
     let ativo = true;
@@ -65,9 +85,10 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
         });
         socket.addEventListener("message", (evento) => {
           const lido = mensagemDaSala.safeParse(lerJson(evento.data));
-          if (lido.success && lido.data.tipo === "presenca") {
-            setPresenca({ online: new Set(lido.data.online), conectados: new Set(lido.data.conectados) });
-          }
+          if (!lido.success) return;
+          const msg = lido.data;
+          if (msg.tipo === "presenca") setPresenca({ online: new Set(msg.online), conectados: new Set(msg.conectados) });
+          else if (msg.tipo === "feed") setFeed((atual) => aplicarFeed(atual, msg));
         });
         socket.addEventListener("close", (evento) => {
           setPresenca(NINGUEM);
@@ -82,7 +103,11 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
     };
   }, [jamId]);
 
-  return <Online.Provider value={presenca}>{children}</Online.Provider>;
+  return (
+    <Online.Provider value={presenca}>
+      <Feed.Provider value={feed}>{children}</Feed.Provider>
+    </Online.Provider>
+  );
 }
 
 // "online agora" ao lado de quem está com a página da jam aberta.
@@ -110,4 +135,9 @@ export function MarcaConectado({ usuarioId }: { usuarioId: string }) {
 // A pessoa está com o conector ligado agora? (passo de conexão, Story 3.2)
 export function useConectado(usuarioId: string): boolean {
   return useContext(Online).conectados.has(usuarioId);
+}
+
+// O feed da jam ao vivo (Story 3.4).
+export function useFeed(): EstadoFeed {
+  return useContext(Feed);
 }
