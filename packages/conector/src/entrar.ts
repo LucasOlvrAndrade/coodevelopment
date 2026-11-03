@@ -1,4 +1,4 @@
-import { idDeJamValido, type MensagemEscrever } from "@coodevelopment/protocolo";
+import { idDeJamValido, type MensagemDoConector } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
@@ -77,7 +77,7 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   // pasta, para nada sair sem conexão.
   // O que sair antes de a conexão existir espera numa fila, em vez de se perder.
   let conexaoDaSala: ConexaoSala | undefined = undefined;
-  const antesDaConexao: MensagemEscrever[] = [];
+  const antesDaConexao: MensagemDoConector[] = [];
   const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, {
     enviar: (m) => (conexaoDaSala ? conexaoDaSala.enviar(m) : antesDaConexao.push(m)),
   });

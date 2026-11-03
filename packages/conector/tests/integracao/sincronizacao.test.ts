@@ -39,8 +39,11 @@ class SalaEmMemoria {
         this.escritas++;
         const texto = JSON.stringify(msg);
         setTimeout(async () => {
-          const escrita = mensagemDoConector.parse(JSON.parse(texto));
-          for (const { para, mensagem } of await this.sinc.escrever(eu, escrita)) {
+          const msg = mensagemDoConector.parse(JSON.parse(texto));
+          const envios = msg.tipo === "ignorado" ? this.sinc.ignorado(eu, msg) : await this.sinc.escrever(eu, msg);
+          for (const { para, mensagem } of envios) {
+            // Aqui só há conectores; o feed é das páginas (Story 3.4).
+            if (para === "paginas") continue;
             for (const [outro] of this.conexoes) {
               if (para === "autor" ? outro === id : para === "outros" ? outro !== id : true) this.entregar(outro, mensagem);
             }

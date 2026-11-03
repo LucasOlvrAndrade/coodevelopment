@@ -1,4 +1,4 @@
-import { mensagemDaSala, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
+import { mensagemDaSala, type MensagemDaSala, type MensagemDoConector } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import type { Ambiente } from "./ambiente";
 import { ErroApi, tokenDaSala } from "./api";
@@ -7,7 +7,7 @@ import { ErroApi, tokenDaSala } from "./api";
 // página da jam mostra o participante como "conectado". O token da sala vale
 // 10 minutos; cada reconexão pede outro ao app.
 
-export type ConexaoSala = { fechar(): void; fechou: Promise<string>; enviar(mensagem: MensagemEscrever): void };
+export type ConexaoSala = { fechar(): void; fechou: Promise<string>; enviar(mensagem: MensagemDoConector): void };
 
 export type OpcoesDaSala = {
   aoConectar: () => void;

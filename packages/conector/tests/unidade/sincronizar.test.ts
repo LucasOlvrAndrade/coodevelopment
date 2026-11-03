@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { hashDoConteudo, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
+import { hashDoConteudo, type MensagemDaSala, type MensagemDoConector, type MensagemEscrever } from "@coodevelopment/protocolo";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Cada caso cria um repositório e roda git de verdade: com a máquina ocupada
@@ -41,13 +41,14 @@ function repositorio() {
 async function preparar() {
   const { raiz, baseSha } = repositorio();
   const enviados: MensagemEscrever[] = [];
+  const ignorados: MensagemDoConector[] = [];
   let avisar: (absolutos: string[] | null) => void = () => {};
   const vigiar: Vigiar = async (_r, aoMudar) => {
     avisar = aoMudar;
     return { parar: async () => {} };
   };
   const linhas: string[] = [];
-  const sinc = new Sincronizador({ ...ambienteReal(), cwd: raiz, escrever: (l) => linhas.push(l) }, raiz, baseSha, "lucas", { enviar: (m) => enviados.push(m) }, vigiar, 10, 3_600_000);
+  const sinc = new Sincronizador({ ...ambienteReal(), cwd: raiz, escrever: (l) => linhas.push(l) }, raiz, baseSha, "lucas", { enviar: (m) => void (m.tipo === "escrever" ? enviados.push(m) : ignorados.push(m)) }, vigiar, 10, 3_600_000);
   await sinc.iniciar();
   ligados.push(sinc);
   const mudar = async (conteudo: string) => {
@@ -84,7 +85,7 @@ async function preparar() {
     avisar(null);
     await sinc.ocioso();
   };
-  return { raiz, enviados, linhas, mudar, tocar, varrer, daSala, arquivo, ler: () => readFileSync(join(raiz, "texto.txt"), "utf8") };
+  return { raiz, enviados, ignorados, linhas, mudar, tocar, varrer, daSala, arquivo, ler: () => readFileSync(join(raiz, "texto.txt"), "utf8") };
 }
 
 describe("merge da nossa escrita com a pasta mudada no meio (DATA-001)", () => {
@@ -215,5 +216,17 @@ describe("com a regra de verdade da sala (gate da 3.3, DATA-005)", () => {
     await t.tocar("backup~1.txt");
     expect(t.enviados).toEqual([]);
     expect(t.linhas.filter((l) => l === "backup~1.txt tem um nome que não funciona no Windows e não vai para a jam.")).toHaveLength(1);
+  });
+});
+
+describe("arquivo acima de 1 MB (A14, Story 3.4)", () => {
+  it("não sai, e a sala recebe um aviso só para o feed, uma vez por arquivo", async () => {
+    const t = await preparar();
+    writeFileSync(join(t.raiz, "video.bin"), "x".repeat(1024 * 1024 + 10));
+    await t.tocar("video.bin");
+    await t.tocar("video.bin");
+    expect(t.enviados.some((m) => m.caminho === "video.bin")).toBe(false);
+    expect(t.ignorados).toEqual([{ v: 1, tipo: "ignorado", caminho: "video.bin", motivo: "grande_demais", tamanho: 1024 * 1024 + 10 }]);
+    expect(t.linhas).toContain("video.bin tem mais de 1 MB e não vai para a jam.");
   });
 });

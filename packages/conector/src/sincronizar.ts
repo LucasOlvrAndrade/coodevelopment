@@ -1,6 +1,6 @@
 import { lstat } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
-import { TAMANHO_MAXIMO, caminhoSincronizavel, hashDoConteudo, juntar, type MensagemArquivo, type MensagemDaSala, type MensagemEscrever } from "@coodevelopment/protocolo";
+import { TAMANHO_MAXIMO, caminhoSincronizavel, hashDoConteudo, juntar, type MensagemArquivo, type MensagemDaSala, type MensagemDoConector } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { PREFIXO_TEMPORARIO, gravarNoDisco, lerLocal, type Local } from "./disco";
 import { arquivoNaBase, crlfPorPadrao, ignoradosPeloGit, podeCircular } from "./filtro";
@@ -11,7 +11,7 @@ import { arquivoNaBase, crlfPorPadrao, ignoradosPeloGit, podeCircular } from "./
 // que chega sobre mudança local ainda não enviada não é gravado: a mudança
 // local sai com a base antiga e a sala junta as duas.
 
-export type Transporte = { enviar(mensagem: MensagemEscrever): void };
+export type Transporte = { enviar(mensagem: MensagemDoConector): void };
 
 export type Vigia = { parar(): Promise<void> };
 // absolutos null: o vigia avisou que perdeu eventos.
@@ -265,7 +265,11 @@ export class Sincronizador {
     }
 
     if (local.existe && local.tamanho > TAMANHO_MAXIMO) {
-      if (!this.avisados.has(caminho)) this.amb.escrever(`${caminho} tem mais de 1 MB e não vai para a jam.`);
+      // Uma vez por arquivo: o aviso no terminal e o item no feed (A14, Story 3.4).
+      if (!this.avisados.has(caminho)) {
+        this.amb.escrever(`${caminho} tem mais de 1 MB e não vai para a jam.`);
+        this.transporte.enviar({ v: 1, tipo: "ignorado", caminho, motivo: "grande_demais", tamanho: local.tamanho });
+      }
       this.avisados.add(caminho);
       return;
     }
