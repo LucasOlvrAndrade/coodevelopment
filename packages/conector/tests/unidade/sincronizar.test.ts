@@ -230,3 +230,12 @@ describe("arquivo acima de 1 MB (A14, Story 3.4)", () => {
     expect(t.linhas).toContain("video.bin tem mais de 1 MB e não vai para a jam.");
   });
 });
+
+describe("nome recusado pela sala (gate da 3.4, REL-003)", () => {
+  it("avisa no terminal uma vez por arquivo", async () => {
+    const t = await preparar();
+    await t.daSala({ v: 1, tipo: "recusado", caminho: "x.txt", motivo: "caminho_invalido" });
+    await t.daSala({ v: 1, tipo: "recusado", caminho: "x.txt", motivo: "caminho_invalido" });
+    expect(t.linhas.filter((l) => l.includes("A jam recusou o nome x.txt"))).toHaveLength(1);
+  });
+});

@@ -53,10 +53,14 @@ describe("resumoDaDiferenca", () => {
 });
 
 describe("nome disfarçado (gate da 3.4, SEC-002)", () => {
-  it("caracteres invisíveis de formatação no caminho são recusados", () => {
+  it("controles de direção do texto no caminho são recusados", () => {
     expect(caminhoSincronizavel("fatura‮txt.exe")).toEqual({ ok: false, motivo: "caminho_invalido" });
-    expect(caminhoSincronizavel("src/a​b.ts")).toEqual({ ok: false, motivo: "caminho_invalido" });
+    expect(caminhoSincronizavel("src/a⁧b⁩.ts")).toEqual({ ok: false, motivo: "caminho_invalido" });
     expect(caminhoSincronizavel("docs/configuração.md")).toMatchObject({ ok: true });
+  });
+
+  it("nomes legítimos com outros caracteres invisíveis passam (REL-003)", () => {
+    for (const nome of ["👨‍💻.md", "می‌خواهم.txt", "क्‍ष.md"]) expect(caminhoSincronizavel(nome)).toMatchObject({ ok: true });
   });
 });
 

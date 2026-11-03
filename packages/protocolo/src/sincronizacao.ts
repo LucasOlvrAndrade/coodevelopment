@@ -26,10 +26,11 @@ export const PREFIXO_TEMPORARIO = ".coodevelopment-";
 // - nomes reservados (CON, NUL, AUX, COM1...), com ou sem extensão;
 // - caracteres que o Windows não aceita em nome.
 const NOME_CURTO = /~\d/;
-// Também os caracteres invisíveis de formatação (categoria Cf: direção do
-// texto, espaço de largura zero), que disfarçam um nome no feed e no
-// terminal ("fatura‮txt.exe"; gate da 3.4, SEC-002).
-const CARACTERE_PROIBIDO = /[<>:"|?*\u0000-\u001f]|\p{Cf}/u;
+// Também os controles de direção do texto, que disfarçam um nome no feed e no
+// terminal ("fatura‮txt.exe"; gate da 3.4, SEC-002). Só eles: o resto da
+// categoria Cf aparece em nomes legítimos (emoji com ZWJ, o ZWNJ do persa;
+// gate da 3.4, REL-003).
+const CARACTERE_PROIBIDO = /[<>:"|?*\u0000-\u001f؜‎‏‪-‮⁦-⁩]/;
 const RESERVADO = /^(con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$/i;
 
 function parteValida(parte: string): boolean {
