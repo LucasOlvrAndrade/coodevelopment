@@ -98,13 +98,13 @@ describe("feed da jam (Story 3.4)", () => {
       true,
     );
     const [primeiro, segundo] = itens();
-    expect(primeiro).toHaveTextContent("Você mudou 7 arquivos");
+    expect(primeiro).toHaveTextContent("Você mudou mais de 4 arquivos");
     expect(primeiro).toHaveTextContent("src/novo.ts");
     expect(primeiro).toHaveTextContent("novo, 12 linhas");
     expect(primeiro).toHaveTextContent("apagado");
     expect(primeiro).toHaveTextContent("alterado, arquivo binário");
     expect(primeiro).toHaveTextContent("juntado com outra mudança");
-    expect(primeiro).toHaveTextContent("e mais 3 arquivos");
+    expect(primeiro).toHaveTextContent("e mais 3 mudanças em arquivos que não cabem aqui");
     expect(segundo).toHaveTextContent("Lucas Andrade mudou 1 arquivo");
     expect(segundo).toHaveTextContent("3 linhas acrescentadas, 1 tirada");
     expect(segundo).toHaveTextContent("há 2 min");
@@ -112,11 +112,29 @@ describe("feed da jam (Story 3.4)", () => {
 
   it("dependências aparecem destacadas, pedindo reinstalação (AC 2)", async () => {
     await pagina();
-    feed([{ ...comum, id: 1, tipo: "dependencias", autorId: "lucas", caminhos: ["package.json", "pnpm-lock.yaml"] }], true);
+    feed(
+      [
+        {
+          ...comum,
+          id: 1,
+          tipo: "dependencias",
+          autorId: "lucas",
+          arquivos: [
+            { caminho: "package.json", mudanca: "alterado", binario: false, adicionadas: 1, removidas: 1, juntado: false },
+            { caminho: "pnpm-lock.yaml", mudanca: "apagado", binario: false, adicionadas: null, removidas: null, juntado: false },
+          ],
+          outros: 0,
+        },
+      ],
+      true,
+    );
     const [item] = itens();
     expect(item).toHaveTextContent("Lucas Andrade mudou as dependências");
     expect(item).toHaveTextContent("Reinstale as dependências no seu PC.");
     expect(item!.className).toContain("ring-alerta");
+    // O resumo de cada arquivo também nas dependências (gate da 3.4, UX-002).
+    expect(item).toHaveTextContent("1 linha acrescentada, 1 tirada");
+    expect(item).toHaveTextContent("pnpm-lock.yaml");
   });
 
   it("conflito e arquivo grande contam quem perdeu e o porquê (AC 5)", async () => {
@@ -125,28 +143,56 @@ describe("feed da jam (Story 3.4)", () => {
       [
         { ...comum, id: 1, tipo: "conflito", autorId: "pai", outroId: "lucas", caminho: "a.ts", resolvido: "guardado" },
         { ...comum, id: 2, tipo: "conflito", autorId: "lucas", outroId: "pai", caminho: "logo.png", resolvido: "sobrescrito" },
-        { ...comum, id: 3, tipo: "grande", autorId: "lucas", caminho: "video.mp4", tamanho: 5 * 1024 * 1024 },
+        { ...comum, id: 3, tipo: "grande", autorId: "lucas", arquivos: [{ caminho: "video.mp4", tamanho: 5 * 1024 * 1024 }], outros: 0 },
       ],
       true,
     );
     const [grande, sobrescrito, guardado] = itens();
     expect(guardado).toHaveTextContent("A sua mudança cruzou com uma de Lucas Andrade e ficou guardada no histórico da jam");
-    expect(sobrescrito).toHaveTextContent("Lucas Andrade substituiu o arquivo binário; a sua versão anterior está guardada no histórico da jam.");
+    expect(sobrescrito).toHaveTextContent("Lucas Andrade substituiu o arquivo; a sua versão anterior está guardada no histórico da jam.");
     expect(grande).toHaveTextContent("video.mp4 ficou fora da jam");
     expect(grande).toHaveTextContent("5 MB");
+    expect(grande).toHaveTextContent("Ficaram só no PC de Lucas Andrade");
   });
 
   it("se atualiza sozinho: grupo atualizado no lugar, item novo em cima e anunciado (AC 3 e 4)", async () => {
     await pagina();
     feed([arquivos(1, "lucas")], true);
     expect(screen.getByRole("status")).toHaveTextContent("");
-    feed([arquivos(1, "lucas", { outros: 1 })], false);
+    feed([arquivos(1, "lucas", { arquivos: [{ caminho: "src/app.ts", mudanca: "alterado", binario: false, adicionadas: 3, removidas: 1, juntado: false }, { caminho: "b.ts", mudanca: "criado", binario: false, adicionadas: 1, removidas: 0, juntado: false }] })], false);
     expect(itens()).toHaveLength(1);
     expect(itens()[0]).toHaveTextContent("Lucas Andrade mudou 2 arquivos");
     feed([arquivos(2, "pai")], false);
     expect(itens()).toHaveLength(2);
     expect(itens()[0]).toHaveTextContent("Você mudou 1 arquivo");
     expect(screen.getByRole("status")).toHaveTextContent("Você mudou 1 arquivo");
+  });
+
+  it("conflito da mesma pessoa com duas pastas é dito assim (gate da 3.4, DATA-003)", async () => {
+    await pagina();
+    feed([{ ...comum, id: 1, tipo: "conflito", autorId: "pai", outroId: "pai", caminho: "a.ts", resolvido: "guardado" }], true);
+    expect(itens()[0]).toHaveTextContent("Duas pastas suas mudaram o mesmo trecho");
+  });
+
+  it("um grupo que cresceu sobe acima de um item mais novo (gate da 3.4, UX-001)", async () => {
+    await pagina();
+    feed([arquivos(1, "lucas"), { ...comum, id: 2, atualizadoEm: "2026-11-03T12:09:00.000Z", tipo: "grande", autorId: "lucas", arquivos: [{ caminho: "v.mp4", tamanho: 2_000_000 }], outros: 0 }], true);
+    expect(itens()[0]).toHaveTextContent("v.mp4");
+    feed([arquivos(1, "lucas", { atualizadoEm: "2026-11-03T12:10:00.000Z", outros: 0 })], false);
+    expect(itens()[0]).toHaveTextContent("Lucas Andrade mudou 1 arquivo");
+  });
+
+  it("item de tipo desconhecido (versão mais nova da sala) fica de fora sem levar o resto (gate da 3.4, REL-002)", async () => {
+    await pagina();
+    act(() => {
+      sockets.at(-1)!.dispatchEvent(
+        new MessageEvent("message", {
+          data: JSON.stringify({ v: 1, tipo: "feed", inicial: true, eventos: [{ ...comum, id: 2, tipo: "aviso", autorId: "lucas", resumo: "x" }, arquivos(1, "lucas")] }),
+        }),
+      );
+    });
+    expect(itens()).toHaveLength(1);
+    expect(itens()[0]).toHaveTextContent("Lucas Andrade mudou 1 arquivo");
   });
 
   it("quem saiu da jam aparece sem nome", async () => {

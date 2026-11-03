@@ -1,6 +1,6 @@
 "use client";
 
-import { mensagemDaSala, type EventoFeed, type MensagemFeed } from "@coodevelopment/protocolo";
+import { eventoFeed, mensagemDaSala, type EventoFeed, type MensagemFeed } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -18,13 +18,35 @@ const Feed = createContext<EstadoFeed>(SEM_FEED);
 // Itens guardados na memória da aba.
 const ITENS_NA_PAGINA = 200;
 
+// Mais recente em cima pela última mudança: um grupo que cresceu sobe acima
+// de um item mais novo do mesmo autor (gate da 3.4, UX-001).
+const maisRecente = (a: EventoFeed, b: EventoFeed) => b.atualizadoEm.localeCompare(a.atualizadoEm) || b.id - a.id;
+
 // O feed guardado substitui tudo (também ao reconectar); o item ao vivo
 // entra no lugar do de mesmo id (grupo atualizado) ou como novo.
 export function aplicarFeed(atual: EstadoFeed, msg: MensagemFeed): EstadoFeed {
-  if (msg.inicial) return { eventos: [...msg.eventos].reverse().slice(0, ITENS_NA_PAGINA), carregado: true, novo: null };
-  const chegaram = new Map(msg.eventos.map((e) => [e.id, e]));
-  const eventos = [...msg.eventos, ...atual.eventos.filter((e) => !chegaram.has(e.id))].sort((a, b) => b.id - a.id).slice(0, ITENS_NA_PAGINA);
+  if (msg.inicial) return { eventos: [...msg.eventos].sort(maisRecente).slice(0, ITENS_NA_PAGINA), carregado: true, novo: null };
+  const chegaram = new Set(msg.eventos.map((e) => e.id));
+  const eventos = [...msg.eventos, ...atual.eventos.filter((e) => !chegaram.has(e.id))].sort(maisRecente).slice(0, ITENS_NA_PAGINA);
   return { eventos, carregado: atual.carregado, novo: msg.eventos.at(-1) ?? atual.novo };
+}
+
+// A mensagem do feed lida item por item: um tipo que esta versão da página
+// não conhece (os avisos do Epic 4, numa aba aberta antes da atualização)
+// fica de fora sem levar o resto (gate da 3.4, REL-002).
+export function lerFeed(dados: unknown): MensagemFeed | null {
+  if (typeof dados !== "object" || dados === null) return null;
+  const { tipo, inicial, eventos } = dados as { tipo?: unknown; inicial?: unknown; eventos?: unknown };
+  if (tipo !== "feed" || typeof inicial !== "boolean" || !Array.isArray(eventos)) return null;
+  return {
+    v: 1,
+    tipo: "feed",
+    inicial,
+    eventos: eventos.flatMap((e) => {
+      const lido = eventoFeed.safeParse(e);
+      return lido.success ? [lido.data] : [];
+    }),
+  };
 }
 
 class ErroDoToken extends Error {
@@ -84,11 +106,14 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
           },
         });
         socket.addEventListener("message", (evento) => {
-          const lido = mensagemDaSala.safeParse(lerJson(evento.data));
-          if (!lido.success) return;
-          const msg = lido.data;
-          if (msg.tipo === "presenca") setPresenca({ online: new Set(msg.online), conectados: new Set(msg.conectados) });
-          else if (msg.tipo === "feed") setFeed((atual) => aplicarFeed(atual, msg));
+          const dados = lerJson(evento.data);
+          const feed = lerFeed(dados);
+          if (feed) {
+            setFeed((atual) => aplicarFeed(atual, feed));
+            return;
+          }
+          const lido = mensagemDaSala.safeParse(dados);
+          if (lido.success && lido.data.tipo === "presenca") setPresenca({ online: new Set(lido.data.online), conectados: new Set(lido.data.conectados) });
         });
         socket.addEventListener("close", (evento) => {
           setPresenca(NINGUEM);

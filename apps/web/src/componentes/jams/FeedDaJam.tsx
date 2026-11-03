@@ -43,70 +43,80 @@ const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 // Nome de quem fez, ou "você"; no começo da frase, com maiúscula.
 type Nomear = (id: string) => string;
 
+// Quantos arquivos o item conta: acima de 50, "mais de 50", porque o
+// excedente é contado por mudança, não por arquivo (gate da 3.4, DATA-001).
+function quantos(e: { arquivos: unknown[]; outros: number }): string {
+  return e.outros > 0 ? `mais de ${e.arquivos.length} arquivos` : plural(e.arquivos.length, "arquivo", "arquivos");
+}
+
 // Frase curta do item, para o anúncio ao vivo e o título do item.
 export function fraseDoEvento(e: EventoFeed, nome: Nomear): string {
   switch (e.tipo) {
     case "arquivos":
-      return `${maiuscula(nome(e.autorId))} mudou ${plural(e.arquivos.length + e.outros, "arquivo", "arquivos")}`;
+      return `${maiuscula(nome(e.autorId))} mudou ${quantos(e)}`;
     case "dependencias":
       return `${maiuscula(nome(e.autorId))} mudou as dependências`;
     case "conflito":
       return `Conflito em ${e.caminho}`;
     case "grande":
-      return `${e.caminho} ficou fora da jam`;
+      return e.arquivos.length === 1 && e.outros === 0 ? `${e.arquivos[0]!.caminho} ficou fora da jam` : `${maiuscula(quantos(e))} ficaram fora da jam`;
   }
 }
 
-// Quem perdeu o quê num conflito, do ponto de vista de quem lê (A2).
+// Quem perdeu o quê num conflito, do ponto de vista de quem lê (A2). A
+// mesma pessoa dos dois lados é ela com duas pastas na jam (gate da 3.4,
+// DATA-003).
 function textoDoConflito(e: Extract<EventoFeed, { tipo: "conflito" }>, nome: Nomear, eu: string): string {
   const autor = nome(e.autorId);
   const outro = nome(e.outroId);
+  const pastas = `Duas pastas ${e.autorId === eu ? "suas" : `de ${autor}`}`;
   if (e.resolvido === "guardado") {
+    if (e.autorId === e.outroId) return `${pastas} mudaram o mesmo trecho; a mudança que chegou depois ficou guardada no histórico da jam.`;
     if (e.autorId === eu) return `A sua mudança cruzou com uma de ${outro} e ficou guardada no histórico da jam; o arquivo ficou como ${outro} deixou.`;
     if (e.outroId === eu) return `A mudança de ${autor} cruzou com a sua e ficou guardada no histórico da jam; o arquivo ficou com a sua.`;
     return `A mudança de ${autor} cruzou com a de ${outro} e ficou guardada no histórico da jam; o arquivo ficou com a de ${outro}.`;
   }
-  if (e.outroId === eu) return `${maiuscula(autor)} substituiu o arquivo binário; a sua versão anterior está guardada no histórico da jam.`;
-  return `${maiuscula(autor)} substituiu o arquivo binário; a versão anterior, de ${outro}, está guardada no histórico da jam.`;
+  if (e.autorId === e.outroId) return `${pastas} mudaram o arquivo; a versão anterior está guardada no histórico da jam.`;
+  if (e.outroId === eu) return `${maiuscula(autor)} substituiu o arquivo; a sua versão anterior está guardada no histórico da jam.`;
+  return `${maiuscula(autor)} substituiu o arquivo; a versão anterior, de ${outro}, está guardada no histórico da jam.`;
 }
 
 function Caminho({ children }: { children: string }) {
   return <code className="font-mono text-pequeno break-all text-texto">{children}</code>;
 }
 
+// Os arquivos de um item, com o resumo de cada um (AC 1).
+function ListaDeArquivos({ arquivos, outros }: { arquivos: ArquivoNoFeed[]; outros: number }) {
+  return (
+    <>
+      <ul className="flex flex-col gap-1.5">
+        {arquivos.map((a) => {
+          const r = resumoDoArquivo(a);
+          return (
+            <li key={a.caminho} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <Caminho>{a.caminho}</Caminho>
+              <span className="shrink-0 text-pequeno text-texto-suave">
+                <span aria-hidden>{r.visivel}</span>
+                <span className="sr-only">{r.lido}</span>
+                {a.juntado && ", juntado com outra mudança"}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {outros > 0 && <p className="text-pequeno text-texto-suave">e mais {plural(outros, "mudança", "mudanças")} em arquivos que não cabem aqui</p>}
+    </>
+  );
+}
+
 function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
   switch (e.tipo) {
     case "arquivos":
-      return (
-        <>
-          <ul className="flex flex-col gap-1.5">
-            {e.arquivos.map((a) => {
-              const r = resumoDoArquivo(a);
-              return (
-                <li key={a.caminho} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                  <Caminho>{a.caminho}</Caminho>
-                  <span className="shrink-0 text-pequeno text-texto-suave">
-                    <span aria-hidden>{r.visivel}</span>
-                    <span className="sr-only">{r.lido}</span>
-                    {a.juntado && ", juntado com outra mudança"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {e.outros > 0 && <p className="text-pequeno text-texto-suave">e mais {plural(e.outros, "arquivo", "arquivos")}</p>}
-        </>
-      );
+      return <ListaDeArquivos arquivos={e.arquivos} outros={e.outros} />;
     case "dependencias":
       return (
         <>
-          <ul className="flex flex-col gap-1">
-            {e.caminhos.map((c) => (
-              <li key={c}>
-                <Caminho>{c}</Caminho>
-              </li>
-            ))}
-          </ul>
+          <ListaDeArquivos arquivos={e.arquivos} outros={e.outros} />
           <p className="font-medium text-alerta">
             {e.autorId === eu ? "Quem está na jam vai precisar reinstalar as dependências." : "Reinstale as dependências no seu PC."}
           </p>
@@ -121,9 +131,20 @@ function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
       );
     case "grande":
       return (
-        <p className="text-texto-suave">
-          {e.autorId === eu ? "Arquivo seu" : `Arquivo de ${nome(e.autorId)}`} com {megabytes(e.tamanho)}; o limite da jam é 1 MB.
-        </p>
+        <>
+          <ul className="flex flex-col gap-1.5">
+            {e.arquivos.map((a) => (
+              <li key={a.caminho} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <Caminho>{a.caminho}</Caminho>
+                <span className="shrink-0 text-pequeno text-texto-suave">{megabytes(a.tamanho)}</span>
+              </li>
+            ))}
+          </ul>
+          {e.outros > 0 && <p className="text-pequeno text-texto-suave">e mais {plural(e.outros, "arquivo", "arquivos")}</p>}
+          <p className="text-texto-suave">
+            {e.autorId === eu ? "Ficaram só no seu PC" : `Ficaram só no PC de ${nome(e.autorId)}`}: o limite da jam é 1 MB por arquivo.
+          </p>
+        </>
       );
   }
 }
