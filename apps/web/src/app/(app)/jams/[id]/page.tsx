@@ -9,6 +9,7 @@ import { ParticipantesDaJam } from "@/componentes/jams/ParticipantesDaJam";
 import { PassoConexao } from "@/componentes/jams/PassoConexao";
 import { PresencaDaJam } from "@/componentes/jams/PresencaDaJam";
 import { ResultadoDaAcao } from "@/componentes/jams/ResultadoDaAcao";
+import { SiteDoProjeto } from "@/componentes/jams/SiteDoProjeto";
 import { link, tituloPagina, tituloSecao } from "@/componentes/ui/estilo";
 import { exigirSessao } from "@/servidor/auth";
 import { db } from "@/servidor/db";
@@ -24,7 +25,8 @@ const MAXIMO_NA_JAM = 3;
 // chamar mais amigos, tentar de novo e excluir. Só para participantes (AC 3).
 // Quem está com a página aberta aparece ao vivo pela sala (Story 2.5), e quem
 // ainda não ligou o conector vê o passo de conexão (Story 3.2). O feed mostra o
-// que mudou na pasta da jam, ao vivo (Story 3.4).
+// que mudou na pasta da jam, ao vivo (Story 3.4). À direita, o site do
+// projeto (o Website do repositório no GitHub), com prévia e link.
 export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, eu] = await Promise.all([params, exigirSessao()]);
   // Id fora do formato nem vai ao banco (gate da 2.4, REL-001).
@@ -46,64 +48,72 @@ export async function ConteudoDaJam({ params }: { params: Promise<{ id: string }
   const repositorio = `${jam.repoOwner}/${jam.repoNome}`;
 
   return (
-    <>
-      <header className="flex flex-col items-start gap-4">
-        <Link
-          href="/inicio"
-          className="inline-flex items-center gap-2 rounded-full bg-texto/5 px-3 py-1.5 text-sm text-texto-suave ring-1 ring-divisoria transition-colors hover:text-texto"
-        >
-          ← Jams
-        </Link>
-        {/* O selo da página inicial: a situação no chip branco e o código ao lado. */}
-        <p className="inline-flex max-w-full items-center gap-3 rounded-full bg-texto/10 px-2.5 py-2 ring-1 ring-texto/15 backdrop-blur">
-          <span className="inline-flex shrink-0 items-center rounded-full bg-primaria/90 px-2 py-0.5 text-xs font-medium text-sobre-primaria">
-            {aberta ? "Aberta" : jam.estado === "fechando" ? "Fechando" : "Fechada"}
-          </span>
-          <span className="sr-only">, </span>
-          <span className="text-sm font-medium text-texto/90">código {jam.id}</span>
-        </p>
-        {/* Nome longo quebra dentro da largura da tela, mesmo sem hífen (gate da 2.4, UX-003; a 320 px "LucasOlvrAndrade/testejam" rolava para o lado, Story 3.4). */}
-        <h1 className={`${tituloPagina} max-w-full [overflow-wrap:anywhere]`}>{repositorio}</h1>
-        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-texto-suave">
-          <span>
-            branch <span className="font-mono text-texto">{jam.branch}</span>
-          </span>
-          <a href={`https://github.com/${repositorio}`} className={link}>
-            Abrir o repositório no GitHub
-          </a>
-        </p>
-      </header>
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
+      <div className="flex min-w-0 flex-col gap-10">
+        <header className="flex flex-col items-start gap-4">
+          <Link
+            href="/inicio"
+            className="inline-flex items-center gap-2 rounded-full bg-texto/5 px-3 py-1.5 text-sm text-texto-suave ring-1 ring-divisoria transition-colors hover:text-texto"
+          >
+            ← Jams
+          </Link>
+          {/* O selo da página inicial: a situação no chip branco e o código ao lado. */}
+          <p className="inline-flex max-w-full items-center gap-3 rounded-full bg-texto/10 px-2.5 py-2 ring-1 ring-texto/15 backdrop-blur">
+            <span className="inline-flex shrink-0 items-center rounded-full bg-primaria/90 px-2 py-0.5 text-xs font-medium text-sobre-primaria">
+              {aberta ? "Aberta" : jam.estado === "fechando" ? "Fechando" : "Fechada"}
+            </span>
+            <span className="sr-only">, </span>
+            <span className="text-sm font-medium text-texto/90">código {jam.id}</span>
+          </p>
+          {/* Nome longo quebra dentro da largura da tela, mesmo sem hífen (gate da 2.4, UX-003; a 320 px "LucasOlvrAndrade/testejam" rolava para o lado, Story 3.4). */}
+          <h1 className={`${tituloPagina} max-w-full [overflow-wrap:anywhere]`}>{repositorio}</h1>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-texto-suave">
+            <span>
+              branch <span className="font-mono text-texto">{jam.branch}</span>
+            </span>
+            <a href={`https://github.com/${repositorio}`} className={link}>
+              Abrir o repositório no GitHub
+            </a>
+          </p>
+        </header>
 
-      {/* A presença da sala serve ao passo de conexão (Story 3.2) e à lista de quem está na jam (Story 2.5). */}
-      <PresencaDaJam jamId={jam.id}>
-        {aberta && <PassoConexao jamId={jam.id} eu={eu.id} />}
-        <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
-          <h2 id="titulo-quem" className={tituloSecao}>
-            Quem está na jam
-          </h2>
-          <ResultadoDaAcao>
-            <ParticipantesDaJam jam={jam} eu={eu.id} />
-            {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
-          </ResultadoDaAcao>
-        </section>
-        <FeedDaJam pessoas={jam.participantes.map(({ id: pessoaId, nome, foto, vaga }) => ({ id: pessoaId, nome, foto, vaga }))} eu={eu.id} />
-      </PresencaDaJam>
+        {/* A presença da sala serve ao passo de conexão (Story 3.2) e à lista de quem está na jam (Story 2.5). */}
+        <PresencaDaJam jamId={jam.id}>
+          {aberta && <PassoConexao jamId={jam.id} eu={eu.id} />}
+          <section aria-labelledby="titulo-quem" className="flex flex-col gap-4">
+            <h2 id="titulo-quem" className={tituloSecao}>
+              Quem está na jam
+            </h2>
+            <ResultadoDaAcao>
+              <ParticipantesDaJam jam={jam} eu={eu.id} />
+              {souCriador && aberta && <ChamarMaisAmigos jamId={jam.id} amigos={amigosForaDaJam} vagas={vagas} />}
+            </ResultadoDaAcao>
+          </section>
+          <FeedDaJam pessoas={jam.participantes.map(({ id: pessoaId, nome, foto, vaga }) => ({ id: pessoaId, nome, foto, vaga }))} eu={eu.id} />
+        </PresencaDaJam>
 
-      {souCriador && (
-        <section aria-labelledby="titulo-gerenciar" className="flex flex-col items-start gap-3 border-t border-divisoria pt-8">
-          <h2 id="titulo-gerenciar" className="text-h3 font-medium">
-            Gerenciar
-          </h2>
-          <ExcluirJam jamId={jam.id} repositorio={repositorio} />
-        </section>
-      )}
-    </>
+        {souCriador && (
+          <section aria-labelledby="titulo-gerenciar" className="flex flex-col items-start gap-3 border-t border-divisoria pt-8">
+            <h2 id="titulo-gerenciar" className="text-h3 font-medium">
+              Gerenciar
+            </h2>
+            <ExcluirJam jamId={jam.id} repositorio={repositorio} />
+          </section>
+        )}
+      </div>
+      {/* O GitHub pode demorar: a coluna chega depois, sem segurar a página. */}
+      <aside aria-label="Site do projeto" className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+        <Suspense fallback={<p className="text-texto-suave">Buscando o site do projeto...</p>}>
+          <SiteDoProjeto usuarioId={eu.id} dono={jam.repoOwner} nome={jam.repoNome} />
+        </Suspense>
+      </aside>
+    </div>
   );
 }
 
 export default function PaginaDaJam({ params }: PageProps<"/jams/[id]">) {
   return (
-    <div className="flex max-w-3xl flex-col gap-10">
+    <div className="flex max-w-7xl flex-col gap-10">
       <Suspense fallback={<p className="text-texto-suave">Abrindo a jam...</p>}>
         <ConteudoDaJam params={params} />
       </Suspense>
