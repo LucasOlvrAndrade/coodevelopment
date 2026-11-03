@@ -122,7 +122,7 @@ export async function instalarPlugin(amb: Ambiente, pasta: string): Promise<Resu
     }
   }
   amb.escrever(
-    "Plugin do Claude Code pronto nesta pasta. Na primeira vez, o Claude Code pede para aprovar o servidor MCP coodevelopment: aprove. Se ele já estava aberto aqui, rode /reload-plugins nele (ou abra de novo).",
+    "Plugin do Claude Code pronto nesta pasta. Se o Claude Code pedir para aprovar o servidor MCP coodevelopment, aprove. Se ele já estava aberto aqui, rode /reload-plugins nele (ou abra de novo).",
   );
   return "instalado";
 }
