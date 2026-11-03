@@ -166,3 +166,16 @@ describe("Sincronizacao.estado (AC 5)", () => {
     ]);
   });
 });
+
+describe("merge com custo limitado (Story 3.5)", () => {
+  it("escrita de versão antiga com linhas repetidas não trava a sala: vira conflito guardado em menos de 1 s (AC 1, 2 e 4)", async () => {
+    const { sinc, armazenamento } = nova();
+    const base = Array(2500).fill("x").join("\n");
+    await sinc.escrever("lucas", await escrita("r.txt", `${base}\nz`, 0, { conteudoBase: base }));
+    const inicio = performance.now();
+    const envios = await sinc.escrever("pai", await escrita("r.txt", Array.from({ length: 2500 }, (_, i) => (i % 2 ? "y" : "x")).join("\n"), 0, { conteudoBase: base }));
+    expect(performance.now() - inicio).toBeLessThan(1000);
+    expect(envios[0]!.mensagem).toMatchObject({ tipo: "recusado", motivo: "conflito_guardado" });
+    expect(armazenamento.historico).toHaveLength(1);
+  });
+});

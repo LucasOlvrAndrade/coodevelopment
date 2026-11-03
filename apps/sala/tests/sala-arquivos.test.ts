@@ -133,3 +133,19 @@ describe("feed na sala (Story 3.4)", () => {
     outra.ws.close();
   });
 });
+
+describe("merge com custo limitado na sala de verdade (Story 3.5)", () => {
+  it("escrita de versão antiga com linhas repetidas responde rápido no workerd", async () => {
+    const lucas = await conectar("jam-merge-caro", "lucas");
+    const pai = await conectar("jam-merge-caro", "pai");
+    const base = Array(2500).fill("x").join("\n");
+    await lucas.escrever("r.txt", `${base}\nz`, 0, base);
+    await lucas.esperar((m) => m.tipo === "aceito");
+    const inicio = Date.now();
+    await pai.escrever("r.txt", Array.from({ length: 2500 }, (_, i) => (i % 2 ? "y" : "x")).join("\n"), 0, base);
+    expect(await pai.esperar((m) => m.tipo === "recusado")).toMatchObject({ motivo: "conflito_guardado" });
+    expect(Date.now() - inicio).toBeLessThan(1000);
+    lucas.ws.close();
+    pai.ws.close();
+  });
+});

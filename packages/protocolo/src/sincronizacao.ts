@@ -1,4 +1,4 @@
-import { diff3Merge } from "node-diff3";
+import { juntarLinhas } from "./diferenca";
 import { z } from "zod";
 import { normalizarCaminho, normalizarFinalDeLinha } from "./normalizacao";
 
@@ -51,18 +51,18 @@ export function caminhoSincronizavel(caminho: string): { ok: true; caminho: stri
   return { ok: true, caminho: normal };
 }
 
+// Linhas acrescentadas mais tiradas de cada lado acima das quais o merge
+// desiste e vira conflito (Story 3.5): o custo fica em (linhas) x (teto),
+// menos de 1 s mesmo com 1 MB de linhas repetidas.
+const TETO_DO_MERGE = 1000;
+
 // Merge de três vias por linha (decisão A2), com o texto em LF (NFR7), usado
 // pela sala e pelo conector. Devolve null quando os trechos se cruzam
-// (inclusive linhas vizinhas, como no diff3).
+// (inclusive linhas vizinhas, como no diff3) e quando a diferença passa do
+// teto: nos dois casos fica o que estava e a escrita vai para o histórico.
 export function juntar(base: string, nosso: string, deles: string): string | null {
   const linhas = (t: string) => normalizarFinalDeLinha(t).split("\n");
-  const blocos = diff3Merge(linhas(nosso), linhas(base), linhas(deles), { excludeFalseConflicts: true });
-  const saida: string[] = [];
-  for (const bloco of blocos) {
-    if ("conflict" in bloco && bloco.conflict) return null;
-    if ("ok" in bloco && bloco.ok) saida.push(...bloco.ok);
-  }
-  return saida.join("\n");
+  return juntarLinhas(linhas(base), linhas(nosso), linhas(deles), TETO_DO_MERGE)?.join("\n") ?? null;
 }
 
 function base64ParaBytes(base64: string): Uint8Array<ArrayBuffer> {
