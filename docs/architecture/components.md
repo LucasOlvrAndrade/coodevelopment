@@ -96,10 +96,21 @@ claude plugin install coodevelopment@coodevelopment --scope local
 
 O escopo `local` grava em `.claude/settings.local.json`, que não vai para o
 git, então a jam não suja o repositório dos outros. Na primeira vez o Claude
-Code pede aprovação do servidor MCP; o passo de conexão da página avisa
-disso. **[verificar na Story 4.1]**: se o Claude Code já estiver aberto na
-pasta, ele precisa recarregar plugins (`/plugin` ou reiniciar); o conector
-diz isso no terminal.
+Code pede aprovação do servidor MCP (Story 4.2, com o `anunciar`).
+**Conferido na Story 4.1 (03/11, Claude Code 2.1.316):** os dois comandos
+podem rodar de novo sem erro; o marketplace de pasta é lido no lugar, então
+copiar a versão nova do plugin já atualiza, valendo na próxima sessão ou com
+`/reload-plugins`, que o conector lembra no terminal. O `claude` pode ser o
+`.exe` do instalador ou o `.cmd` do npm (este roda por shell). Sem Claude Code,
+a jam segue só com os arquivos. O `.claude/settings.local.json` entrou na
+lista fixa do que nunca sincroniza.
+
+**Hooks da Story 4.1:** `UserPromptSubmit`, `Stop`, `StopFailure` e
+`SessionEnd` chamam `node scripts/hook.mjs` (sem dependências), que acha a
+jam pelo arquivo de descoberta de `CLAUDE_PROJECT_DIR` ou do `cwd` (subindo
+até a raiz) e faz um POST de até 800 ms ao conector, sem o texto do prompt.
+O status do Claude da pasta é "trabalhando" enquanto alguma sessão estiver
+no meio de um prompt.
 
 ## Protocolo (`packages/protocolo`)
 
