@@ -66,6 +66,16 @@ describe("StatusDoClaude", () => {
     expect(mensagens.map((m) => m.estado)).toEqual(["trabalhando", "parado", "trabalhando", "parado"]);
   });
 
+  it("PostToolUse atrasado, depois do Stop, não liga o status de novo (gate da 4.1, REL-008)", () => {
+    const mensagens: MensagemStatus[] = [];
+    const s = new StatusDoClaude((m) => mensagens.push(m));
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.evento("Stop", { session_id: "a" });
+    s.evento("PostToolUse", { session_id: "a" });
+    expect(s.trabalhando).toBe(false);
+    expect(mensagens.map((m) => m.estado)).toEqual(["trabalhando", "parado"]);
+  });
+
   it("evento sem sessão, desconhecido ou Stop de sessão que não começou não muda nada", () => {
     const mensagens: MensagemStatus[] = [];
     const s = new StatusDoClaude((m) => mensagens.push(m));

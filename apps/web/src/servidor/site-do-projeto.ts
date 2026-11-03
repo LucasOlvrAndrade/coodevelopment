@@ -66,7 +66,11 @@ const resolverDns: Resolver = (nome) => lookup(nome, { all: true });
 // Só https, na porta padrão, para um nome cujos endereços são todos públicos.
 async function podeBuscar(url: URL, resolver: Resolver): Promise<boolean> {
   if (url.protocol !== "https:" || url.port || isIP(url.hostname.replace(/^\[|\]$/g, ""))) return false;
-  const enderecos = await resolver(url.hostname).catch(() => []);
+  // O DNS também tem prazo.
+  const enderecos = await Promise.race([
+    resolver(url.hostname).catch(() => []),
+    new Promise<{ address: string }[]>((r) => setTimeout(() => r([]), PRAZO_MS)),
+  ]);
   return enderecos.length > 0 && enderecos.every((e) => ipPublico(e.address));
 }
 
@@ -85,7 +89,12 @@ export async function conferirEmbutir(endereco: string, resolver: Resolver = res
     await resposta.body?.cancel().catch(() => {});
     const destino = resposta.headers.get("location");
     if (resposta.status >= 300 && resposta.status < 400 && destino) {
-      url = new URL(destino, url);
+      // Location inválido: fica só o link (gate da 4.1, UX-003).
+      try {
+        url = new URL(destino, url);
+      } catch {
+        return false;
+      }
       continue;
     }
     return resposta.ok && permiteEmbutir(resposta.headers);

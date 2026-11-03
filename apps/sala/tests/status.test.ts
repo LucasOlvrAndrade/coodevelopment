@@ -63,6 +63,7 @@ describe("status do Claude na sala (Story 4.1)", () => {
   it("o conector que cai tira o status; a página não consegue mandar status", async () => {
     const conector = await conectar("jam-status-cai", "lucas", "conector");
     const pagina = await conectar("jam-status-cai", "pai", "pagina");
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
     const comecou = pagina.proxima(claudes);
     conector.status("trabalhando");
     await comecou;
@@ -80,11 +81,16 @@ describe("status do Claude na sala (Story 4.1)", () => {
     const a = await conectar("jam-status-duas", "lucas", "conector");
     const b = await conectar("jam-status-duas", "lucas", "conector");
     const pagina = await conectar("jam-status-duas", "pai", "pagina");
+    // O claudes inicial, de quando a página abre, primeiro: senão ele ocupa
+    // o lugar do próximo e tudo se desloca (gate da 4.1, TEST-003).
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
     let proxima = pagina.proxima(claudes);
     a.status("trabalhando");
     await proxima;
+    // Espera o anúncio do b, não um tempo fixo (gate da 4.1, TEST-003).
+    proxima = pagina.proxima(claudes);
     b.status("trabalhando");
-    await new Promise((r) => setTimeout(r, 30));
+    await proxima;
     proxima = pagina.proxima(claudes);
     a.status("parado");
     expect(await proxima).toMatchObject({ trabalhando: [{ usuarioId: "lucas" }] });

@@ -53,6 +53,11 @@ describe("conferirEmbutir", () => {
     expect(laco).toHaveBeenCalledTimes(4);
   });
 
+  it("redirecionamento com endereço inválido: só o link, sem erro (gate da 4.1, UX-003)", async () => {
+    const quebrado = vi.fn(async () => resposta(302, { location: "http://[::1" }));
+    expect(await conferirEmbutir("https://a.com/", publico, quebrado as unknown as typeof fetch)).toBe(false);
+  });
+
   it("site fora do ar ou com erro: só o link", async () => {
     expect(await conferirEmbutir("https://a.com/", publico, (async () => resposta(500)) as unknown as typeof fetch)).toBe(false);
     expect(await conferirEmbutir("https://a.com/", publico, (async () => Promise.reject(new Error("rede"))) as unknown as typeof fetch)).toBe(false);

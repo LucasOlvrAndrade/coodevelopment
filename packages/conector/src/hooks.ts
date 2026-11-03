@@ -40,7 +40,12 @@ export class StatusDoClaude {
     const sessao = typeof corpo.session_id === "string" ? corpo.session_id : null;
     if (!sessao) return;
     const antes = this.trabalhando;
-    if (nome === "UserPromptSubmit" || nome === "PostToolUse") this.sessoes.set(sessao, this.agora());
+    if (nome === "UserPromptSubmit") this.sessoes.set(sessao, this.agora());
+    // Só renova: um PostToolUse em segundo plano que chega depois do Stop não
+    // liga o status de novo (gate da 4.1, REL-008).
+    else if (nome === "PostToolUse") {
+      if (this.sessoes.has(sessao)) this.sessoes.set(sessao, this.agora());
+    }
     else if (TERMINA.has(nome)) this.sessoes.delete(sessao);
     else return;
     this.avisar(antes, nome === "StopFailure" ? motivo(corpo.error) : null);
