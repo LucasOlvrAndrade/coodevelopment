@@ -8,17 +8,17 @@
 export type Trecho = { aInicio: number; aFim: number; bInicio: number; bFim: number };
 
 // Os trechos diferentes de a para b, em ordem, pelo algoritmo de Myers
-// (O((N+M)·D)), depois de tirar o começo e o fim iguais. null quando são
-// necessárias mais que `teto` linhas acrescentadas mais tiradas.
+// (O((N+M)·D)), depois de tirar o começo igual. null quando são necessárias
+// mais que `teto` linhas acrescentadas mais tiradas, exceto quando o que
+// sobra é só acréscimo ou só corte no fim, que custa pouco de todo jeito.
+// O fim igual não é tirado: com linhas repetidas ("}", linha vazia), cortar
+// pelos dois lados põe a mesma inserção em posições diferentes em cada lado
+// do merge, e ela entrava duas vezes (gate da 3.5, DATA-001).
 export function trechosDiferentes(a: readonly string[], b: readonly string[], teto: number): Trecho[] | null {
   let inicio = 0;
   while (inicio < a.length && inicio < b.length && a[inicio] === b[inicio]) inicio++;
-  let fimA = a.length;
-  let fimB = b.length;
-  while (fimA > inicio && fimB > inicio && a[fimA - 1] === b[fimB - 1]) {
-    fimA--;
-    fimB--;
-  }
+  const fimA = a.length;
+  const fimB = b.length;
   const n = fimA - inicio;
   const m = fimB - inicio;
   if (n === 0 && m === 0) return [];
@@ -86,16 +86,24 @@ export function trechosDiferentes(a: readonly string[], b: readonly string[], te
 
 type Mudanca = Trecho & { lado: 0 | 1 };
 
+// Copia [de, ate) de origem para o fim de destino. Em laço: o push(...x)
+// estoura a pilha com mais de ~125 mil linhas, e 1 MB cabe ~520 mil (gate da
+// 3.5, REL-001).
+function anexar(destino: string[], origem: readonly string[], de = 0, ate = origem.length): void {
+  for (let i = de; i < ate; i++) destino.push(origem[i]!);
+}
+
 // O conteúdo de um lado numa região [de, ate) da base: as linhas da base com
 // as mudanças daquele lado aplicadas.
 function ladoNaRegiao(base: readonly string[], lado: readonly string[], mudancas: Mudanca[], de: number, ate: number): string[] {
   const saida: string[] = [];
   let p = de;
   for (const t of mudancas) {
-    saida.push(...base.slice(p, t.aInicio), ...lado.slice(t.bInicio, t.bFim));
+    anexar(saida, base, p, t.aInicio);
+    anexar(saida, lado, t.bInicio, t.bFim);
     p = t.aFim;
   }
-  saida.push(...base.slice(p, ate));
+  anexar(saida, base, p, ate);
   return saida;
 }
 
@@ -121,19 +129,19 @@ export function juntarLinhas(base: readonly string[], nosso: readonly string[], 
     let j = i + 1;
     while (j < mudancas.length && mudancas[j]!.aInicio <= ate) ate = Math.max(ate, mudancas[j++]!.aFim);
     const regiao = mudancas.slice(i, j);
-    saida.push(...base.slice(p, de));
+    anexar(saida, base, p, de);
     const porLado = [regiao.filter((t) => t.lado === 0), regiao.filter((t) => t.lado === 1)];
     const conteudos = porLado.map((ts, l) => (ts.length ? ladoNaRegiao(base, lados[l as 0 | 1], ts, de, ate) : null));
     const [a, b] = conteudos;
     if (a && b) {
       if (a.length !== b.length || a.some((linha, n) => linha !== b[n])) return null;
-      saida.push(...a);
+      anexar(saida, a);
     } else {
-      saida.push(...(a ?? b)!);
+      anexar(saida, (a ?? b)!);
     }
     p = ate;
     i = j;
   }
-  saida.push(...base.slice(p));
+  anexar(saida, base, p);
   return saida;
 }

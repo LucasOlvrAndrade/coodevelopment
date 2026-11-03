@@ -99,21 +99,48 @@ describe("juntar (Story 3.5)", () => {
     expect(juntar("a\nb\nc\nd\n", "a\nB\nc\nd\n", "a\nb\nC\nd\n")).toBeNull();
   });
 
-  it("arquivo de 1 MB com linhas repetidas: responde em menos de 1 s, e acima do teto vira conflito (AC 1 e 2)", () => {
+  it("arquivo de 1 MB de linhas repetidas: responde em menos de 1 s; acima do teto vira conflito (AC 1 e 2)", () => {
     const base = Array(100_000).fill("x").join("\n");
     const nosso = Array.from({ length: 100_000 }, (_, i) => (i % 2 ? "y" : "x")).join("\n");
-    const deles = `${base}\nfim`;
-    let inicio = performance.now();
-    expect(juntar(base, nosso, deles)).toBeNull();
+    const inicio = performance.now();
+    expect(juntar(base, nosso, `${base}\nfim`)).toBeNull();
     expect(performance.now() - inicio).toBeLessThan(1000);
+  });
 
-    // Mudança pequena num arquivo grande e repetido continua juntando, rápido.
-    const linhas = Array(100_000).fill("x");
-    const pequena = [...linhas];
-    pequena[50_000] = "meio";
-    inicio = performance.now();
-    expect(juntar(linhas.join("\n"), pequena.join("\n"), [...linhas, "fim"].join("\n"))).toBe([...pequena, "fim"].join("\n"));
+  it("1 MB de linhas curtas (~520 mil) junta sem estourar a pilha (gate da 3.5, REL-001)", () => {
+    const linhas = Array.from({ length: 520_000 }, (_, i) => String(i % 10));
+    const nosso = ["começo", ...linhas.slice(1)];
+    const deles = [...linhas.slice(0, -1), "fim"];
+    const inicio = performance.now();
+    expect(juntar(linhas.join("\n"), nosso.join("\n"), deles.join("\n"))).toBe(["começo", ...linhas.slice(1, -1), "fim"].join("\n"));
     expect(performance.now() - inicio).toBeLessThan(1000);
+  });
+
+  it("a mesma mudança dos dois lados, com } e linhas vazias, entra uma vez só (gate da 3.5, DATA-001)", () => {
+    // As duas pastas puxaram o mesmo commit (função c); uma mexe no topo, a
+    // outra no fim, e uma delas escreve com a base antiga.
+    const base = ["import x", "", "function a() {", "}", "", "function b() {", "}"];
+    const comC = [...base.slice(0, 4), "", "function c() {", "}", ...base.slice(4)];
+    const nosso = ["import y", ...comC.slice(1)];
+    const deles = [...comC, "", "// fim"];
+    const r = juntarLinhas(base, nosso, deles, 1000);
+    expect(r).toEqual(juntarComNodeDiff3(base, nosso, deles));
+    expect(r?.filter((l) => l === "function c() {")).toHaveLength(1);
+  });
+
+  it("com linhas repetidas e alfabeto pequeno, junta e recusa como o node-diff3, sem duplicar a mudança comum (AC 3)", () => {
+    const aleatorio = sorteio(99);
+    const alfabeto = ["}", "", "}", "", "a", "b"];
+    const diferentes: string[] = [];
+    for (let caso = 0; caso < 20_000; caso++) {
+      const base = Array.from({ length: aleatorio(10) }, () => alfabeto[aleatorio(alfabeto.length)]!);
+      const comum = mexer(base, aleatorio, 3);
+      const nosso = aleatorio(2) ? mexer(comum, aleatorio, 3) : comum;
+      const deles = mexer(comum, aleatorio, 3);
+      const meu = juntarLinhas(base, nosso, deles, 1000);
+      if (JSON.stringify(meu) !== JSON.stringify(juntarComNodeDiff3(base, nosso, deles))) diferentes.push(JSON.stringify({ base, nosso, deles }));
+    }
+    expect(diferentes.slice(0, 3)).toEqual([]);
   });
 
   it("o pior caso do node-diff3 (2.500 linhas repetidas) não trava (gate da 3.4, PERF-003)", () => {

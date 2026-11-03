@@ -65,7 +65,13 @@ const TETO_DO_MERGE = 1000;
 // teto: nos dois casos fica o que estava e a escrita vai para o histórico.
 export function juntar(base: string, nosso: string, deles: string): string | null {
   const linhas = (t: string) => normalizarFinalDeLinha(t).split("\n");
-  return juntarLinhas(linhas(base), linhas(nosso), linhas(deles), TETO_DO_MERGE)?.join("\n") ?? null;
+  // Qualquer falha também vira conflito: a escrita vai para o histórico em
+  // vez de se perder num erro (gate da 3.5, REL-001).
+  try {
+    return juntarLinhas(linhas(base), linhas(nosso), linhas(deles), TETO_DO_MERGE)?.join("\n") ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function base64ParaBytes(base64: string): Uint8Array<ArrayBuffer> {
