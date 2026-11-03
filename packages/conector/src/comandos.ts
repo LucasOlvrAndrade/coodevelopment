@@ -87,7 +87,7 @@ export async function executar(argumentos: string[], amb: Ambiente, parar: Promi
           // aspa de fechamento (gate da 4.1, REL-003).
           const pasta = resolve(amb.cwd, lido.pasta.replace(/"+$/, ""));
           await mkdir(pasta, { recursive: true });
-          await entrar({ ...amb, cwd: pasta }, segundo, parar);
+          await entrar({ ...amb, cwd: pasta }, segundo, parar, true);
         } else await entrar(amb, segundo, parar);
         return { saida: "", codigo: 0 };
       case "diagnostico": {

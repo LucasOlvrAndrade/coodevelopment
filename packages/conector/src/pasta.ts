@@ -51,7 +51,7 @@ export async function conferirPasta(amb: Ambiente, raiz: string, repo: Repo, bra
   if (atual && atual !== branch) amb.escrever(`Atenção: esta pasta está na branch ${atual}, e a jam usa ${branch}.`);
 }
 
-async function vazia(pasta: string): Promise<boolean | null> {
+export async function vazia(pasta: string): Promise<boolean | null> {
   const itens = await readdir(pasta).catch(() => null);
   return itens === null ? null : itens.length === 0;
 }

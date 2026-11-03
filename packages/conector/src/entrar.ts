@@ -6,7 +6,7 @@ import { esquecerPasta, registrarPasta } from "./descoberta";
 import { StatusDoClaude, abrirServidorDeHooks } from "./hooks";
 import { entrarPorDispositivo } from "./login";
 import { instalarPlugin } from "./plugin";
-import { clonar, conferirPasta, destinoDoClone, raizDoRepositorio } from "./pasta";
+import { clonar, conferirPasta, destinoDoClone, raizDoRepositorio, vazia } from "./pasta";
 import { conectarNaSala, type ConexaoSala } from "./sala";
 import { Sincronizador } from "./sincronizar";
 
@@ -39,8 +39,12 @@ async function comSessao<T>(amb: Ambiente, f: (sessao: string) => Promise<T>): P
   return { sessao, valor: await f(sessao) };
 }
 
-async function prepararPasta(amb: Ambiente, sessao: string, jam: DadosDaJam): Promise<string> {
-  const raiz = await raizDoRepositorio(amb, amb.cwd);
+async function prepararPasta(amb: Ambiente, sessao: string, jam: DadosDaJam, pastaEscolhida: boolean): Promise<string> {
+  // A pasta escolhida com --pasta, vazia, é para clonar, mesmo dentro de
+  // outro repositório git (uma pasta nova dentro de Documentos versionado,
+  // o %TEMP%): senão o conector pegaria o repositório de cima e recusaria.
+  // Sem --pasta, rodar numa subpasta do repositório continua valendo.
+  const raiz = pastaEscolhida && (await vazia(amb.cwd)) ? null : await raizDoRepositorio(amb, amb.cwd);
   if (raiz) {
     await conferirPasta(amb, raiz, jam.repo, jam.branch);
     return raiz;
@@ -60,7 +64,7 @@ async function prepararPasta(amb: Ambiente, sessao: string, jam: DadosDaJam): Pr
   return destino.pasta;
 }
 
-export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>): Promise<void> {
+export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>, pastaEscolhida = false): Promise<void> {
   if (!idDeJamValido(jamId)) {
     throw new ErroDoUsuario(`"${jamId}" não parece o identificador de uma jam. Ele tem o formato k7m2-rbq9 e aparece na página da jam.`);
   }
@@ -71,7 +75,7 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   });
   if (jam.estado !== "aberta") throw new ErroDoUsuario(`A jam ${jam.nome} está fechada.`);
 
-  const pasta = await prepararPasta(amb, sessao, jam);
+  const pasta = await prepararPasta(amb, sessao, jam, pastaEscolhida);
   amb.escrever(`Pasta do projeto: ${pasta}`);
 
   // Os arquivos da pasta sincronizam com a sala (Story 3.3). Antes de

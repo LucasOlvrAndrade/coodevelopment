@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { guardarSessao, lerSessao } from "../../src/cofre";
 import { lerPasta } from "../../src/descoberta";
@@ -147,6 +148,24 @@ describe("entrar (Story 3.1)", () => {
     await executar(["entrar", "k7m2-rbq9"], amb);
     expect(pedidos.find((p) => p.caminho === "/api/conector/clone-token")?.corpo).toEqual({ jamId: "k7m2-rbq9" });
     expect(clones).toEqual([["clone", "--branch", "main", "--", "https://github.com/lucas/projeto.git", amb.cwd]]);
+  });
+
+  it("--pasta vazia dentro de outro repositório git: clona nela em vez de usar o repositório de cima (Story 4.2)", async () => {
+    salaQueConecta("fim");
+    const clones: string[][] = [];
+    const { amb } = ambienteFalso({
+      respostas: comRespostas({ "POST /api/conector/clone-token": { corpo: { token: "ghs_x", expiraEm: "2026-10-29T13:00:00Z" } } }),
+      rodar: (programa, argumentos) => {
+        // A pasta fica dentro de um repositório que não é o da jam.
+        if (argumentos[0] === "rev-parse") return { saida: "C:/Users/lucas/AppData/Local/Temp\n" };
+        if (argumentos[0] === "clone") clones.push(argumentos);
+        return {};
+      },
+    });
+    await guardarSessao(amb, "s");
+    const escolhida = join(amb.cwd, "nova-jam");
+    await executar(["entrar", "k7m2-rbq9", "--pasta", escolhida], amb);
+    expect(clones).toEqual([["clone", "--branch", "main", "--", "https://github.com/lucas/projeto.git", escolhida]]);
   });
 
   it("sala fora do ar (503): a pasta fica pronta e o comando explica", async () => {
