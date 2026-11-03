@@ -17,7 +17,8 @@ export type Ambiente = {
   versaoNode: string;
   fetch: typeof fetch;
   // Roda um programa sem shell; a entrada vai pela entrada padrão.
-  rodar(programa: string, argumentos: string[], opcoes?: { cwd?: string; entrada?: string; env?: Record<string, string> }): Promise<ResultadoProcesso>;
+  // Com shell só para o .cmd do Windows (o claude instalado pelo npm), com os argumentos já entre aspas.
+  rodar(programa: string, argumentos: string[], opcoes?: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean }): Promise<ResultadoProcesso>;
   abrirNavegador(url: string): void;
   esperar(ms: number): Promise<void>;
   escrever(linha: string): void;
@@ -25,12 +26,13 @@ export type Ambiente = {
 
 export const URL_APP_PADRAO = "https://coodevelopment.lucas-andrade.dev";
 
-function rodar(programa: string, argumentos: string[], opcoes: { cwd?: string; entrada?: string; env?: Record<string, string> } = {}) {
+function rodar(programa: string, argumentos: string[], opcoes: { cwd?: string; entrada?: string; env?: Record<string, string>; shell?: boolean } = {}) {
   return new Promise<ResultadoProcesso>((resolve) => {
     const filho = spawn(programa, argumentos, {
       cwd: opcoes.cwd,
       env: { ...process.env, ...opcoes.env },
       windowsHide: true,
+      shell: opcoes.shell ?? false,
       stdio: ["pipe", "pipe", "pipe"],
     });
     let saida = "";

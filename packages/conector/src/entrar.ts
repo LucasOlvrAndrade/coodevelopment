@@ -3,7 +3,9 @@ import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
 import { esquecerPasta, registrarPasta } from "./descoberta";
+import { StatusDoClaude, abrirServidorDeHooks } from "./hooks";
 import { entrarPorDispositivo } from "./login";
+import { instalarPlugin } from "./plugin";
 import { clonar, conferirPasta, destinoDoClone, raizDoRepositorio } from "./pasta";
 import { conectarNaSala, type ConexaoSala } from "./sala";
 import { Sincronizador } from "./sincronizar";
@@ -78,15 +80,22 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   // O que sair antes de a conexão existir espera numa fila, em vez de se perder.
   let conexaoDaSala: ConexaoSala | undefined = undefined;
   const antesDaConexao: MensagemDoConector[] = [];
-  const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, {
-    enviar: (m) => (conexaoDaSala ? conexaoDaSala.enviar(m) : antesDaConexao.push(m)),
-  });
+  const enviar = (m: MensagemDoConector) => (conexaoDaSala ? conexaoDaSala.enviar(m) : antesDaConexao.push(m));
+  const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, { enviar });
+  // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
+  const status = new StatusDoClaude(enviar);
+  const hooks = await abrirServidorDeHooks((nome, corpo) => status.evento(nome, corpo));
   await sincronizador.preparar();
   const conexao = await conectarNaSala(amb, sessao, jamId, {
     aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
     aoReceber: (m) => sincronizador.receber(m),
-    aoReconectar: () => sincronizador.reconectou(),
-  }).catch((e: unknown) => {
+    aoReconectar: () => {
+      sincronizador.reconectou();
+      // A sala esquece o status da conexão que caiu: manda de novo.
+      if (status.trabalhando) conexao.enviar({ v: 1, tipo: "status", estado: "trabalhando", motivo: null });
+    },
+  }).catch(async (e: unknown) => {
+    await hooks.fechar();
     if (e instanceof ErroApi && e.status === 503) {
       throw new ErroDoUsuario("A sala ao vivo da jam ainda não está no ar. A pasta está pronta; tente conectar de novo mais tarde.");
     }
@@ -94,14 +103,16 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   });
   conexaoDaSala = conexao;
   for (const m of antesDaConexao.splice(0)) conexao.enviar(m);
-  await registrarPasta(amb, { jamId, pid: process.pid, pasta });
+  await registrarPasta(amb, { jamId, pid: process.pid, pasta, porta: hooks.porta, segredo: hooks.segredo });
   try {
+    await instalarPlugin(amb, pasta);
     await sincronizador.comecarAVigiar();
     const motivo = await Promise.race([conexao.fechou, parar.then(() => "")]);
     if (motivo) throw new ErroDoUsuario(motivo);
     amb.escrever("Desligado da jam.");
   } finally {
     await sincronizador.parar();
+    await hooks.fechar();
     conexao.fechar();
     await esquecerPasta(amb, pasta);
   }

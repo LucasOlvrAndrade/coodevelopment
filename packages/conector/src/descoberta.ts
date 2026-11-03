@@ -6,9 +6,10 @@ import type { Ambiente } from "./ambiente";
 // Arquivo de descoberta da pasta (components.md): diz aos hooks do Claude
 // Code (Epic 4) que esta pasta está ligada a uma jam e qual processo cuida
 // dela. Fica em %LOCALAPPDATA%\coodevelopment\pastas\<sha1 do caminho>.json.
-// A porta e o segredo do servidor local entram com os hooks, na Story 4.1.
+// A porta e o segredo são do servidor local dos hooks (Story 4.1); o arquivo
+// só o dono lê.
 
-export type Descoberta = { jamId: string; pid: number; pasta: string };
+export type Descoberta = { jamId: string; pid: number; pasta: string; porta: number; segredo: string };
 
 // O mesmo caminho escrito de jeitos diferentes (barra, maiúscula no Windows) dá o mesmo arquivo.
 export function chaveDaPasta(pasta: string, plataforma: NodeJS.Platform): string {

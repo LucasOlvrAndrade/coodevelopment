@@ -13,8 +13,8 @@ describe("arquivo de descoberta da pasta", () => {
     const { amb } = ambienteFalso();
     const pasta = amb.cwd;
     expect(await lerPasta(amb, pasta)).toBeNull();
-    await registrarPasta(amb, { jamId: "k7m2-rbq9", pid: 4242, pasta });
-    expect(await lerPasta(amb, pasta)).toEqual({ jamId: "k7m2-rbq9", pid: 4242, pasta });
+    await registrarPasta(amb, { jamId: "k7m2-rbq9", pid: 4242, pasta, porta: 5000, segredo: "s" });
+    expect(await lerPasta(amb, pasta)).toEqual({ jamId: "k7m2-rbq9", pid: 4242, pasta, porta: 5000, segredo: "s" });
     await esquecerPasta(amb, pasta);
     expect(await lerPasta(amb, pasta)).toBeNull();
   });
