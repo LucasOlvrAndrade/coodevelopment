@@ -46,7 +46,18 @@ export class Jam extends Server<Env> {
     // O conector que chega recebe o que mudou desde o baseSha (FR21).
     if (quem.via === "conector") for (const m of this.sincronizacao.estado()) conexao.send(JSON.stringify(m));
     // A página que abre recebe os últimos itens do feed (Story 3.4, AC 6).
-    else conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feed.ultimos(), inicial: true } satisfies MensagemFeed));
+    else conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feedGuardado(), inicial: true } satisfies MensagemFeed));
+  }
+
+  // Erro ao ler o feed: a página recebe o feed vazio em vez de esperar para
+  // sempre (gate da 3.4, REL-001).
+  private feedGuardado() {
+    try {
+      return this.feed.ultimos();
+    } catch (e) {
+      console.error(JSON.stringify({ nivel: "erro", evento: "feed_guardado", erro: String(e) }));
+      return [];
+    }
   }
 
   // Só o conector escreve arquivo; a página só lê a presença.

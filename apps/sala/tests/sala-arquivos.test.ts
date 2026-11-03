@@ -110,12 +110,12 @@ describe("feed na sala (Story 3.4)", () => {
 
     await lucas.escrever("package.json", "{}\n", 0, null);
     expect(await pagina.esperar((m) => m.tipo === "feed" && m.inicial === false)).toMatchObject({
-      eventos: [{ tipo: "dependencias", autorId: "lucas", caminhos: ["package.json"] }],
+      eventos: [{ tipo: "dependencias", autorId: "lucas", arquivos: [{ caminho: "package.json", mudanca: "criado" }] }],
     });
 
     lucas.ws.send(JSON.stringify({ v: 1, tipo: "ignorado", caminho: "video.mp4", motivo: "grande_demais", tamanho: 9_000_000 }));
     expect(await pagina.esperar((m) => m.tipo === "feed" && (m.eventos as { tipo: string }[])[0]?.tipo === "grande")).toMatchObject({
-      eventos: [{ tipo: "grande", caminho: "video.mp4", tamanho: 9_000_000 }],
+      eventos: [{ tipo: "grande", arquivos: [{ caminho: "video.mp4", tamanho: 9_000_000 }] }],
     });
     expect(lucas.recebidas.some((m) => m.tipo === "feed")).toBe(false);
     lucas.ws.close();

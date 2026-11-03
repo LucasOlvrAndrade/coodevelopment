@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arquivoDeDependencias, mensagemDaSala, mensagemDoConector, resumoDaDiferenca } from "../src";
+import { arquivoDeDependencias, caminhoSincronizavel, mensagemDaSala, mensagemDoConector, resumoDaDiferenca } from "../src";
 
 describe("arquivoDeDependencias", () => {
   it.each([
@@ -52,6 +52,14 @@ describe("resumoDaDiferenca", () => {
   });
 });
 
+describe("nome disfarçado (gate da 3.4, SEC-002)", () => {
+  it("caracteres invisíveis de formatação no caminho são recusados", () => {
+    expect(caminhoSincronizavel("fatura‮txt.exe")).toEqual({ ok: false, motivo: "caminho_invalido" });
+    expect(caminhoSincronizavel("src/a​b.ts")).toEqual({ ok: false, motivo: "caminho_invalido" });
+    expect(caminhoSincronizavel("docs/configuração.md")).toMatchObject({ ok: true });
+  });
+});
+
 describe("mensagens do feed", () => {
   it("a página entende o feed", () => {
     const msg = {
@@ -75,5 +83,21 @@ describe("mensagens do feed", () => {
 
   it("o conector avisa o arquivo grande demais", () => {
     expect(mensagemDoConector.safeParse({ v: 1, tipo: "ignorado", caminho: "video.mp4", motivo: "grande_demais", tamanho: 5_000_000 }).success).toBe(true);
+  });
+});
+
+describe("resumoDaDiferenca com custo limitado (gate da 3.4, PERF-001)", () => {
+  it("muitas linhas repetidas: responde rápido, e null acima do teto de mudanças", () => {
+    const antes = Array(2500).fill("x").join("\n");
+    const depois = Array.from({ length: 2500 }, (_, i) => (i % 2 ? "y" : "x")).join("\n");
+    const inicio = performance.now();
+    expect(resumoDaDiferenca(antes, depois)).toBeNull();
+    expect(performance.now() - inicio).toBeLessThan(200);
+  });
+
+  it("dentro do teto, a contagem é exata", () => {
+    const antes = Array.from({ length: 900 }, (_, i) => `l${i % 7}`).join("\n");
+    const depois = Array.from({ length: 900 }, (_, i) => (i % 3 ? `l${i % 7}` : "novo")).join("\n");
+    expect(resumoDaDiferenca(antes, depois)).toEqual({ adicionadas: 300, removidas: 300 });
   });
 });

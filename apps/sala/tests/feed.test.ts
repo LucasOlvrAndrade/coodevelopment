@@ -100,10 +100,10 @@ describe("Feed: dependências, conflito e arquivo grande (AC 2 e 5)", () => {
     const d = feed.mudanca(mudanca("lucas", "package.json"));
     feed.mudanca(mudanca("lucas", "pnpm-lock.yaml"));
     const b = feed.mudanca(mudanca("lucas", "src/b.ts"));
-    expect(d).toMatchObject({ tipo: "dependencias", caminhos: ["package.json"] });
+    expect(d).toMatchObject({ tipo: "dependencias", arquivos: [{ caminho: "package.json", adicionadas: 1 }] });
     expect(b.id).toBe(a.id);
     expect(feed.ultimos().map((e) => e.tipo)).toEqual(["arquivos", "dependencias"]);
-    expect(feed.ultimos()[1]).toMatchObject({ caminhos: ["pnpm-lock.yaml", "package.json"] });
+    expect(feed.ultimos()[1]).toMatchObject({ arquivos: [{ caminho: "pnpm-lock.yaml" }, { caminho: "package.json" }] });
   });
 
   it("conflito sempre abre item próprio", () => {
@@ -116,11 +116,28 @@ describe("Feed: dependências, conflito e arquivo grande (AC 2 e 5)", () => {
     ]);
   });
 
-  it("o mesmo arquivo grande de novo (conector religado) não repete", () => {
+  it("o mesmo arquivo grande de novo (conector religado) não repete; tamanho dentro do limite não entra", () => {
     const { feed } = novo();
-    expect(feed.grande("lucas", "video.mp4", 5_000_000)).toMatchObject({ tipo: "grande", caminho: "video.mp4", tamanho: 5_000_000 });
+    expect(feed.grande("lucas", "video.mp4", 5_000_000)).toMatchObject({ tipo: "grande", arquivos: [{ caminho: "video.mp4", tamanho: 5_000_000 }] });
     expect(feed.grande("lucas", "video.mp4", 5_000_000)).toBeNull();
-    expect(feed.grande("lucas", "video.mp4", 6_000_000)).not.toBeNull();
+    expect(feed.grande("lucas", "video.mp4", 6_000_000)).toMatchObject({ arquivos: [{ caminho: "video.mp4", tamanho: 6_000_000 }] });
+    expect(feed.grande("lucas", "pequeno.txt", 1024 * 1024)).toBeNull();
+    expect(feed.ultimos()).toHaveLength(1);
+  });
+
+  it("muitos avisos de arquivo grande viram um item só, sem apagar o feed dos outros (gate da 3.4, SEC-001)", () => {
+    const { feed } = novo();
+    feed.mudanca(mudanca("pai", "a.ts"));
+    for (let i = 0; i < 300; i++) feed.grande("lucas", `lixo-${i}.bin`, 2_000_000);
+    expect(feed.ultimos().map((e) => e.tipo)).toEqual(["arquivos", "grande"]);
+    expect(feed.ultimos()[1]).toMatchObject({ outros: 250 });
+  });
+
+  it("a contagem de outros é aproximada: o arquivo que volta depois de sair da lista conta de novo (DATA-001)", () => {
+    const { feed } = novo();
+    for (let i = 0; i < 51; i++) feed.mudanca(mudanca("lucas", `f${i}.ts`));
+    const e = feed.mudanca(mudanca("lucas", "f0.ts"));
+    expect(e).toMatchObject({ outros: 2 });
   });
 
   it("a página recebe no máximo os 100 últimos, do mais antigo ao mais novo (AC 6)", () => {
@@ -208,9 +225,36 @@ describe("Sincronizacao com o feed (AC 1 e 5)", () => {
     sinc.ignorado("pai", { v: 1, tipo: "ignorado", caminho: "video.mp4", motivo: "grande_demais", tamanho: 9_000_000 });
     sinc.ignorado("pai", { v: 1, tipo: "ignorado", caminho: ".git/objects/x", motivo: "grande_demais", tamanho: 9_000_000 });
     expect(feed.ultimos()).toEqual([
-      expect.objectContaining({ tipo: "grande", autorId: "lucas", caminho: "grande.txt", tamanho: 1024 * 1024 + 1 }),
-      expect.objectContaining({ tipo: "grande", autorId: "pai", caminho: "video.mp4" }),
+      expect.objectContaining({ tipo: "grande", autorId: "lucas", arquivos: [{ caminho: "grande.txt", tamanho: 1024 * 1024 + 1 }] }),
+      expect.objectContaining({ tipo: "grande", autorId: "pai", arquivos: [{ caminho: "video.mp4", tamanho: 9_000_000 }] }),
     ]);
+  });
+
+  it("tirar o \n do fim do arquivo é mudança, sem contagem (gate da 3.4, DATA-002)", async () => {
+    const { sinc, feed } = comFeed();
+    await sinc.escrever("lucas", await escrita("a.ts", "a\nb", 0, { conteudoBase: "a\nb\n" }));
+    expect(feed.ultimos()).toEqual([expect.objectContaining({ arquivos: [expect.objectContaining({ caminho: "a.ts", mudanca: "alterado", adicionadas: null })] })]);
+  });
+
+  it("binário que substitui uma exclusão não é conflito; o da mesma pessoa (duas pastas) é (DATA-003)", async () => {
+    const { sinc, feed } = comFeed();
+    await sinc.escrever("lucas", await escrita("logo.png", "AAAA", 0, { binario: true, conteudoBase: null }));
+    await sinc.escrever("pai", await escrita("logo.png", "", 1, { binario: true, apagado: true }));
+    await sinc.escrever("lucas", await escrita("logo.png", "BBBB", 1, { binario: true }));
+    expect(feed.ultimos().filter((e) => e.tipo === "conflito")).toEqual([]);
+    await sinc.escrever("lucas", await escrita("logo.png", "CCCC", 2, { binario: true }));
+    expect(feed.ultimos().filter((e) => e.tipo === "conflito")).toEqual([expect.objectContaining({ autorId: "lucas", outroId: "lucas", resolvido: "sobrescrito" })]);
+  });
+
+  it("o resumo de arquivo com muitas linhas repetidas não trava a sala (gate da 3.4, PERF-001)", async () => {
+    const { sinc, feed } = comFeed();
+    const antes = Array(2500).fill("x").join("\n");
+    const depois = Array.from({ length: 2500 }, (_, i) => (i % 2 ? "y" : "x")).join("\n");
+    await sinc.escrever("lucas", await escrita("r.txt", antes, 0, { conteudoBase: null }));
+    const inicio = performance.now();
+    await sinc.escrever("lucas", await escrita("r.txt", depois, 1));
+    expect(performance.now() - inicio).toBeLessThan(500);
+    expect(feed.ultimos()[0]).toMatchObject({ arquivos: [expect.objectContaining({ caminho: "r.txt", adicionadas: null })] });
   });
 
   it("erro no feed não derruba a escrita, que continua aceita", async () => {

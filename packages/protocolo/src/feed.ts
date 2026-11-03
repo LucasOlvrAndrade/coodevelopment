@@ -1,4 +1,3 @@
-import { diffPatch } from "node-diff3";
 import { z } from "zod";
 import { normalizarFinalDeLinha } from "./normalizacao";
 
@@ -70,6 +69,33 @@ export function arquivoDeDependencias(caminho: string): boolean {
 // sala, e um arquivo desse tamanho mudando inteiro não ganha com a contagem.
 const LINHAS_PARA_COMPARAR = 5000;
 const CARACTERES_PARA_COMPARAR = 200_000;
+// Teto de linhas acrescentadas mais tiradas: a comparação custa no máximo
+// (linhas) x (teto), qualquer que seja o conteúdo. O diff do node-diff3 levava
+// 9 s com 2.500 linhas repetidas, travando o Durable Object (gate da 3.4,
+// PERF-001).
+const EDICOES_PARA_CONTAR = 1000;
+
+// Menor número de linhas acrescentadas mais tiradas entre a e b (algoritmo de
+// Myers, O((N+M)·D)), ou null acima do teto.
+function edicoes(a: string[], b: string[], teto: number): number | null {
+  const n = a.length;
+  const m = b.length;
+  const deslocamento = teto + 1;
+  const v = new Int32Array(2 * teto + 3);
+  for (let d = 0; d <= teto; d++) {
+    for (let k = -d; k <= d; k += 2) {
+      let x = k === -d || (k !== d && v[deslocamento + k - 1]! < v[deslocamento + k + 1]!) ? v[deslocamento + k + 1]! : v[deslocamento + k - 1]! + 1;
+      let y = x - k;
+      while (x < n && y < m && a[x] === b[y]) {
+        x++;
+        y++;
+      }
+      v[deslocamento + k] = x;
+      if (x >= n && y >= m) return d;
+    }
+  }
+  return null;
+}
 
 // O texto em linhas, sem a linha vazia depois do último "\n".
 function linhas(texto: string): string[] {
@@ -97,13 +123,11 @@ export function resumoDaDiferenca(antes: string, depois: string): { adicionadas:
   if (meioA.length === 0 || meioB.length === 0) return { adicionadas: meioB.length, removidas: meioA.length };
   const caracteres = meioA.reduce((s, l) => s + l.length, 0) + meioB.reduce((s, l) => s + l.length, 0);
   if (meioA.length + meioB.length > LINHAS_PARA_COMPARAR || caracteres > CARACTERES_PARA_COMPARAR) return null;
-  let adicionadas = 0;
-  let removidas = 0;
-  for (const trecho of diffPatch(meioA, meioB)) {
-    removidas += trecho.buffer1.length;
-    adicionadas += trecho.buffer2.length;
-  }
-  return { adicionadas, removidas };
+  const d = edicoes(meioA, meioB, EDICOES_PARA_CONTAR);
+  if (d === null) return null;
+  // As linhas que ficam são as mesmas dos dois lados: a - tiradas = b - acrescentadas.
+  const sobra = meioB.length - meioA.length;
+  return { adicionadas: (d + sobra) / 2, removidas: (d - sobra) / 2 };
 }
 
 const caminho = z.string().min(1).max(1024);
@@ -128,21 +152,29 @@ const comum = {
   atualizadoEm: z.string(),
 };
 
-// Arquivos guardados por item; o resto conta em "outros".
+// Arquivos listados por item; passou disso, as mudanças seguintes contam em
+// "outros" (aproximado: um arquivo que já saiu da lista e volta conta de
+// novo; gate da 3.4, DATA-001).
 export const ARQUIVOS_POR_ITEM = 50;
+const outros = z.number().int().min(0);
+
+// Arquivo que ficou fora da jam por ser grande demais (A14).
+export const arquivoGrande = z.object({ caminho, tamanho: z.number().int().min(0) });
 
 export const eventoFeed = z.discriminatedUnion("tipo", [
   // Mudanças seguidas de uma pessoa, agrupadas (AC 3).
-  z.object({ ...comum, tipo: z.literal("arquivos"), arquivos: z.array(arquivoNoFeed).max(ARQUIVOS_POR_ITEM), outros: z.number().int().min(0) }),
-  // Arquivos de dependências: quem está na jam reinstala (AC 2).
-  z.object({ ...comum, tipo: z.literal("dependencias"), caminhos: z.array(caminho).max(ARQUIVOS_POR_ITEM) }),
+  z.object({ ...comum, tipo: z.literal("arquivos"), arquivos: z.array(arquivoNoFeed).max(ARQUIVOS_POR_ITEM), outros }),
+  // Arquivos de dependências, com o mesmo resumo: quem está na jam reinstala (AC 2).
+  z.object({ ...comum, tipo: z.literal("dependencias"), arquivos: z.array(arquivoNoFeed).max(ARQUIVOS_POR_ITEM), outros }),
   // Escrita que perdeu e foi para o histórico da sala (A2, gate da 3.3
   // REL-005): "guardado" é a escrita do autor que cruzou trechos com a do
-  // outroId e ficou de fora; "sobrescrito" é o binário do outroId
-  // substituído pelo do autor.
+  // outroId e ficou de fora; "sobrescrito" é a versão do outroId substituída
+  // pela do autor (quando um dos dois é binário, a última vence). O outroId
+  // pode ser o próprio autor, com duas pastas na mesma jam.
   z.object({ ...comum, tipo: z.literal("conflito"), caminho, resolvido: z.enum(["guardado", "sobrescrito"]), outroId: z.string() }),
-  // Arquivo acima do limite, que não foi para a jam (A14).
-  z.object({ ...comum, tipo: z.literal("grande"), caminho, tamanho: z.number().int().min(0) }),
+  // Arquivos acima do limite, que não foram para a jam (A14), agrupados como
+  // os outros (gate da 3.4, SEC-001).
+  z.object({ ...comum, tipo: z.literal("grande"), arquivos: z.array(arquivoGrande).max(ARQUIVOS_POR_ITEM), outros }),
 ]);
 
 // Sala → página: itens novos ou atualizados (o mesmo id substitui o
@@ -165,6 +197,7 @@ export const mensagemIgnorado = z.object({
 });
 
 export type ArquivoNoFeed = z.infer<typeof arquivoNoFeed>;
+export type ArquivoGrande = z.infer<typeof arquivoGrande>;
 export type EventoFeed = z.infer<typeof eventoFeed>;
 export type MensagemFeed = z.infer<typeof mensagemFeed>;
 export type MensagemIgnorado = z.infer<typeof mensagemIgnorado>;

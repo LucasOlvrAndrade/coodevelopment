@@ -3,6 +3,7 @@ import {
   caminhoSincronizavel,
   hashDoConteudo,
   juntar,
+  normalizarFinalDeLinha,
   resumoDaDiferenca,
   tamanhoDoConteudo,
   type EventoFeed,
@@ -68,8 +69,12 @@ function mudancaDe(autorId: string, caminho: string, antes: Anterior, novo: Regi
   if (novo.apagado) return antes.existia ? { autorId, caminho, mudanca: "apagado", binario: novo.binario, diferenca: null, juntado } : null;
   if (antes.existia && antes.hash === novo.hash) return null;
   const diferenca = novo.binario ? null : antes.existia ? (antes.texto === null ? null : resumoDaDiferenca(antes.texto, novo.conteudo)) : resumoDaDiferenca("", novo.conteudo);
-  if (antes.existia && diferenca && diferenca.adicionadas === 0 && diferenca.removidas === 0) return null;
-  return { autorId, caminho, mudanca: antes.existia ? "alterado" : "criado", binario: novo.binario, diferenca, juntado };
+  // Nenhuma linha mudou: ou é só o final de linha (fica fora), ou é o "\n"
+  // do fim do arquivo, que é mudança de verdade, sem contagem (gate da 3.4,
+  // DATA-002).
+  const semLinhas = antes.existia && diferenca && diferenca.adicionadas === 0 && diferenca.removidas === 0;
+  if (semLinhas && antes.texto !== null && normalizarFinalDeLinha(antes.texto) === normalizarFinalDeLinha(novo.conteudo)) return null;
+  return { autorId, caminho, mudanca: antes.existia ? "alterado" : "criado", binario: novo.binario, diferenca: semLinhas ? null : diferenca, juntado };
 }
 
 const recusado = (caminho: string, motivo: "conflito_guardado" | "caminho_invalido" | "proibido" | "grande_demais" | "erro"): Envio => ({
@@ -208,8 +213,10 @@ export class Sincronizacao {
         { para: "outros", mensagem: comoArquivo(novo, "escrita") },
         ...this.noFeed((feed) => {
           const m = mudancaDe(autorId, caminho, antes, novo, false);
-          // A versão de outra pessoa foi para o histórico: item próprio no feed.
-          const perdeu = atual.autorId !== autorId && atual.hash !== novo.hash;
+          // A versão anterior foi para o histórico: item próprio no feed. Se
+          // era uma exclusão, nada se perdeu (gate da 3.4, DATA-003); se é da
+          // mesma pessoa (duas pastas), a página diz isso.
+          const perdeu = !atual.apagado && atual.hash !== novo.hash;
           return [...(m ? [feed.mudanca(m)] : []), ...(perdeu ? [feed.conflito(autorId, atual.autorId, caminho, "sobrescrito")] : [])];
         }),
       ];

@@ -1,4 +1,4 @@
-import { ARQUIVOS_POR_ITEM, arquivoDeDependencias, type ArquivoNoFeed, type EventoFeed } from "@coodevelopment/protocolo";
+import { ARQUIVOS_POR_ITEM, TAMANHO_MAXIMO, arquivoDeDependencias, type ArquivoGrande, type ArquivoNoFeed, type EventoFeed } from "@coodevelopment/protocolo";
 
 // Regra do feed da jam (Story 3.4, FR20). Pura como a sincronização: recebe o
 // armazenamento por uma interface, para rodar no Durable Object (SQLite) e
@@ -29,7 +29,8 @@ export type Mudanca = {
 export const ITENS_AO_CONECTAR = 100;
 
 // Mudanças seguidas do mesmo autor entram no mesmo item enquanto a anterior
-// tiver menos que isso (AC 3).
+// tiver menos que isso (AC 3). Para o aviso de arquivo grande, que o conector
+// manda ao ligar, a janela é a mesma.
 const JANELA_DO_GRUPO_MS = 5 * 60 * 1000;
 
 // Quantos itens olhar para trás procurando o grupo do autor.
@@ -89,34 +90,24 @@ export class Feed {
     return null;
   }
 
+  // Põe o arquivo em cima da lista do grupo (juntando com o anterior de mesmo
+  // caminho); passou do limite, o mais antigo vira contagem.
+  private noTopo<T extends { caminho: string }>(lista: T[], outros: number, novo: T): { arquivos: T[]; outros: number } {
+    const arquivos = [novo, ...lista.filter((a) => a.caminho !== novo.caminho)];
+    const sobra = Math.max(0, arquivos.length - ARQUIVOS_POR_ITEM);
+    return { arquivos: arquivos.slice(0, ARQUIVOS_POR_ITEM), outros: outros + sobra };
+  }
+
   // Uma mudança de arquivo: vai para o grupo do autor, ou abre outro.
-  // Arquivo de dependências vai para um item destacado (AC 2).
+  // Arquivo de dependências vai para um item destacado, com o mesmo resumo
+  // (AC 2; gate da 3.4, UX-002).
   mudanca(m: Mudanca): EventoFeed {
     const agora = this.agora();
-    if (arquivoDeDependencias(m.caminho)) {
-      const grupo = this.grupoAberto(m.autorId, "dependencias", agora);
-      if (grupo) {
-        const caminhos = [m.caminho, ...grupo.caminhos.filter((c) => c !== m.caminho)].slice(0, ARQUIVOS_POR_ITEM);
-        return this.atualizar({ ...grupo, caminhos, atualizadoEm: agora });
-      }
-      return this.inserir({ tipo: "dependencias", autorId: m.autorId, em: agora, atualizadoEm: agora, caminhos: [m.caminho] });
-    }
-
-    const grupo = this.grupoAberto(m.autorId, "arquivos", agora);
-    if (!grupo) {
-      return this.inserir({ tipo: "arquivos", autorId: m.autorId, em: agora, atualizadoEm: agora, arquivos: [comoArquivo(m)], outros: 0 });
-    }
+    const tipo = arquivoDeDependencias(m.caminho) ? "dependencias" : "arquivos";
+    const grupo = this.grupoAberto(m.autorId, tipo, agora);
+    if (!grupo) return this.inserir({ tipo, autorId: m.autorId, em: agora, atualizadoEm: agora, arquivos: [comoArquivo(m)], outros: 0 });
     const anterior = grupo.arquivos.find((a) => a.caminho === m.caminho);
-    const resto = grupo.arquivos.filter((a) => a.caminho !== m.caminho);
-    // O mais recente fica em cima; passou do limite, o mais antigo vira contagem.
-    const arquivos = [anterior ? juntarArquivo(anterior, m) : comoArquivo(m), ...resto];
-    const sobra = arquivos.length - ARQUIVOS_POR_ITEM;
-    return this.atualizar({
-      ...grupo,
-      arquivos: sobra > 0 ? arquivos.slice(0, ARQUIVOS_POR_ITEM) : arquivos,
-      outros: grupo.outros + Math.max(0, sobra),
-      atualizadoEm: agora,
-    });
+    return this.atualizar({ ...grupo, ...this.noTopo(grupo.arquivos, grupo.outros, anterior ? juntarArquivo(anterior, m) : comoArquivo(m)), atualizadoEm: agora });
   }
 
   // Escrita que perdeu: sempre um item próprio, porque alguém tem trabalho
@@ -126,16 +117,19 @@ export class Feed {
     return this.inserir({ tipo: "conflito", autorId, outroId, caminho, resolvido, em: agora, atualizadoEm: agora });
   }
 
-  // Arquivo acima do limite (A14). O conector avisa uma vez por arquivo a
-  // cada vez que liga; o mesmo arquivo e tamanho já no feed recente não
-  // entra de novo. Devolve null quando não entrou.
+  // Arquivo acima do limite (A14), agrupado por autor como os outros: um
+  // conector que manda muitos não enche o feed (gate da 3.4, SEC-001). O
+  // conector avisa uma vez por arquivo a cada vez que liga; o mesmo arquivo e
+  // tamanho já no grupo não muda nada. Tamanho dentro do limite não é aviso
+  // de verdade. Devolve null quando nada mudou.
   grande(autorId: string, caminho: string, tamanho: number): EventoFeed | null {
-    const repetido = this.armazenamento
-      .ultimos(OLHAR_PARA_TRAS)
-      .some((e) => e.tipo === "grande" && e.autorId === autorId && e.caminho === caminho && e.tamanho === tamanho);
-    if (repetido) return null;
+    if (tamanho <= TAMANHO_MAXIMO) return null;
     const agora = this.agora();
-    return this.inserir({ tipo: "grande", autorId, caminho, tamanho, em: agora, atualizadoEm: agora });
+    const novo: ArquivoGrande = { caminho, tamanho };
+    const grupo = this.grupoAberto(autorId, "grande", agora);
+    if (!grupo) return this.inserir({ tipo: "grande", autorId, em: agora, atualizadoEm: agora, arquivos: [novo], outros: 0 });
+    if (grupo.arquivos.some((a) => a.caminho === caminho && a.tamanho === tamanho)) return null;
+    return this.atualizar({ ...grupo, ...this.noTopo(grupo.arquivos, grupo.outros, novo), atualizadoEm: agora });
   }
 
   private inserir(evento: EventoNovo): EventoFeed {

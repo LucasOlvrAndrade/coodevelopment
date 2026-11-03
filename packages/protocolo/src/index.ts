@@ -8,6 +8,7 @@ export {
   mensagemFeed,
   mensagemIgnorado,
   resumoDaDiferenca,
+  type ArquivoGrande,
   type ArquivoNoFeed,
   type EventoFeed,
   type MensagemFeed,
