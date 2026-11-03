@@ -1,4 +1,6 @@
+import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { resolve } from "node:path";
 import type { Ambiente } from "./ambiente";
 import { encerrarSessao, ErroApi, SemConexao } from "./api";
 import { apagarSessao, lerSessao } from "./cofre";
@@ -16,6 +18,8 @@ Liga o Claude Code e a pasta do projeto a uma jam do Coodevelopment.
 
 Uso:
   npx coodevelopment entrar <jam>   entra na jam a partir da pasta atual (Ctrl+C desliga)
+      --pasta <caminho>             usa esta pasta no lugar da atual: o repositório, ou
+                                    onde clonar (criada se não existir)
   npx coodevelopment diagnostico    mostra o que está ligado e o que falta
   npx coodevelopment sair           encerra a sessão do conector neste computador
 
@@ -46,8 +50,28 @@ async function sair(amb: Ambiente): Promise<Resultado> {
     : { saida: "Sessão apagada deste computador, mas o app não respondeu para encerrá-la lá. Ela vence sozinha em até 7 dias.", codigo: 0 };
 }
 
+// Tira o --pasta dos argumentos (aceita "--pasta C:\x" e "--pasta=C:\x").
+export function lerPasta(argumentos: string[]): { resto: string[]; pasta: string | null } | { erro: string } {
+  const resto: string[] = [];
+  let pasta: string | null = null;
+  for (let i = 0; i < argumentos.length; i++) {
+    const a = argumentos[i]!;
+    if (a === "--pasta") {
+      const valor = argumentos[++i];
+      if (!valor) return { erro: "Falta o caminho depois de --pasta." };
+      pasta = valor;
+    } else if (a.startsWith("--pasta=")) {
+      pasta = a.slice("--pasta=".length);
+      if (!pasta) return { erro: "Falta o caminho depois de --pasta=." };
+    } else resto.push(a);
+  }
+  return { resto, pasta };
+}
+
 export async function executar(argumentos: string[], amb: Ambiente, parar: Promise<void> = new Promise(() => {})): Promise<Resultado> {
-  const [primeiro, segundo] = argumentos;
+  const lido = lerPasta(argumentos);
+  if ("erro" in lido) return { saida: lido.erro, codigo: 1 };
+  const [primeiro, segundo] = lido.resto;
 
   if (primeiro === "--version" || primeiro === "-v") return { saida: version, codigo: 0 };
   if (primeiro === undefined || primeiro === "--help" || primeiro === "-h") return { saida: AJUDA, codigo: 0 };
@@ -56,7 +80,13 @@ export async function executar(argumentos: string[], amb: Ambiente, parar: Promi
     switch (primeiro) {
       case "entrar":
         if (!segundo) return { saida: "Falta o identificador da jam: npx coodevelopment entrar <jam>", codigo: 1 };
-        await entrar(amb, segundo, parar);
+        // A pasta escolhida faz o papel da pasta atual: o repositório já
+        // clonado, ou onde clonar.
+        if (lido.pasta) {
+          const pasta = resolve(amb.cwd, lido.pasta);
+          await mkdir(pasta, { recursive: true });
+          await entrar({ ...amb, cwd: pasta }, segundo, parar);
+        } else await entrar(amb, segundo, parar);
         return { saida: "", codigo: 0 };
       case "diagnostico": {
         const itens = await diagnosticar(amb);

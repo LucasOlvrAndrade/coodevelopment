@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { executar } from "../../src/comandos";
+import { executar, lerPasta } from "../../src/comandos";
 import { ambienteFalso } from "../apoio/ambiente-falso";
 
 const { version } = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
@@ -76,5 +76,17 @@ describe("sair", () => {
     expect(codigo).toBe(0);
     expect(saida).toMatch(/o app não respondeu/);
     expect(await lerSessao(amb)).toBeNull();
+  });
+});
+
+describe("--pasta (escolher onde clonar)", () => {
+  it("lê o caminho nas duas formas e tira do resto dos argumentos", () => {
+    expect(lerPasta(["entrar", "k7m2-rbq9", "--pasta", "C:\Projetos\jam"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: "C:\Projetos\jam" });
+    expect(lerPasta(["entrar", "--pasta=D:\\Meus projetos", "k7m2-rbq9"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: "D:\\Meus projetos" });
+    expect(lerPasta(["entrar", "k7m2-rbq9"])).toEqual({ resto: ["entrar", "k7m2-rbq9"], pasta: null });
+  });
+
+  it("sem o caminho, explica", async () => {
+    expect(await executar(["entrar", "k7m2-rbq9", "--pasta"], ambienteFalso().amb)).toEqual({ saida: "Falta o caminho depois de --pasta.", codigo: 1 });
   });
 });
