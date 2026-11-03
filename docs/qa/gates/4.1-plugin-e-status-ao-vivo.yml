@@ -1,0 +1,47 @@
+schema: 1
+story: '4.1'
+story_title: 'Plugin do Claude Code e status ao vivo'
+gate: PASS
+status_reason: 'Revisor independente em duas rodadas, 03/11. Rodada 1: CONCERNS com 7 médios (status preso depois de Esc, atualização do plugin no registro do Claude Code, barra no fim da pasta engolindo a aspa, SSRF na busca do site, site http em branco, instalação travando o entrar, hook passando de 1 s) e 7 baixos. Rodada 2: PASS; os 4 baixos novos recomendados foram corrigidos em seguida. Conferência real com o Claude Code 2.1.316: plugin instalado pelo conector, claude -p na pasta mostra e tira o status; do hook até a página 406 a 460 ms.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em duas rodadas'
+reviewed_revision: 'commit:HEAD da Story 4.1 (CONCERNS na primeira entrega)'
+updated: '2026-11-03T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'REL-001', severity: medium, fix: 'Notification idle_prompt tira o status; sessões vencem em 10 min sem evento, renovadas pelo PostToolUse' }
+  - { id: 'REL-002', severity: medium, fix: 'plugin update depois do install (conferido no 2.1.316: regrava a versão no registro; sem nada novo, sai 0)' }
+  - { id: 'REL-003', severity: medium, fix: 'barra invertida no fim dobrada no comando; o conector tira a aspa que sobra' }
+  - { id: 'SEC-001', severity: medium, fix: 'busca do site só https na porta padrão, sem IP literal, DNS resolvido para endereços públicos, cada redirecionamento conferido' }
+  - { id: 'UX-001', severity: medium, fix: 'site em http nunca embute (o navegador bloquearia), fica o link' }
+  - { id: 'REL-004', severity: medium, fix: 'instalação do plugin em paralelo, com prazo de 60 s por comando do claude' }
+  - { id: 'REL-005', severity: medium, fix: 'POST com 500 ms e saída em 800 ms desde o início, com prazo mínimo garantido ao aviso (REL-009)' }
+  - { id: 'REL-006', severity: low, fix: 'no .cmd do npm, todo argumento entre aspas' }
+  - { id: 'REL-007', severity: low, fix: 'preparar o marketplace tenta de novo uma vez' }
+  - { id: 'REL-008', severity: low, fix: 'PostToolUse só renova sessão que já trabalha' }
+  - { id: 'REL-009', severity: low, fix: 'o aviso sempre ganha seu prazo, mesmo com o Node lento para subir (achado também na conferência real: o status ficava preso)' }
+  - { id: 'SEC-002', severity: low, fix: 'X-Frame-Options e CSP repetidos lidos por vírgula' }
+  - { id: 'UX-002', severity: low, fix: 'um timer do parou por pessoa, limpo ao desmontar' }
+  - { id: 'UX-003', severity: low, fix: 'redirecionamento inválido e DNS sem resposta ficam só no link' }
+  - { id: 'MNT-001', severity: low, fix: 'story e arquitetura com os hooks que existem' }
+  - { id: 'TEST-001', severity: low, fix: 'testes do --pasta com barra invertida de verdade e mkdir real' }
+  - { id: 'TEST-003', severity: low, fix: 'testes da sala esperam o claudes inicial em vez de tempo fixo' }
+
+waived_issues:
+  - { id: 'SEC-003', severity: low, finding: 'DNS rebinding entre a conferência e a busca do site', reason: 'só GET, revela 1 bit; fixar o IP fica para quando a CSP completa entrar' }
+  - { id: 'TEST-002', severity: low, finding: 'sem teste do status reenviado ao reconectar e do cache do site', reason: 'código curto, conferido na leitura' }
+  - { id: 'MNT-002', severity: low, finding: 'origem do app fixa na conferência do frame-ancestors', reason: 'prévias de deploy não mostram a prévia do site; produção certa' }
+
+evidence:
+  tools: 'pnpm test: plugin 8, protocolo 68, sala 61 (três vezes seguidas), web 346, conector 95 e 1 pulado; typecheck e lint ok'
+  production: '03/11: conector 0.4.0 local na teste-jam, plugin instalado (marketplace add, install, update), claude -p do Claude Code 2.1.316: status na página e retirada no fim; hook direto até a página 428, 410, 424, 406 e 460 ms; axe em 1280 e 375 px só com o label-content-name-mismatch conhecido; sem rolagem lateral'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security: { status: PASS, notes: 'Servidor só em 127.0.0.1 com segredo; prompt não sai do PC; busca do site sem rede interna; prévia isolada.' }
+  reliability: { status: PASS, notes: 'Status não fica preso (ocioso, validade, conector que cai); jam segue sem o Claude Code.' }
+  performance: { status: PASS, notes: 'NFR1 medido em produção (~0,43 s).' }
+  maintainability: { status: PASS, notes: 'Hook sem dependências, testado como processo; decisões A16 e A17.' }
