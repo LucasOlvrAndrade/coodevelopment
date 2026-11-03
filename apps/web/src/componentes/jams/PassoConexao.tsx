@@ -2,13 +2,21 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { BlocoCopiar } from "@/componentes/ui/BlocoCopiar";
-import { botaoPrincipal, link, painel, tituloSecao } from "@/componentes/ui/estilo";
+import { botaoPrincipal, campo, link, painel, tituloSecao } from "@/componentes/ui/estilo";
 import { useConectado } from "./PresencaDaJam";
 
 // Texto fixo do front-end spec (Conectar o PC à jam): nada vindo da jam ou do
 // usuário entra aqui, porque o Claude Code vai executar o que ele pede.
 export const PROMPT_DO_NODE =
   "Instale o Node.js LTS e o Git neste computador Windows, se ainda não estiverem instalados (por exemplo com `winget install OpenJS.NodeJS.LTS` e `winget install Git.Git`), depois rode `node -v`, `npx -v` e `git --version` e me diga as versões.";
+
+// O comando de entrar, com a pasta escolhida (opcional). A pasta vai entre
+// aspas; aspas e caracteres de controle que a pessoa digitar saem, para o
+// comando colado no terminal continuar sendo um comando só.
+export function comandoDeEntrar(jamId: string, pasta: string): string {
+  const limpa = pasta.replace(/["\u0000-\u001f]/g, "").trim();
+  return `npx coodevelopment entrar ${jamId}${limpa ? ` --pasta "${limpa}"` : ""}`;
+}
 
 const CHAVE = "coodevelopment:ja-instalei";
 const AVISO = "coodevelopment:ja-instalei-mudou";
@@ -103,6 +111,7 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
   // render quando a presença muda (sem efeito para copiar a presença).
   const [jaConectou, setJaConectou] = useState(false);
   const [foraHaTempo, setForaHaTempo] = useState(false);
+  const [pasta, setPasta] = useState("");
   if (conectado && !jaConectou) setJaConectou(true);
   if (conectado && foraHaTempo) setForaHaTempo(false);
 
@@ -147,10 +156,29 @@ export function PassoConexao({ jamId, eu }: { jamId: string; eu: string }) {
       ) : (
         <div className="flex flex-col gap-3">
           <p ref={inicioDoPasso} tabIndex={-1} className="outline-none">
-            <span className="font-medium">Passo 2 de 2:</span> abra o terminal na pasta onde quer o projeto e rode o comando. Ele pede para
-            você confirmar um código no navegador e, se a pasta estiver vazia, baixa o repositório.
+            <span className="font-medium">Passo 2 de 2:</span> escolha onde o projeto fica neste computador e rode o comando no terminal. Ele
+            pede para você confirmar um código no navegador e, se a pasta estiver vazia ou não existir, baixa o repositório nela.
           </p>
-          <BlocoCopiar texto={`npx coodevelopment entrar ${jamId}`} rotulo="Comando para entrar na jam" />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="pasta-do-projeto" className="text-pequeno font-medium">
+              Onde clonar (opcional)
+            </label>
+            <input
+              id="pasta-do-projeto"
+              type="text"
+              value={pasta}
+              onChange={(e) => setPasta(e.target.value)}
+              placeholder="C:\Projetos\meu-projeto"
+              spellCheck={false}
+              autoComplete="off"
+              aria-describedby="pasta-do-projeto-dica"
+              className={`${campo} font-mono text-pequeno`}
+            />
+            <p id="pasta-do-projeto-dica" className="text-pequeno text-texto-suave">
+              Em branco, vale a pasta onde o terminal estiver aberto.
+            </p>
+          </div>
+          <BlocoCopiar texto={comandoDeEntrar(jamId, pasta)} rotulo="Comando para entrar na jam" />
           <AguardandoConexao />
           <div>
             <button type="button" onClick={() => marcar(false)} className={`${link} text-pequeno`}>

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const presenca = vi.hoisted(() => ({ conectado: false }));
 vi.mock("@/componentes/jams/PresencaDaJam", () => ({ useConectado: () => presenca.conectado }));
 
-const { PassoConexao, PROMPT_DO_NODE } = await import("@/componentes/jams/PassoConexao");
+const { PassoConexao, PROMPT_DO_NODE, comandoDeEntrar } = await import("@/componentes/jams/PassoConexao");
 
 const escrever = vi.fn<(texto: string) => Promise<void>>();
 
@@ -182,5 +182,20 @@ describe("bloco de copiar", () => {
     escrever.mockRejectedValueOnce(new Error("sem permissão"));
     await act(async () => fireEvent.click(botao));
     expect(screen.getByText("Não deu para copiar. Selecione o texto e copie com Ctrl+C.")).toBeInTheDocument();
+  });
+});
+
+describe("onde clonar (pedido do Lucas, 03/11)", () => {
+  it("a pasta escolhida entra no comando, entre aspas e sem aspas ou quebra de linha digitadas", () => {
+    expect(comandoDeEntrar("k7m2-rbq9", "")).toBe("npx coodevelopment entrar k7m2-rbq9");
+    expect(comandoDeEntrar("k7m2-rbq9", "  C:\\Meus Projetos\\jam  ")).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "C:\\Meus Projetos\\jam"');
+    expect(comandoDeEntrar("k7m2-rbq9", 'C:\\pasta" & del *\n')).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "C:\\pasta & del *"');
+  });
+
+  it("o campo atualiza o comando copiado", async () => {
+    render(passo());
+    fireEvent.click(screen.getByRole("button", { name: "Já instalei" }));
+    fireEvent.change(screen.getByLabelText("Onde clonar (opcional)"), { target: { value: "D:\\jams\\projeto" } });
+    expect(screen.getByLabelText("Comando para entrar na jam")).toHaveTextContent('npx coodevelopment entrar k7m2-rbq9 --pasta "D:\\jams\\projeto"');
   });
 });
