@@ -192,11 +192,13 @@ type ArquivoNoFeed = {
   juntado: boolean; // entrou por merge (o "conflito resolvido por merge")
 };
 
+// Até 50 arquivos listados por item; o excedente conta em "outros" por
+// mudança (aproximado).
 export type EventoFeed =
-  | { tipo: "arquivos"; arquivos: ArquivoNoFeed[]; outros: number } // até 50 por item
-  | { tipo: "dependencias"; caminhos: string[] }
-  | { tipo: "conflito"; caminho: string; resolvido: "guardado" | "sobrescrito"; outroId: string }
-  | { tipo: "grande"; caminho: string; tamanho: number };
+  | { tipo: "arquivos"; arquivos: ArquivoNoFeed[]; outros: number }
+  | { tipo: "dependencias"; arquivos: ArquivoNoFeed[]; outros: number }
+  | { tipo: "conflito"; caminho: string; resolvido: "guardado" | "sobrescrito"; outroId: string } // outroId pode ser o próprio autor (duas pastas)
+  | { tipo: "grande"; arquivos: { caminho: string; tamanho: number }[]; outros: number };
 
 // Previstos para os épicos seguintes: { tipo: "aviso" } e o "sem aviso" dos
 // arquivos (Epic 4, FR19); "entrou", "saiu" e "fechada" (Epic 5).
