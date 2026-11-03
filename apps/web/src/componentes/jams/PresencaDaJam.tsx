@@ -1,6 +1,6 @@
 "use client";
 
-import { eventoFeed, mensagemDaSala, type EventoFeed, type MensagemFeed } from "@coodevelopment/protocolo";
+import { eventoFeed, mensagemDaSala, type EventoFeed, type MensagemFeed, type MotivoDeParada } from "@coodevelopment/protocolo";
 import PartySocket from "partysocket";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -14,6 +14,15 @@ const Online = createContext<Presenca>(NINGUEM);
 export type EstadoFeed = { eventos: EventoFeed[]; carregado: boolean; novo: EventoFeed | null };
 const SEM_FEED: EstadoFeed = { eventos: [], carregado: false, novo: null };
 const Feed = createContext<EstadoFeed>(SEM_FEED);
+
+// Status do Claude de cada participante (Story 4.1): quem está trabalhando,
+// desde quando, e quem parou por erro há pouco (com o motivo).
+export type EstadoClaudes = { trabalhando: ReadonlyMap<string, string>; parou: ReadonlyMap<string, MotivoDeParada> };
+const NENHUM_CLAUDE: EstadoClaudes = { trabalhando: new Map(), parou: new Map() };
+const Claudes = createContext<EstadoClaudes>(NENHUM_CLAUDE);
+
+// Quanto tempo o "parou: ..." fica na tela (front-end spec, fluxo do status).
+export const PAROU_POR_MS = 8000;
 
 // Itens guardados na memória da aba.
 const ITENS_NA_PAGINA = 200;
@@ -76,6 +85,7 @@ function lerJson(dados: unknown): unknown {
 export function PresencaDaJam({ jamId, children }: { jamId: string; children: ReactNode }) {
   const [presenca, setPresenca] = useState<Presenca>(NINGUEM);
   const [feed, setFeed] = useState<EstadoFeed>(SEM_FEED);
+  const [claudes, setClaudes] = useState<EstadoClaudes>(NENHUM_CLAUDE);
 
   useEffect(() => {
     let ativo = true;
@@ -113,10 +123,31 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
             return;
           }
           const lido = mensagemDaSala.safeParse(dados);
-          if (lido.success && lido.data.tipo === "presenca") setPresenca({ online: new Set(lido.data.online), conectados: new Set(lido.data.conectados) });
+          if (!lido.success) return;
+          const msg = lido.data;
+          if (msg.tipo === "presenca") setPresenca({ online: new Set(msg.online), conectados: new Set(msg.conectados) });
+          else if (msg.tipo === "claudes") {
+            const trabalhando = new Map(msg.trabalhando.map((c) => [c.usuarioId, c.desde]));
+            // Quem voltou a trabalhar não continua "parado".
+            setClaudes((atual) => ({ trabalhando, parou: new Map([...atual.parou].filter(([id]) => !trabalhando.has(id))) }));
+          } else if (msg.tipo === "parou") {
+            const { usuarioId, motivo } = msg;
+            setClaudes((atual) => ({ ...atual, parou: new Map(atual.parou).set(usuarioId, motivo) }));
+            setTimeout(
+              () =>
+                setClaudes((atual) => {
+                  if (atual.parou.get(usuarioId) !== motivo) return atual;
+                  const parou = new Map(atual.parou);
+                  parou.delete(usuarioId);
+                  return { ...atual, parou };
+                }),
+              PAROU_POR_MS,
+            );
+          }
         });
         socket.addEventListener("close", (evento) => {
           setPresenca(NINGUEM);
+          setClaudes(NENHUM_CLAUDE);
           // Token recusado pela própria sala: tentar de novo não resolve.
           if (evento.code === 4401) socket?.close();
         });
@@ -130,7 +161,9 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
 
   return (
     <Online.Provider value={presenca}>
-      <Feed.Provider value={feed}>{children}</Feed.Provider>
+      <Claudes.Provider value={claudes}>
+        <Feed.Provider value={feed}>{children}</Feed.Provider>
+      </Claudes.Provider>
     </Online.Provider>
   );
 }
@@ -165,4 +198,9 @@ export function useConectado(usuarioId: string): boolean {
 // O feed da jam ao vivo (Story 3.4).
 export function useFeed(): EstadoFeed {
   return useContext(Feed);
+}
+
+// O Claude de cada participante, ao vivo (Story 4.1).
+export function useClaudes(): EstadoClaudes {
+  return useContext(Claudes);
 }

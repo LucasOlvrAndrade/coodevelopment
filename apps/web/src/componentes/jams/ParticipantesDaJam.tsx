@@ -2,6 +2,7 @@ import { Avatar } from "@/componentes/ui/Avatar";
 import { link, painel } from "@/componentes/ui/estilo";
 import type { JamCompleta } from "@/servidor/dominio/jam";
 import { MarcaConectado, MarcaOnline } from "./PresencaDaJam";
+import { StatusDoClaude } from "./StatusDoClaude";
 import { TentarDeNovo } from "./TentarDeNovo";
 
 // Cor de cada participante pela vaga, no anel da foto (front-end spec: a cor
@@ -38,6 +39,8 @@ export function ParticipantesDaJam({ jam, eu }: { jam: JamCompleta; eu: string }
               <p className="font-mono text-pequeno break-words text-texto-suave">
                 @{p.login} · {p.papel === "criador" ? "criou a jam" : "convidado"}
               </p>
+              {/* O Claude dele trabalhando agora, pelos hooks (Story 4.1). */}
+              <StatusDoClaude usuarioId={p.id} nome={p.nome} eu={eu} />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-pequeno">
