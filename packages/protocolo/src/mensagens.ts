@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mensagemFeed, mensagemIgnorado } from "./feed";
 import { mensagemAceito, mensagemArquivo, mensagemEscrever, mensagemManifesto, mensagemRecusado } from "./sincronizacao";
 
 // Mensagens da sala para o navegador (api-specification.md). Por enquanto só a
@@ -13,17 +14,18 @@ export const mensagemPresenca = z.object({
 });
 
 // Da sala para quem está conectado; arquivo, aceito, recusado e manifesto só
-// vão para os conectores (Story 3.3).
+// vão para os conectores (Story 3.3), e o feed só para as páginas (Story 3.4).
 export const mensagemDaSala = z.discriminatedUnion("tipo", [
   mensagemPresenca,
   mensagemArquivo,
   mensagemAceito,
   mensagemRecusado,
   mensagemManifesto,
+  mensagemFeed,
 ]);
 
 // Do conector para a sala.
-export const mensagemDoConector = z.discriminatedUnion("tipo", [mensagemEscrever]);
+export const mensagemDoConector = z.discriminatedUnion("tipo", [mensagemEscrever, mensagemIgnorado]);
 
 export type MensagemPresenca = z.infer<typeof mensagemPresenca>;
 export type MensagemDaSala = z.infer<typeof mensagemDaSala>;
