@@ -180,13 +180,26 @@ export type StatusClaude =
   | { tipo: "parado" }
   | { tipo: "trabalhando"; avisoId: string | null; desde: string };
 
+// Story 3.4: o que existe hoje, em packages/protocolo/src/feed.ts. Todo item
+// tem id (crescente), autorId, em e atualizadoEm (o grupo cresce enquanto o
+// autor segue mudando: ninguém mais no meio e menos de 5 min parado).
+type ArquivoNoFeed = {
+  caminho: string;
+  mudanca: "criado" | "alterado" | "apagado";
+  binario: boolean;
+  adicionadas: number | null; // null: binário, apagado ou grande para comparar
+  removidas: number | null;
+  juntado: boolean; // entrou por merge (o "conflito resolvido por merge")
+};
+
 export type EventoFeed =
-  | { tipo: "aviso"; avisoId: string; autorId: string; resumo: string; arquivos: string[] }
-  | { tipo: "arquivos"; autorId: string; caminhos: string[]; resumo: string; semAviso: boolean }
-  | { tipo: "dependencias"; autorId: string; caminho: string }
-  | { tipo: "conflito"; autorId: string; caminho: string; resolvido: "merge" | "guardado" }
-  | { tipo: "entrou" | "saiu"; usuarioId: string; via: "conector" | "pagina" }
-  | { tipo: "fechada"; usuarioId: string; commitSha: string };
+  | { tipo: "arquivos"; arquivos: ArquivoNoFeed[]; outros: number } // até 50 por item
+  | { tipo: "dependencias"; caminhos: string[] }
+  | { tipo: "conflito"; caminho: string; resolvido: "guardado" | "sobrescrito"; outroId: string }
+  | { tipo: "grande"; caminho: string; tamanho: number };
+
+// Previstos para os épicos seguintes: { tipo: "aviso" } e o "sem aviso" dos
+// arquivos (Epic 4, FR19); "entrou", "saiu" e "fechada" (Epic 5).
 ```
 
 ### Relationships

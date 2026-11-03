@@ -100,6 +100,8 @@ Todas com `{ v: 1, tipo, ... }`, validadas com zod nas duas pontas. Resumo
 | sala → conector | `manifesto` | ao conectar: `caminho`, `versao`, `hash`, `apagado` de tudo que mudou desde o `baseSha`; os arquivos vêm em seguida com `origem: estado` (Story 3.3) |
 | sala → conectores | `arquivo` | `caminho`, `versao`, `hash`, `conteudo`, `binario`, `apagado`, `autorId`, `origem` (escrita, merge ou estado) |
 | sala → autor | `recusado` | `caminho`, motivo (`conflito_guardado`, `jam_fechando`, `caminho_invalido`, `proibido`, `grande_demais`); no conflito, o arquivo atual chega em seguida numa mensagem `arquivo` |
+| conector → sala | `ignorado` | `caminho`, `motivo: grande_demais`, `tamanho`: arquivo acima de 1 MB que ficou no PC, uma vez por arquivo, só para o feed (Story 3.4, A14) |
+| sala → páginas | `feed` | `eventos` (`EventoFeed` com `id`), `inicial`: ao abrir a página, os últimos 100 do mais antigo ao mais novo (`inicial: true`); depois, cada item novo ou atualizado (o mesmo `id` substitui). Os conectores não recebem o feed (Story 3.4) |
 | conector → sala | `status` | `trabalhando` ou `parado` (hooks) |
 | conector → sala | `anunciar` | `resumo`, `arquivos` |
 | sala → todos | `presenca`, `status`, `aviso`, `evento` | atualizações incrementais |
