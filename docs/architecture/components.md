@@ -71,7 +71,8 @@ fora de jam.
 
 | Hook | Matcher | O que faz |
 |---|---|---|
-| `SessionStart` / `SessionEnd` | n/a | Presença do Claude na sala |
+| `SessionEnd` | n/a | Tira o status da sessão (Story 4.1); o `SessionStart` não é usado |
+| `Notification` | `idle_prompt` | O Claude ocioso, esperando a pessoa: tira o status quando o `Stop` não vem (Esc; Story 4.1) |
 | `UserPromptSubmit` | n/a | Status "trabalhando"; devolve `additionalContext` com os avisos ativos dos outros e a instrução de chamar `anunciar` antes de editar (FR12, FR15) |
 | `PreToolUse` | `Edit\|Write\|NotebookEdit` | Sem aviso ativo: `deny` com motivo (FR14). Arquivo reservado por outro: `ask` com quem reservou e por quê, e a pessoa confirma no terminal (FR16) |
 | `PreToolUse` / `PostToolUse` | todos | Injeta avisos novos dos outros desde a última injeção (FR15 em respostas longas) |
