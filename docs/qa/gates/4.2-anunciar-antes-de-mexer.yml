@@ -1,0 +1,42 @@
+schema: 1
+story: '4.2'
+story_title: 'Anunciar antes de mexer'
+gate: PASS
+status_reason: 'Revisor independente em três rodadas, 03/11. Rodada 1: CONCERNS com 2 médios (o aviso passava para o prompt seguinte depois de um Esc; aviso sem sessão trabalhando não terminava na sala) e 9 baixos. Rodada 2: CONCERNS; o aviso por sessão trouxe o REL-004 (aviso só pelo MCP sobrevivendo ao prompt e liberando qualquer sessão) e o UX-004. Rodada 3: PASS; a observação UX-005 foi corrigida em seguida. Conferido com o Claude Code 2.1.316 real e conector simulado: a edição sem aviso é recusada, o Claude chama anunciar (o PreToolUse dele chega com a sessão) e a edição seguinte passa.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em três rodadas'
+reviewed_revision: 'commit:HEAD da Story 4.2'
+updated: '2026-11-03T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'REL-001', severity: medium, fix: 'aviso por sessão, registrado pelo PreToolUse do próprio anunciar; prompt novo pede anúncio novo' }
+  - { id: 'REL-002', severity: medium, fix: 'mensagem aviso_fim sempre que o aviso some antes do status, inclusive ao vencer' }
+  - { id: 'REL-004', severity: medium, fix: 'aviso só pelo MCP vale para o prompt em que foi dado; o MCP não duplica o do hook mesmo com aprovação demorada; caminhos normalizados dos dois lados' }
+  - { id: 'REL-003', severity: low, fix: 'outra sessão na mesma pasta não aproveita o aviso da primeira' }
+  - { id: 'UX-001', severity: low, fix: 'aviso repetido (reconexão, Claude anunciando de novo) atualiza o item em vez de criar outro' }
+  - { id: 'UX-002', severity: low, fix: 'vírgula para o leitor de tela antes de "sem aviso"' }
+  - { id: 'UX-003', severity: low, fix: '"Claude Code de Fulano anunciou"' }
+  - { id: 'UX-004', severity: low, fix: 'aviso que já virou item e volta (duas sessões alternando) só muda o status' }
+  - { id: 'UX-005', severity: low, fix: 'avisos vistos esquecidos quando o Claude para' }
+  - { id: 'DATA-001', severity: low, fix: 'caminho com mais de 1024 caracteres fica fora do aviso' }
+  - { id: 'DATA-002', severity: low, fix: '"..env" conta como dentro da pasta' }
+
+waived_issues:
+  - { id: 'DATA-003', severity: low, finding: 'escrita em voo numa queda de conexão, reenviada mais de 30 s depois do fim do aviso, sai "sem aviso"', reason: 'raro; marca só informativa' }
+  - { id: 'REL-005', severity: low, finding: 'recusar a ferramenta na aprovação do MCP deixa o aviso da sessão registrado naquele prompt', reason: 'o PreToolUse roda antes da aprovação; dura até o fim da resposta ou o próximo prompt' }
+  - { id: 'TEST-001', severity: low, finding: 'o teste do MCP está no pacote do conector, não no do plugin', reason: 'é onde o servidor local real está; roda no pnpm test da raiz' }
+  - { id: 'PROD-001', severity: low, finding: 'caminho conector → sala → página do aviso não conferido em produção', reason: 'o repositório da jam de teste foi apagado pelo dono; coberto no workerd e nos testes de componente' }
+
+evidence:
+  tools: 'pnpm test: plugin 8, protocolo 68, sala 67 (workerd), web 349, conector 109 e 1 pulado; typecheck e lint ok'
+  production: '03/11: Claude Code 2.1.316 com o plugin instalado por marketplace local e conector simulado: PreToolUse Edit recusado, PreToolUse do anunciar com a sessão, anunciar pelo MCP, Edit seguinte liberado, README editado'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security: { status: PASS, notes: 'Só o servidor local com segredo; a página não anuncia; o resumo é escapado e limitado.' }
+  reliability: { status: PASS, notes: 'O aviso termina com o prompt, o Claude ou a validade, e a sala fica sabendo.' }
+  performance: { status: PASS, notes: 'Hook do PreToolUse no mesmo prazo do 4.1.' }
+  maintainability: { status: PASS, notes: 'MCP sem dependências, testado como processo; decisão A18.' }
