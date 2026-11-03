@@ -4,12 +4,13 @@ import {
   RESUMO_MAXIMO,
   normalizarCaminho,
   type MensagemAviso,
+  type MensagemFimDoAviso,
   type MensagemStatus,
   type MotivoDeParada,
 } from "@coodevelopment/protocolo";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer, type ServerResponse } from "node:http";
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
 // Servidor local dos hooks do Claude Code (Story 4.1, components.md): só em
 // 127.0.0.1, porta aleatória e segredo por sessão do conector, os dois no
@@ -37,55 +38,95 @@ export const MOTIVO_SEM_AVISO = `Esta pasta está numa jam do Coodevelopment, co
 // um prompt (pode haver mais de um Claude Code aberto na mesma pasta). O
 // status muda só quando a primeira começa ou a última termina. Notification
 // chega só com o Claude ocioso, esperando a pessoa (matcher idle_prompt).
+//
+// O aviso é por sessão (gate da 4.2, REL-001 e REL-003): vale para o prompt
+// em que foi dado e termina no prompt seguinte ou no fim da sessão. A sessão
+// vem do PreToolUse da própria ferramenta anunciar; o anunciar pelo MCP, que
+// não sabe a sessão, só vale sozinho quando esse hook não chegou.
+type Aviso = { resumo: string; arquivos: string[]; em: number };
+
+// Chave do aviso que chegou só pelo MCP, sem a sessão.
+const SEM_SESSAO = "";
+
+// O mesmo anúncio chega pelo hook e, logo depois, pelo MCP.
+const MESMO_ANUNCIO_MS = 30_000;
+
+// Caminho relativo à pasta que ainda está dentro dela ("..env" está; gate da
+// 4.2, DATA-002).
+function dentroDaPasta(r: string): boolean {
+  return r !== "" && r !== ".." && !r.startsWith(`..${sep}`) && !r.startsWith("../") && !isAbsolute(r);
+}
+
 export class StatusDoClaude {
   // Sessão → último evento dela.
   private sessoes = new Map<string, number>();
-  // O aviso ativo da pasta (Story 4.2): vale até o Claude terminar.
-  private aviso: { resumo: string; arquivos: string[]; em: number } | null = null;
+  // Sessão → aviso dela (Story 4.2).
+  private avisos = new Map<string, Aviso>();
+  // O último aviso mandado à sala, para mandar só quando muda.
+  private enviado: string | null = null;
 
   constructor(
-    private aoMudar: (m: MensagemStatus | MensagemAviso) => void,
+    private aoMudar: (m: MensagemStatus | MensagemAviso | MensagemFimDoAviso) => void,
     private agora: () => number = Date.now,
     private pasta = process.cwd(),
   ) {}
 
   get avisoAtivo(): boolean {
-    return this.aviso !== null;
+    return this.avisos.size > 0;
   }
 
-  // O aviso ativo como mensagem para a sala (para reenviar ao reconectar).
+  // O aviso mais recente, como mensagem para a sala (também ao reconectar).
   get avisoAtual(): MensagemAviso | null {
-    return this.aviso ? { v: 1, tipo: "aviso", resumo: this.aviso.resumo, arquivos: this.aviso.arquivos } : null;
+    let ultimo: Aviso | null = null;
+    for (const a of this.avisos.values()) if (!ultimo || a.em >= ultimo.em) ultimo = a;
+    return ultimo ? { v: 1, tipo: "aviso", resumo: ultimo.resumo, arquivos: ultimo.arquivos } : null;
+  }
+
+  private relativo(caminho: string): string | null {
+    const r = relative(this.pasta, resolve(this.pasta, caminho));
+    return dentroDaPasta(r) ? normalizarCaminho(r) : null;
   }
 
   // O Claude anunciou (FR13): resumo até 300 caracteres, até 50 arquivos,
-  // caminhos relativos à pasta (o que fica fora dela não entra).
-  anunciar(resumo: string, arquivos: string[]): MensagemAviso {
-    const relativos = arquivos
-      .map((a) => {
-        const r = relative(this.pasta, resolve(this.pasta, a));
-        return r && !r.startsWith("..") && !isAbsolute(r) ? normalizarCaminho(r) : null;
-      })
-      .filter((a): a is string => Boolean(a));
+  // caminhos relativos à pasta (o que fica fora dela, ou com mais de 1024
+  // caracteres, não entra; gate da 4.2, DATA-001).
+  anunciar(resumo: string, arquivos: string[], sessao: string = SEM_SESSAO): MensagemAviso {
+    const relativos = arquivos.map((a) => this.relativo(a)).filter((a): a is string => Boolean(a) && a!.length <= 1024);
     const mensagem: MensagemAviso = {
       v: 1,
       tipo: "aviso",
       resumo: resumo.trim().slice(0, RESUMO_MAXIMO),
       arquivos: [...new Set(relativos)].slice(0, ARQUIVOS_DO_AVISO),
     };
-    this.aviso = { resumo: mensagem.resumo, arquivos: mensagem.arquivos, em: this.agora() };
-    this.aoMudar(mensagem);
+    const igual = (a: Aviso) => a.resumo === mensagem.resumo && a.arquivos.join("\n") === mensagem.arquivos.join("\n") && this.agora() - a.em < MESMO_ANUNCIO_MS;
+    // O MCP repetindo o que o hook da mesma chamada já registrou.
+    if (sessao === SEM_SESSAO && [...this.avisos.values()].some(igual)) return mensagem;
+    this.avisos.set(sessao, { resumo: mensagem.resumo, arquivos: mensagem.arquivos, em: this.agora() });
+    this.mandarAviso();
     return mensagem;
   }
 
-  // Edição pelas ferramentas do Claude (PreToolUse): sem aviso ativo, recusa
-  // com o motivo (FR14). Arquivo fora da pasta da jam não é da jam: segue.
-  decidirEdicao(corpo: { file_path?: unknown }): { decisao: "recusar"; motivo: string } | null {
-    if (this.aviso) return null;
-    if (typeof corpo.file_path === "string") {
-      const r = relative(this.pasta, resolve(this.pasta, corpo.file_path));
-      if (r.startsWith("..") || isAbsolute(r)) return null;
+  // PreToolUse: a própria ferramenta anunciar registra o aviso com a sessão
+  // (antes de o MCP responder); as de edição passam pela decisão.
+  preToolUse(corpo: Record<string, unknown>): { decisao: "recusar"; motivo: string } | null {
+    if (corpo.tool_name === FERRAMENTA_ANUNCIAR) {
+      const sessao = typeof corpo.session_id === "string" ? corpo.session_id : SEM_SESSAO;
+      if (typeof corpo.resumo === "string" && corpo.resumo.trim()) {
+        const arquivos = Array.isArray(corpo.arquivos) ? corpo.arquivos.filter((a): a is string => typeof a === "string") : [];
+        this.anunciar(corpo.resumo, arquivos, sessao);
+      }
+      return null;
     }
+    return this.decidirEdicao(corpo);
+  }
+
+  // Edição pelas ferramentas do Claude (PreToolUse): sem aviso da sessão,
+  // recusa com o motivo (FR14). Arquivo fora da pasta da jam não é da jam:
+  // segue.
+  decidirEdicao(corpo: { file_path?: unknown; session_id?: unknown }): { decisao: "recusar"; motivo: string } | null {
+    const sessao = typeof corpo.session_id === "string" ? corpo.session_id : null;
+    if ((sessao && this.avisos.has(sessao)) || this.avisos.has(SEM_SESSAO)) return null;
+    if (typeof corpo.file_path === "string" && !this.relativo(corpo.file_path)) return null;
     return { decisao: "recusar", motivo: MOTIVO_SEM_AVISO };
   }
 
@@ -97,34 +138,61 @@ export class StatusDoClaude {
     const sessao = typeof corpo.session_id === "string" ? corpo.session_id : null;
     if (!sessao) return;
     const antes = this.trabalhando;
-    if (nome === "UserPromptSubmit") this.sessoes.set(sessao, this.agora());
+    if (nome === "UserPromptSubmit") {
+      this.sessoes.set(sessao, this.agora());
+      // Prompt novo pede anúncio novo (o Stop não vem depois de um Esc).
+      this.avisos.delete(sessao);
+    }
     // Só renova: um PostToolUse em segundo plano que chega depois do Stop não
     // liga o status de novo (gate da 4.1, REL-008).
     else if (nome === "PostToolUse") {
       if (this.sessoes.has(sessao)) this.sessoes.set(sessao, this.agora());
-    }
-    else if (TERMINA.has(nome)) this.sessoes.delete(sessao);
-    else return;
+    } else if (TERMINA.has(nome)) {
+      this.sessoes.delete(sessao);
+      this.avisos.delete(sessao);
+    } else return;
+    this.fecharSeParado();
+    this.mandarAviso();
     this.avisar(antes, nome === "StopFailure" ? motivo(corpo.error) : null);
   }
 
   // Tira as sessões sem evento há mais que a validade; o conector chama de
-  // tempos em tempos. Um aviso sem sessão nenhuma também vence.
+  // tempos em tempos. O aviso dado sem sessão também vence, e a sala fica
+  // sabendo (gate da 4.2, REL-002).
   vencer(): void {
     const antes = this.trabalhando;
     const limite = this.agora() - SESSAO_VALE_MS;
-    for (const [sessao, ultimo] of this.sessoes) if (ultimo < limite) this.sessoes.delete(sessao);
-    if (!this.trabalhando && this.aviso && this.aviso.em < limite) this.aviso = null;
+    for (const [sessao, ultimo] of this.sessoes) {
+      if (ultimo < limite) {
+        this.sessoes.delete(sessao);
+        this.avisos.delete(sessao);
+      }
+    }
+    for (const [sessao, aviso] of this.avisos) if (!this.sessoes.has(sessao) && aviso.em < limite) this.avisos.delete(sessao);
+    this.fecharSeParado();
+    this.mandarAviso();
     this.avisar(antes, null);
+  }
+
+  // Ninguém trabalhando: os avisos das sessões acabam (Story 4.2, AC 6). O
+  // dado sem sessão espera a validade, porque o Stop pode ter vindo antes.
+  private fecharSeParado() {
+    if (this.trabalhando) return;
+    for (const sessao of [...this.avisos.keys()]) if (sessao !== SEM_SESSAO) this.avisos.delete(sessao);
+  }
+
+  // Manda à sala o aviso atual, ou o fim dele, só quando muda.
+  private mandarAviso() {
+    const atual = this.avisoAtual;
+    const chave = atual ? JSON.stringify(atual) : null;
+    if (chave === this.enviado) return;
+    this.enviado = chave;
+    this.aoMudar(atual ?? { v: 1, tipo: "aviso_fim" });
   }
 
   private avisar(antes: boolean, motivoDaParada: MotivoDeParada | null) {
     if (!antes && this.trabalhando) this.aoMudar({ v: 1, tipo: "status", estado: "trabalhando", motivo: null });
-    else if (antes && !this.trabalhando) {
-      // O aviso termina quando o Claude termina (Story 4.2, AC 6); a sala faz o mesmo.
-      this.aviso = null;
-      this.aoMudar({ v: 1, tipo: "status", estado: "parado", motivo: motivoDaParada });
-    }
+    else if (antes && !this.trabalhando) this.aoMudar({ v: 1, tipo: "status", estado: "parado", motivo: motivoDaParada });
   }
 }
 

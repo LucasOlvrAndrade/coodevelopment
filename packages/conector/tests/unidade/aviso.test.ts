@@ -1,4 +1,4 @@
-import { mensagemDoConector, type MensagemAviso, type MensagemStatus } from "@coodevelopment/protocolo";
+import { mensagemDoConector, type MensagemDoConector } from "@coodevelopment/protocolo";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -25,7 +25,7 @@ function temporaria() {
 describe("StatusDoClaude: aviso (Story 4.2)", () => {
   it("anunciar guarda o aviso com caminhos relativos à pasta, sem os de fora e sem repetir (AC 1)", () => {
     const pasta = temporaria();
-    const enviadas: (MensagemStatus | MensagemAviso)[] = [];
+    const enviadas: MensagemDoConector[] = [];
     const s = new StatusDoClaude((m) => enviadas.push(m), Date.now, pasta);
     const m = s.anunciar("  Login com Google  ", [join(pasta, "src", "auth.ts"), "src/login.tsx", "src\\auth.ts", "../fora.txt", join(tmpdir(), "outro.txt")]);
     expect(m).toEqual({ v: 1, tipo: "aviso", resumo: "Login com Google", arquivos: ["src/auth.ts", "src/login.tsx"] });
@@ -44,13 +44,63 @@ describe("StatusDoClaude: aviso (Story 4.2)", () => {
     expect(s.decidirEdicao({ file_path: join(pasta, "src", "a.ts") })).toBeNull();
   });
 
-  it("o aviso termina quando o Claude termina (AC 6)", () => {
-    const s = new StatusDoClaude(() => {}, Date.now, temporaria());
+  it("o aviso termina quando o Claude termina, e a sala recebe o fim (AC 6)", () => {
+    const enviadas: MensagemDoConector[] = [];
+    const s = new StatusDoClaude((m) => enviadas.push(m), Date.now, temporaria());
     s.evento("UserPromptSubmit", { session_id: "a" });
-    s.anunciar("Ajustes", []);
+    s.anunciar("Ajustes", [], "a");
     s.evento("Stop", { session_id: "a" });
     expect(s.avisoAtivo).toBe(false);
-    expect(s.decidirEdicao({ file_path: "x.ts" })).not.toBeNull();
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).not.toBeNull();
+    expect(enviadas.map((m) => m.tipo)).toEqual(["status", "aviso", "aviso_fim", "status"]);
+  });
+});
+
+describe("aviso por sessão (gate da 4.2)", () => {
+  it("prompt novo depois de um Esc pede anúncio novo (REL-001)", () => {
+    const s = new StatusDoClaude(() => {}, Date.now, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.preToolUse({ tool_name: FERRAMENTA_ANUNCIAR, session_id: "a", resumo: "Plano A", arquivos: [] });
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).toBeNull();
+    // Esc: nenhum Stop. Outro prompt.
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).not.toBeNull();
+  });
+
+  it("outra sessão na mesma pasta não aproveita o aviso da primeira (REL-003)", () => {
+    const s = new StatusDoClaude(() => {}, Date.now, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.evento("UserPromptSubmit", { session_id: "b" });
+    s.preToolUse({ tool_name: FERRAMENTA_ANUNCIAR, session_id: "a", resumo: "Plano A", arquivos: [] });
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "b" })).not.toBeNull();
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).toBeNull();
+  });
+
+  it("o MCP repetindo o anúncio que o hook já registrou não manda de novo; sozinho, vale e vence com aviso à sala (REL-002)", () => {
+    let agora = 0;
+    const enviadas: MensagemDoConector[] = [];
+    const s = new StatusDoClaude((m) => enviadas.push(m), () => agora, temporaria());
+    s.preToolUse({ tool_name: FERRAMENTA_ANUNCIAR, session_id: "a", resumo: "Plano A", arquivos: ["x.ts"] });
+    s.anunciar("Plano A", ["x.ts"]);
+    expect(enviadas.filter((m) => m.tipo === "aviso")).toHaveLength(1);
+
+    const sozinho = new StatusDoClaude((m) => enviadas.push(m), () => agora, temporaria());
+    enviadas.length = 0;
+    sozinho.anunciar("Sem hook", []);
+    expect(sozinho.decidirEdicao({ file_path: "x.ts", session_id: "z" })).toBeNull();
+    agora += 11 * 60 * 1000;
+    sozinho.vencer();
+    expect(sozinho.avisoAtivo).toBe(false);
+    expect(enviadas.map((m) => m.tipo)).toEqual(["aviso", "aviso_fim"]);
+  });
+
+  it("..env está dentro da pasta; caminho longo demais fica fora do aviso (DATA-001, DATA-002)", () => {
+    const pasta = temporaria();
+    const s = new StatusDoClaude(() => {}, Date.now, pasta);
+    expect(s.decidirEdicao({ file_path: join(pasta, "..env"), session_id: "a" })).not.toBeNull();
+    const m = s.anunciar("x", ["..env", `${"a/".repeat(600)}b.ts`], "a");
+    expect(m.arquivos).toEqual(["..env"]);
+    expect(mensagemDoConector.safeParse(m).success).toBe(true);
   });
 });
 
@@ -68,10 +118,10 @@ function processo(script: string, entrada: string, env: Record<string, string>, 
 async function jam() {
   const local = temporaria();
   const pasta = temporaria();
-  const enviadas: (MensagemStatus | MensagemAviso)[] = [];
+  const enviadas: MensagemDoConector[] = [];
   const status = new StatusDoClaude((m) => enviadas.push(m), Date.now, pasta);
   const servidor = await abrirServidorDeHooks({
-    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.decidirEdicao(corpo) : status.evento(nome, corpo)),
+    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.preToolUse(corpo) : status.evento(nome, corpo)),
     aoAnunciar: (corpo) => {
       const aviso = status.anunciar(String(corpo.resumo), (corpo.arquivos as string[]) ?? []);
       return { status: 200, corpo: { mensagem: `Anunciado para a jam: ${aviso.resumo}. Pode editar.` } };

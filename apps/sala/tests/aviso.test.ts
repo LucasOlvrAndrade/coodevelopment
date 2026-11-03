@@ -100,3 +100,28 @@ describe("aviso do Claude na sala (Story 4.2)", () => {
     outra.ws.close();
   });
 });
+
+describe("fim do aviso e aviso repetido (gate da 4.2)", () => {
+  it("aviso_fim tira o resumo do status; o mesmo aviso de novo não vira outro item (REL-001, UX-001)", async () => {
+    const conector = await conectar("jam-aviso-fim", "lucas", "conector");
+    const pagina = await conectar("jam-aviso-fim", "pai", "pagina");
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
+    let status = pagina.proxima(claudes);
+    conector.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    await status;
+    const item = pagina.proxima(feedVivo("aviso"));
+    conector.enviar({ tipo: "aviso", resumo: "Plano A", arquivos: [] });
+    await item;
+    // A reconexão manda o mesmo aviso: só o estado.
+    status = pagina.proxima(claudes);
+    conector.enviar({ tipo: "aviso", resumo: "Plano A", arquivos: [] });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(pagina.recebidas.filter(feedVivo("aviso"))).toHaveLength(1);
+
+    status = pagina.proxima(claudes);
+    conector.enviar({ tipo: "aviso_fim" });
+    expect(await status).toMatchObject({ trabalhando: [{ usuarioId: "lucas", resumo: null }] });
+    conector.ws.close();
+    pagina.ws.close();
+  });
+});

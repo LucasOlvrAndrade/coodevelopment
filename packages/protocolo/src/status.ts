@@ -42,6 +42,10 @@ export const mensagemAviso = z.object({
   arquivos: z.array(z.string().min(1).max(1024)).max(ARQUIVOS_DO_AVISO),
 });
 
+// Conector → sala: o aviso acabou antes de o status voltar a parado (prompt
+// novo depois de um Esc, aviso vencido; gate da 4.2, REL-001 e REL-002).
+export const mensagemFimDoAviso = z.object({ v: z.literal(1), tipo: z.literal("aviso_fim") });
+
 // Sala → páginas: quem está com o Claude trabalhando agora, desde quando, e
 // o resumo do aviso ativo, se houver (Story 4.2).
 export const mensagemClaudes = z.object({
@@ -61,6 +65,7 @@ export const mensagemParou = z.object({
 
 export type MotivoDeParada = z.infer<typeof motivoDeParada>;
 export type MensagemAviso = z.infer<typeof mensagemAviso>;
+export type MensagemFimDoAviso = z.infer<typeof mensagemFimDoAviso>;
 export type MensagemStatus = z.infer<typeof mensagemStatus>;
 export type MensagemClaudes = z.infer<typeof mensagemClaudes>;
 export type MensagemParou = z.infer<typeof mensagemParou>;

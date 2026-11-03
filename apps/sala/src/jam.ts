@@ -104,6 +104,10 @@ export class Jam extends Server<Env> {
       this.anunciar(conexao, msg.data);
       return;
     }
+    if (msg.data.tipo === "aviso_fim") {
+      this.terminarAviso(conexao);
+      return;
+    }
     const envios =
       msg.data.tipo === "ignorado"
         ? this.sincronizacao.ignorado(conexao.state.usuarioId, msg.data)
@@ -162,7 +166,11 @@ export class Jam extends Server<Env> {
   // conexão, vira item do feed e o resumo vai para o status.
   private anunciar(conexao: Connection<Estado>, msg: MensagemAviso) {
     const estado = conexao.state!;
+    // O mesmo aviso de novo (reconexão do conector) não vira outro item no
+    // feed (gate da 4.2, UX-001).
+    const repetido = estado.aviso?.resumo === msg.resumo && estado.aviso.arquivos.join("\n") === msg.arquivos.join("\n");
     conexao.setState({ ...estado, aviso: { resumo: msg.resumo, arquivos: msg.arquivos } });
+    if (repetido) return;
     const evento = (() => {
       try {
         return this.feed.aviso(estado.usuarioId, msg.resumo, msg.arquivos);
@@ -172,6 +180,15 @@ export class Jam extends Server<Env> {
       }
     })();
     if (evento) this.paraAsPaginas(JSON.stringify({ v: 1, tipo: "feed", eventos: [evento], inicial: false } satisfies MensagemFeed));
+    this.anunciarClaudes();
+  }
+
+  // O aviso acabou antes do status (prompt novo depois de um Esc, aviso
+  // vencido; gate da 4.2, REL-001 e REL-002).
+  private terminarAviso(conexao: Connection<Estado>) {
+    const estado = conexao.state!;
+    if (!estado.aviso) return;
+    conexao.setState({ ...estado, aviso: null, avisoTerminouEm: new Date().toISOString() });
     this.anunciarClaudes();
   }
 

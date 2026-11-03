@@ -89,7 +89,7 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
   const status = new StatusDoClaude(enviar, Date.now, pasta);
   const hooks = await abrirServidorDeHooks({
-    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.decidirEdicao(corpo) : status.evento(nome, corpo)),
+    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.preToolUse(corpo) : status.evento(nome, corpo)),
     // O anunciar do servidor MCP do plugin (Story 4.2).
     aoAnunciar: (corpo) => {
       if (typeof corpo.resumo !== "string" || !corpo.resumo.trim() || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };

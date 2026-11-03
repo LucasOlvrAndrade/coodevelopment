@@ -119,9 +119,14 @@ export class Feed {
   // no histórico da sala (A2, gate da 3.3 REL-005).
   // O Claude do autor anunciou o que vai fazer (Story 4.2): sempre um item
   // próprio, que não entra em grupo nenhum.
-  aviso(autorId: string, resumo: string, arquivos: string[]): EventoFeed {
+  // O mesmo anúncio do mesmo autor, com o grupo dele ainda aberto, só atualiza
+  // a hora do item (o Claude repete o anúncio; gate da 4.2, UX-001).
+  aviso(autorId: string, resumo: string, arquivos: readonly string[]): EventoFeed {
     const agora = this.agora();
-    return this.inserir({ tipo: "aviso", autorId, resumo, arquivos: arquivos.slice(0, ARQUIVOS_POR_ITEM), em: agora, atualizadoEm: agora });
+    const lista = arquivos.slice(0, ARQUIVOS_POR_ITEM);
+    const anterior = this.grupoAberto(autorId, "aviso", agora);
+    if (anterior && anterior.resumo === resumo && anterior.arquivos.join("\n") === lista.join("\n")) return this.atualizar({ ...anterior, atualizadoEm: agora });
+    return this.inserir({ tipo: "aviso", autorId, resumo, arquivos: lista, em: agora, atualizadoEm: agora });
   }
 
   conflito(autorId: string, outroId: string, caminho: string, resolvido: "guardado" | "sobrescrito"): EventoFeed {

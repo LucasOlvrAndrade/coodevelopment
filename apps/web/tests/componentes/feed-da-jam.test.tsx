@@ -225,7 +225,7 @@ describe("aviso e sem aviso no feed (Story 4.2)", () => {
     await pagina();
     feed([{ ...comum, id: 1, tipo: "aviso", autorId: "lucas", resumo: "Login com Google", arquivos: ["src/auth.ts", "src/login.tsx"] }], true);
     const [item] = itens();
-    expect(item).toHaveTextContent("Lucas Andrade anunciou: Login com Google");
+    expect(item).toHaveTextContent("Claude Code de Lucas Andrade anunciou: Login com Google");
     expect(item).toHaveTextContent("src/auth.ts");
     expect(item).toHaveTextContent("src/login.tsx");
   });

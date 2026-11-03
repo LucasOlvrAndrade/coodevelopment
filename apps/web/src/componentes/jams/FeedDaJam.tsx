@@ -57,7 +57,8 @@ export function fraseDoEvento(e: EventoFeed, nome: Nomear): string {
     case "dependencias":
       return `${maiuscula(nome(e.autorId))} mudou as dependências`;
     case "aviso":
-      return `${maiuscula(nome(e.autorId))} anunciou: ${e.resumo}`;
+      // Quem anuncia é o Claude da pessoa (D9; gate da 4.2, UX-003).
+      return `${nome(e.autorId) === "você" ? "Seu Claude Code" : `Claude Code de ${nome(e.autorId)}`} anunciou: ${e.resumo}`;
     case "conflito":
       return `Conflito em ${e.caminho}`;
     case "grande":
@@ -110,7 +111,12 @@ function ListaDeArquivos({ arquivos, outros }: { arquivos: ArquivoNoFeed[]; outr
                 <span className="sr-only">{r.lido}</span>
                 {a.juntado && ", juntado com outra mudança"}
                 {/* Veio sem aviso do Claude: terminal, edição à mão (Story 4.2, FR19). */}
-                {a.semAviso && <span className="ml-2 rounded-full px-1.5 text-alerta ring-1 ring-alerta/50">sem aviso</span>}
+                {a.semAviso && (
+                  <>
+                    <span className="sr-only">, </span>
+                    <span className="ml-2 rounded-full px-1.5 text-alerta ring-1 ring-alerta/50">sem aviso</span>
+                  </>
+                )}
               </span>
             </li>
           );

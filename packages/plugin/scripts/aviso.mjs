@@ -49,6 +49,8 @@ export async function acharJam(pastas, dados) {
   return null;
 }
 
+export const FERRAMENTA_ANUNCIAR = "mcp__plugin_coodevelopment_coodevelopment__anunciar";
+
 // Só o que o conector usa; o prompt, a última mensagem e o conteúdo da
 // edição ficam aqui. Da edição (PreToolUse, Story 4.2) vai só a ferramenta e
 // o caminho do arquivo.
@@ -60,6 +62,8 @@ export function corpoDoAviso(entrada) {
     error: entrada.error ?? entrada.error_type ?? null,
     reason: entrada.reason ?? null,
     ...(entrada.hook_event_name === "PreToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null } : {}),
+    // O anunciar passa pelo hook com a sessão: o aviso fica com ela (gate da 4.2, REL-001).
+    ...(entrada.tool_name === FERRAMENTA_ANUNCIAR ? { resumo: entrada.tool_input?.resumo ?? null, arquivos: entrada.tool_input?.arquivos ?? [] } : {}),
   };
 }
 
