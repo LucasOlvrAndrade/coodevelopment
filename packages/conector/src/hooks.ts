@@ -83,7 +83,8 @@ export class StatusDoClaude {
   }
 
   private relativo(caminho: string): string | null {
-    const r = relative(this.pasta, resolve(this.pasta, caminho));
+    // Espaço em volta sai dos dois lados (o MCP e o hook mandam a mesma lista).
+    const r = relative(this.pasta, resolve(this.pasta, caminho.trim()));
     return dentroDaPasta(r) ? normalizarCaminho(r) : null;
   }
 
@@ -98,9 +99,12 @@ export class StatusDoClaude {
       resumo: resumo.trim().slice(0, RESUMO_MAXIMO),
       arquivos: [...new Set(relativos)].slice(0, ARQUIVOS_DO_AVISO),
     };
-    const igual = (a: Aviso) => a.resumo === mensagem.resumo && a.arquivos.join("\n") === mensagem.arquivos.join("\n") && this.agora() - a.em < MESMO_ANUNCIO_MS;
-    // O MCP repetindo o que o hook da mesma chamada já registrou.
-    if (sessao === SEM_SESSAO && [...this.avisos.values()].some(igual)) return mensagem;
+    // O MCP repetindo o que o hook da mesma chamada já registrou, mesmo que a
+    // aprovação do MCP tenha demorado (gate da 4.2, REL-004): basta o resumo
+    // de um aviso de sessão; perto no tempo, também os arquivos.
+    const igual = ([chave, a]: [string, Aviso]) =>
+      chave !== SEM_SESSAO && a.resumo === mensagem.resumo && (a.arquivos.join("\n") === mensagem.arquivos.join("\n") || this.agora() - a.em >= MESMO_ANUNCIO_MS);
+    if (sessao === SEM_SESSAO && [...this.avisos].some(igual)) return mensagem;
     this.avisos.set(sessao, { resumo: mensagem.resumo, arquivos: mensagem.arquivos, em: this.agora() });
     this.mandarAviso();
     return mensagem;
@@ -140,8 +144,11 @@ export class StatusDoClaude {
     const antes = this.trabalhando;
     if (nome === "UserPromptSubmit") {
       this.sessoes.set(sessao, this.agora());
-      // Prompt novo pede anúncio novo (o Stop não vem depois de um Esc).
+      // Prompt novo pede anúncio novo (o Stop não vem depois de um Esc). O
+      // aviso sem sessão também acaba: ele vale só para o prompt em que foi
+      // dado (gate da 4.2, REL-004).
       this.avisos.delete(sessao);
+      this.avisos.delete(SEM_SESSAO);
     }
     // Só renova: um PostToolUse em segundo plano que chega depois do Stop não
     // liga o status de novo (gate da 4.1, REL-008).
@@ -150,6 +157,9 @@ export class StatusDoClaude {
     } else if (TERMINA.has(nome)) {
       this.sessoes.delete(sessao);
       this.avisos.delete(sessao);
+      // O MCP responde antes do fim da resposta: no fim, o aviso sem sessão
+      // já não é de ninguém.
+      this.avisos.delete(SEM_SESSAO);
     } else return;
     this.fecharSeParado();
     this.mandarAviso();

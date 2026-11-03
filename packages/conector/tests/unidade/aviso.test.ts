@@ -94,6 +94,30 @@ describe("aviso por sessão (gate da 4.2)", () => {
     expect(enviadas.map((m) => m.tipo)).toEqual(["aviso", "aviso_fim"]);
   });
 
+  it("MCP que chega muito depois do hook (aprovação demorada) ou com espaço no caminho não vira aviso sem sessão (REL-004)", () => {
+    let agora = 0;
+    const enviadas: MensagemDoConector[] = [];
+    const s = new StatusDoClaude((m) => enviadas.push(m), () => agora, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.preToolUse({ tool_name: FERRAMENTA_ANUNCIAR, session_id: "a", resumo: "Plano A", arquivos: ["x.ts"] });
+    agora += 90_000;
+    s.anunciar("Plano A", [" x.ts "]);
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "z" })).not.toBeNull();
+    expect(enviadas.filter((m) => m.tipo === "aviso")).toHaveLength(1);
+  });
+
+  it("aviso só pelo MCP vale para o prompt em que foi dado: prompt novo ou fim o tiram (REL-004)", () => {
+    const s = new StatusDoClaude(() => {}, Date.now, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.anunciar("Sem hook", []);
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).toBeNull();
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    expect(s.decidirEdicao({ file_path: "x.ts", session_id: "a" })).not.toBeNull();
+    s.anunciar("Sem hook de novo", []);
+    s.evento("Stop", { session_id: "a" });
+    expect(s.avisoAtivo).toBe(false);
+  });
+
   it("..env está dentro da pasta; caminho longo demais fica fora do aviso (DATA-001, DATA-002)", () => {
     const pasta = temporaria();
     const s = new StatusDoClaude(() => {}, Date.now, pasta);

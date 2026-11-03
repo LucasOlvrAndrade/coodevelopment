@@ -22,7 +22,12 @@ type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & {
   trabalhandoDesde?: string | null;
   aviso?: { resumo: string; arquivos: readonly string[] } | null;
   avisoTerminouEm?: string | null;
+  // Os últimos avisos que já viraram item no feed (gate da 4.2, UX-004).
+  avisosVistos?: readonly string[];
 };
+
+// Quantos avisos de cada conexão a sala lembra para não repetir no feed.
+const AVISOS_LEMBRADOS = 10;
 
 // Gravações que ainda saem depois do fim do aviso não contam como "sem aviso".
 const FOLGA_DO_AVISO_MS = 30_000;
@@ -166,11 +171,21 @@ export class Jam extends Server<Env> {
   // conexão, vira item do feed e o resumo vai para o status.
   private anunciar(conexao: Connection<Estado>, msg: MensagemAviso) {
     const estado = conexao.state!;
-    // O mesmo aviso de novo (reconexão do conector) não vira outro item no
-    // feed (gate da 4.2, UX-001).
-    const repetido = estado.aviso?.resumo === msg.resumo && estado.aviso.arquivos.join("\n") === msg.arquivos.join("\n");
-    conexao.setState({ ...estado, aviso: { resumo: msg.resumo, arquivos: msg.arquivos } });
-    if (repetido) return;
+    // Um aviso que já virou item volta (reconexão do conector, duas sessões
+    // do Claude alternando): só o status muda, sem outro item no feed (gate
+    // da 4.2, UX-001 e UX-004).
+    const chave = JSON.stringify([msg.resumo, msg.arquivos]);
+    const vistos = estado.avisosVistos ?? [];
+    const repetido = vistos.includes(chave);
+    conexao.setState({
+      ...estado,
+      aviso: { resumo: msg.resumo, arquivos: msg.arquivos },
+      avisosVistos: repetido ? vistos : [...vistos, chave].slice(-AVISOS_LEMBRADOS),
+    });
+    if (repetido) {
+      this.anunciarClaudes();
+      return;
+    }
     const evento = (() => {
       try {
         return this.feed.aviso(estado.usuarioId, msg.resumo, msg.arquivos);

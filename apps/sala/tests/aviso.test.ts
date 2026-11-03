@@ -125,3 +125,28 @@ describe("fim do aviso e aviso repetido (gate da 4.2)", () => {
     pagina.ws.close();
   });
 });
+
+describe("duas sessões alternando (gate da 4.2, UX-004)", () => {
+  it("um aviso que já virou item e volta só muda o status", async () => {
+    const conector = await conectar("jam-aviso-volta", "lucas", "conector");
+    const pagina = await conectar("jam-aviso-volta", "pai", "pagina");
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
+    let status = pagina.proxima(claudes);
+    conector.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    await status;
+    for (const resumo of ["Plano X", "Plano Y"]) {
+      const item = pagina.proxima(feedVivo("aviso"));
+      const comResumo = pagina.proxima((m) => claudes(m) && JSON.stringify(m).includes(resumo));
+      conector.enviar({ tipo: "aviso", resumo, arquivos: [] });
+      await item;
+      await comResumo;
+    }
+    status = pagina.proxima(claudes);
+    conector.enviar({ tipo: "aviso", resumo: "Plano X", arquivos: [] });
+    expect(await status).toMatchObject({ trabalhando: [{ usuarioId: "lucas", resumo: "Plano X" }] });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(pagina.recebidas.filter(feedVivo("aviso"))).toHaveLength(2);
+    conector.ws.close();
+    pagina.ws.close();
+  });
+});
