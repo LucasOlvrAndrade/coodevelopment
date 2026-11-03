@@ -1,0 +1,35 @@
+schema: 1
+story: '3.5'
+story_title: 'Teto de custo no merge de três vias'
+gate: PASS
+status_reason: 'Revisor independente em duas rodadas, 03/11. Rodada 1: FAIL. O merge próprio cortava o fim igual e, com linhas repetidas ("}", linha vazia), a mesma mudança entrava duas vezes sem conflito (DATA-001, alto, 21% dos casos de reenvio com a base antiga); e push(...) estourava a pilha acima de ~125 mil linhas, sem a escrita chegar ao histórico (REL-001). Rodada 2: PASS; 0 divergências com o node-diff3 em 200 mil casos de alfabeto pequeno, 0 duplicações no reenvio, pior caso de 1 MB em 155 ms e pico de heap até 42 MB.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em duas rodadas'
+reviewed_revision: 'commit:7dc478f (FAIL em c8fd8b0)'
+updated: '2026-11-03T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'DATA-001', severity: high, fix: 'só o começo igual é cortado antes do Myers; teste do cenário da função duplicada e fuzz de 20 mil casos com "}" e linhas vazias contra o node-diff3' }
+  - { id: 'REL-001', severity: medium, fix: 'cópia em laço em vez de push(...); qualquer exceção no juntar vira conflito (a escrita vai ao histórico)' }
+  - { id: 'TEST-001', severity: medium, fix: 'comparação com o node-diff3 também com linhas repetidas e a mesma mudança dos dois lados' }
+  - { id: 'TEST-002', severity: medium, fix: 'teste de 1 MB de verdade (520 mil linhas) juntando em menos de 1 s' }
+  - { id: 'MNT-001', severity: low, fix: 'comentário do teto fala da exceção de acréscimo ou corte puro no fim' }
+
+waived_issues:
+  - { id: 'PERF-001', severity: low, finding: 'pico de heap de 30 a 42 MB no merge de 1 MB', reason: 'cabe nos 128 MB do Durable Object; arquivos de 1 MB são raros' }
+  - { id: 'MNT-002', severity: low, finding: 'fimA e fimB ficaram como sinônimos de a.length e b.length', reason: 'limpar quando alguém mexer ali' }
+  - { id: 'DATA-002', severity: low, finding: 'com milhares de linhas idênticas e uma troca no meio, o alinhamento escolhido pode virar conflito', reason: 'o node-diff3 também dá conflito nesses casos; vai ao histórico, sem perda' }
+
+evidence:
+  tests_reviewed: 520
+  tools: 'pnpm test: plugin 8, protocolo 68, sala 61 (workerd), web 324, conector 90 e 1 pulado; mutação: os três testes novos falham com o código da rodada 1'
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: []
+
+nfr_validation:
+  security: { status: PASS, notes: 'Um participante não trava mais a sala com escritas de versão antiga.' }
+  reliability: { status: PASS, notes: 'Acima do teto e em qualquer falha, a escrita vai ao histórico.' }
+  performance: { status: PASS, notes: 'Pior caso de 1 MB em 155 ms; antes, 9 s com 2.500 linhas.' }
+  maintainability: { status: PASS, notes: 'Merge próprio pequeno e testado contra a referência; node-diff3 só nos testes.' }
