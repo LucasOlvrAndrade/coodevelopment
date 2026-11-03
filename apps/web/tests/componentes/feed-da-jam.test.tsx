@@ -152,7 +152,7 @@ describe("feed da jam (Story 3.4)", () => {
     expect(sobrescrito).toHaveTextContent("Lucas Andrade substituiu o arquivo; a sua versão anterior está guardada no histórico da jam.");
     expect(grande).toHaveTextContent("video.mp4 ficou fora da jam");
     expect(grande).toHaveTextContent("5 MB");
-    expect(grande).toHaveTextContent("Ficaram só no PC de Lucas Andrade");
+    expect(grande).toHaveTextContent("Ficou só no PC de Lucas Andrade");
   });
 
   it("se atualiza sozinho: grupo atualizado no lugar, item novo em cima e anunciado (AC 3 e 4)", async () => {
@@ -172,6 +172,9 @@ describe("feed da jam (Story 3.4)", () => {
     await pagina();
     feed([{ ...comum, id: 1, tipo: "conflito", autorId: "pai", outroId: "pai", caminho: "a.ts", resolvido: "guardado" }], true);
     expect(itens()[0]).toHaveTextContent("Duas pastas suas mudaram o mesmo trecho");
+    feed([{ ...comum, id: 2, tipo: "conflito", autorId: "pai", outroId: "pai", caminho: "logo.png", resolvido: "sobrescrito" }], false);
+    expect(screen.getByRole("status")).toHaveTextContent("Conflito em logo.png");
+    expect(itens()[0]).toHaveTextContent("Duas versões suas do arquivo se cruzaram");
   });
 
   it("um grupo que cresceu sobe acima de um item mais novo (gate da 3.4, UX-001)", async () => {

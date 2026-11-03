@@ -76,13 +76,21 @@ function textoDoConflito(e: Extract<EventoFeed, { tipo: "conflito" }>, nome: Nom
     if (e.outroId === eu) return `A mudança de ${autor} cruzou com a sua e ficou guardada no histórico da jam; o arquivo ficou com a sua.`;
     return `A mudança de ${autor} cruzou com a de ${outro} e ficou guardada no histórico da jam; o arquivo ficou com a de ${outro}.`;
   }
-  if (e.autorId === e.outroId) return `${pastas} mudaram o arquivo; a versão anterior está guardada no histórico da jam.`;
+  // Também acontece com uma pasta só, quando o conector manda de novo uma
+  // escrita (gate da 3.4, DATA-004): o texto não supõe duas pastas.
+  if (e.autorId === e.outroId) return `Duas versões ${e.autorId === eu ? "suas" : `de ${autor}`} do arquivo se cruzaram; a anterior está guardada no histórico da jam.`;
   if (e.outroId === eu) return `${maiuscula(autor)} substituiu o arquivo; a sua versão anterior está guardada no histórico da jam.`;
   return `${maiuscula(autor)} substituiu o arquivo; a versão anterior, de ${outro}, está guardada no histórico da jam.`;
 }
 
+// O caminho isolado do texto em volta (bdi): um nome em árabe ou hebraico não
+// embaralha o resumo ao lado.
 function Caminho({ children }: { children: string }) {
-  return <code className="font-mono text-pequeno break-all text-texto">{children}</code>;
+  return (
+    <code className="font-mono text-pequeno break-all text-texto">
+      <bdi>{children}</bdi>
+    </code>
+  );
 }
 
 // Os arquivos de um item, com o resumo de cada um (AC 1).
@@ -140,9 +148,10 @@ function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
               </li>
             ))}
           </ul>
-          {e.outros > 0 && <p className="text-pequeno text-texto-suave">e mais {plural(e.outros, "arquivo", "arquivos")}</p>}
+          {e.outros > 0 && <p className="text-pequeno text-texto-suave">e mais {plural(e.outros, "aviso", "avisos")} de arquivos que não cabem aqui</p>}
+          {/* Singular com um arquivo só (gate da 3.4, UX-003). */}
           <p className="text-texto-suave">
-            {e.autorId === eu ? "Ficaram só no seu PC" : `Ficaram só no PC de ${nome(e.autorId)}`}: o limite da jam é 1 MB por arquivo.
+            {e.arquivos.length === 1 && e.outros === 0 ? "Ficou" : "Ficaram"} só {e.autorId === eu ? "no seu PC" : `no PC de ${nome(e.autorId)}`}: o limite da jam é 1 MB por arquivo.
           </p>
         </>
       );
