@@ -1,0 +1,55 @@
+schema: 1
+story: '3.4'
+story_title: 'Feed de arquivos alterados'
+gate: PASS
+status_reason: 'Revisor independente em três rodadas, 03/11. Rodada 1: CONCERNS com um médio (PERF-001, o diff do node-diff3 levava 9 s com linhas repetidas e travava o Durable Object) e 10 baixos. Rodada 2: CONCERNS, com os 11 fechados e o REL-003 novo (a recusa de \p{Cf} barrava nomes legítimos, e o conector 0.3.0 descartava a recusa em silêncio). Rodada 3: PASS; o último baixo (MNT-001) foi corrigido em seguida. Produção: as mudanças de duas pastas aparecem no feed da página em cerca de 0,85 s; axe sem violações do feed e sem rolagem lateral a 320 px.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em três rodadas'
+reviewed_revision: 'commit:47f04e4 (CONCERNS em 65788ae e em 1c95906)'
+updated: '2026-11-03T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'PERF-001', severity: medium, fix: 'resumo por Myers próprio com teto de 1.000 edições, O((N+M)·D): o pior caso caiu de 8,9 s para 13 ms; conferido contra uma LCS exata em 2.000 pares' }
+  - { id: 'REL-003', severity: medium, fix: 'só os controles de direção do texto são recusados no nome; conector 0.3.1 avisa no terminal qualquer arquivo recusado' }
+  - { id: 'SEC-001', severity: low, fix: 'aviso de arquivo grande agrupado por autor e aceito só acima de 1 MB: 300 avisos viram um item' }
+  - { id: 'SEC-002', severity: low, fix: 'controles de direção do texto (U+202E e afins) recusados no caminho; caminho isolado com bdi na página' }
+  - { id: 'DATA-001', severity: low, fix: 'contagem acima de 50 aceita como aproximada e dita assim ("mais de 50 arquivos", "e mais N mudanças")' }
+  - { id: 'DATA-002', severity: low, fix: 'quebra de linha do fim vira "alterado" sem contagem; só o final de linha CRLF/LF continua fora' }
+  - { id: 'DATA-003', severity: low, fix: 'sobrescrever uma exclusão não é conflito; o conflito da mesma pessoa tem texto próprio' }
+  - { id: 'DATA-004', severity: low, fix: 'texto neutro para duas versões da mesma pessoa (também com uma pasta só, no reenvio)' }
+  - { id: 'REL-001', severity: low, fix: 'erro ao ler o feed guardado manda o feed vazio em vez de deixar a página esperando' }
+  - { id: 'REL-002', severity: low, fix: 'a página lê o feed item por item; tipo desconhecido fica de fora sem levar o resto' }
+  - { id: 'UX-001', severity: low, fix: 'ordem pela última mudança: grupo que cresceu sobe' }
+  - { id: 'UX-002', severity: low, fix: 'dependências com o resumo de cada arquivo' }
+  - { id: 'UX-003', severity: low, fix: 'singular com um arquivo grande só; o excedente conta avisos' }
+  - { id: 'MNT-001', severity: low, fix: 'aviso de recusa com texto que vale para qualquer motivo e controle próprio' }
+  - { id: 'TEST-001', severity: low, fix: 'retenção e linha inválida no SQLite de um Durable Object de verdade, custo do resumo, mesma pessoa, contagem aproximada' }
+
+waived_issues:
+  - { id: 'PERF-003', severity: high, finding: 'o juntar da 3.3 (diff3Merge do node-diff3) não tem teto de custo: um participante com escritas de versão antiga e linhas repetidas trava o Durable Object por cerca de 9 s a cada vez', reason: 'caminho da 3.3, fora do escopo do feed; limitado a quem já está na jam (até 3 amigos); story própria com prioridade alta antes do Epic 4' }
+  - { id: 'UX-004', severity: low, finding: 'reescrita com mais de 1.000 linhas mudadas aparece como "alterado", sem contagem', reason: 'custo limitado de propósito (A15)' }
+  - { id: 'DATA-005', severity: low, finding: 'itens de teste gravados no formato da primeira versão saem do feed', reason: 'só itens de teste de 03/11; a leitura descarta linha que não passa no protocolo' }
+  - { id: 'SEC-003', severity: low, finding: 'conflitos provocados de propósito ainda abrem um item cada', reason: 'limitado a participantes da jam; cada conflito é trabalho no histórico, que quem perdeu precisa ver' }
+
+evidence:
+  tests_reviewed: 520
+  tools: 'pnpm test (pacotes um de cada vez): plugin 3, protocolo 58, sala 56 (workerd), web 324, conector 82 e 1 pulado; typecheck e lint ok; CI verde no Windows'
+  production: '03/11: jam vsud-6ykt, conectores teste-jam e teste-jam2 e a página aberta por participante temporário (apagado no fim): README alterado, arquivo novo (agrupou no mesmo item), package.json (destacado, com o resumo) e arquivo de 1,5 MB (fora da jam) no feed em 847, 9, 858 e 854 ms; anúncio ao vivo presente; axe em 1280, 375 e 320 px só com o label-content-name-mismatch conhecido do botão da conta sem foto; sem rolagem lateral'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Página não escreve; aviso de arquivo grande conferido e agrupado; nome com controle de direção recusado; texto escapado pelo React.'
+  reliability:
+    status: PASS
+    notes: 'Erro no feed nunca derruba a escrita aceita; feed guardado com fallback; página tolera tipos novos.'
+  performance:
+    status: PASS
+    notes: 'Resumo com custo limitado; feed de 200 itens no SQLite, 100 ao abrir. O merge da 3.3 fica como dívida (PERF-003).'
+  maintainability:
+    status: PASS
+    notes: 'Regra do feed pura (memória e SQLite), testada em Node e no workerd; decisão A15.'
