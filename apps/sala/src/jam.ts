@@ -159,6 +159,8 @@ export class Jam extends Server<Env> {
       ...estado,
       trabalhandoDesde: depois,
       ...(terminou ? { aviso: null, avisoTerminouEm: new Date().toISOString() } : {}),
+      // Período de trabalho novo: o mesmo anúncio volta a ser item do feed (gate da 4.2, UX-005).
+      ...(depois ? {} : { avisosVistos: [] }),
     });
     if (antes !== depois || terminou) this.anunciarClaudes();
     if (msg.estado === "parado" && msg.motivo) {

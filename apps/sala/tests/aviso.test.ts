@@ -150,3 +150,25 @@ describe("duas sessões alternando (gate da 4.2, UX-004)", () => {
     pagina.ws.close();
   });
 });
+
+describe("mesmo anúncio em outro período de trabalho (gate da 4.2, UX-005)", () => {
+  it("depois que o Claude para, o mesmo anúncio volta a ser item", async () => {
+    const conector = await conectar("jam-aviso-periodo", "lucas", "conector");
+    const pagina = await conectar("jam-aviso-periodo", "pai", "pagina");
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
+    for (let vez = 0; vez < 2; vez++) {
+      const comecou = pagina.proxima(claudes);
+      conector.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+      await comecou;
+      const item = pagina.proxima(feedVivo("aviso"));
+      conector.enviar({ tipo: "aviso", resumo: "Rodar o formatador", arquivos: [] });
+      await item;
+      const parou = pagina.proxima(claudes);
+      conector.enviar({ tipo: "status", estado: "parado", motivo: null });
+      await parou;
+    }
+    expect(pagina.recebidas.filter(feedVivo("aviso"))).toHaveLength(2);
+    conector.ws.close();
+    pagina.ws.close();
+  });
+});
