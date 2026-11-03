@@ -190,6 +190,9 @@ describe("onde clonar (pedido do Lucas, 03/11)", () => {
     expect(comandoDeEntrar("k7m2-rbq9", "")).toBe("npx coodevelopment entrar k7m2-rbq9");
     expect(comandoDeEntrar("k7m2-rbq9", "  C:\\Meus Projetos\\jam  ")).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "C:\\Meus Projetos\\jam"');
     expect(comandoDeEntrar("k7m2-rbq9", 'C:\\pasta" & del *\n')).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "C:\\pasta & del *"');
+    // Barra no fim vai dobrada, para não engolir a aspa de fechamento (gate da 4.1, REL-003).
+    expect(comandoDeEntrar("k7m2-rbq9", "C:\\Meus Projetos\\")).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "C:\\Meus Projetos\\\\"');
+    expect(comandoDeEntrar("k7m2-rbq9", "D:\\")).toBe('npx coodevelopment entrar k7m2-rbq9 --pasta "D:\\\\"');
   });
 
   it("o campo atualiza o comando copiado", async () => {

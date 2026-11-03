@@ -72,6 +72,18 @@ describe("status do Claude na página da jam (Story 4.1)", () => {
     expect(screen.getByText("Claude Code de Lucas Andrade está trabalhando")).toBeInTheDocument();
   });
 
+  it("um parou novo recomeça os 8 s, mesmo com o mesmo motivo (gate da 4.1, UX-002)", async () => {
+    await pagina();
+    vi.useFakeTimers();
+    daSala({ tipo: "parou", usuarioId: "lucas", motivo: "rate_limit" });
+    act(() => vi.advanceTimersByTime(PAROU_POR_MS - 1000));
+    daSala({ tipo: "parou", usuarioId: "lucas", motivo: "rate_limit" });
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByText(/parou: limite de uso atingido/)).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(PAROU_POR_MS));
+    expect(screen.queryByText(/parou/)).toBeNull();
+  });
+
   it("caiu a conexão com a sala: o status some", async () => {
     await pagina();
     daSala({ tipo: "claudes", trabalhando: [{ usuarioId: "lucas", desde: "2026-11-03T12:00:00.000Z" }] });

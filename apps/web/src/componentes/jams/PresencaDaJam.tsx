@@ -89,6 +89,7 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
 
   useEffect(() => {
     let ativo = true;
+    const timersDoParou = new Map<string, ReturnType<typeof setTimeout>>();
     let socket: PartySocket | undefined;
     pedirToken(jamId)
       .then(({ token, salaUrl }) => {
@@ -133,15 +134,20 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
           } else if (msg.tipo === "parou") {
             const { usuarioId, motivo } = msg;
             setClaudes((atual) => ({ ...atual, parou: new Map(atual.parou).set(usuarioId, motivo) }));
-            setTimeout(
-              () =>
+            // Um timer por pessoa: um "parou" novo recomeça a contagem
+            // (gate da 4.1, UX-002).
+            clearTimeout(timersDoParou.get(usuarioId));
+            timersDoParou.set(
+              usuarioId,
+              setTimeout(() => {
+                timersDoParou.delete(usuarioId);
                 setClaudes((atual) => {
-                  if (atual.parou.get(usuarioId) !== motivo) return atual;
+                  if (!atual.parou.has(usuarioId)) return atual;
                   const parou = new Map(atual.parou);
                   parou.delete(usuarioId);
                   return { ...atual, parou };
-                }),
-              PAROU_POR_MS,
+                });
+              }, PAROU_POR_MS),
             );
           }
         });
@@ -156,6 +162,7 @@ export function PresencaDaJam({ jamId, children }: { jamId: string; children: Re
     return () => {
       ativo = false;
       socket?.close();
+      for (const t of timersDoParou.values()) clearTimeout(t);
     };
   }, [jamId]);
 

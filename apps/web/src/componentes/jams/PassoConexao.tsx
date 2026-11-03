@@ -14,7 +14,13 @@ export const PROMPT_DO_NODE =
 // aspas; aspas e caracteres de controle que a pessoa digitar saem, para o
 // comando colado no terminal continuar sendo um comando só.
 export function comandoDeEntrar(jamId: string, pasta: string): string {
-  const limpa = pasta.replace(/["\u0000-\u001f]/g, "").trim();
+  // Barra invertida antes da aspa de fechamento viraria aspa literal no
+  // Windows ("C:\Projetos\" chegava como C:\Projetos"): no fim, ela vai dobrada
+  // (gate da 4.1, REL-003).
+  const limpa = pasta
+    .replace(/["\u0000-\u001f]/g, "")
+    .trim()
+    .replace(/\\+$/, (barras) => barras + barras);
   return `npx coodevelopment entrar ${jamId}${limpa ? ` --pasta "${limpa}"` : ""}`;
 }
 
