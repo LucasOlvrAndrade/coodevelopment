@@ -111,7 +111,7 @@ Detalhes em `docs/architecture.md`; pesquisa em
 | # | Decisão | Escolha |
 |---|---|---|
 | A1 | Serviço de tempo real | Cloudflare Durable Objects com PartyServer, uma sala por jam, estado no SQLite da sala |
-| A2 | Escrita simultânea | Versão por arquivo; merge de três vias na sala; se os trechos se cruzam, fica a primeira e a outra é guardada no histórico, com aviso |
+| A2 | Escrita simultânea | Versão por arquivo; merge de três vias na sala; se os trechos se cruzam, fica a primeira e a outra é guardada no histórico, com aviso. **Story 3.5 (03/11):** o merge é próprio (Myers com teto de 1.000 linhas acrescentadas mais tiradas de cada lado e a regra de regiões do diff3), porque o `diff3Merge` do `node-diff3` levava 9 s com linhas repetidas e travava o Durable Object; acima do teto, o merge vira conflito (a escrita vai para o histórico, sem perda). Igual ao `node-diff3` em 5.000 casos aleatórios |
 | A3 | Estado no servidor | Commit de partida mais os arquivos mudados desde ele; fechar é um commit direto |
 | A4 | Permissão do GitHub | GitHub App com token de usuário (não OAuth App com `repo`) |
 | A5 | Login | Better Auth (Auth.js está em manutenção), com login por código para o conector |
