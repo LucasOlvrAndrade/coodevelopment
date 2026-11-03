@@ -64,6 +64,8 @@ export class Sincronizador {
   private prontos = new Set<string>();
   private lote?: ReturnType<typeof setTimeout>;
   private avisados = new Set<string>();
+  // Arquivos que a sala recusou, avisados uma vez (gate da 3.4, MNT-001).
+  private recusados = new Set<string>();
   private crlf = false;
   private vigia?: Vigia;
   private varredura?: ReturnType<typeof setInterval>;
@@ -314,11 +316,13 @@ export class Sincronizador {
           this.amb.escrever(`${m.caminho} tem mais de 1 MB e não vai para a jam.`);
         } else if (m.motivo === "erro") {
           this.amb.escrever(`A sala não conseguiu receber ${m.caminho}. Ele sai de novo na próxima mudança.`);
-        } else if (!this.avisados.has(m.caminho)) {
-          // Nome que a sala não aceita (regra mais nova que este conector): o
-          // arquivo fica só aqui, e quem trabalha precisa saber (gate da 3.4, REL-003).
-          this.avisados.add(m.caminho);
-          this.amb.escrever(`A jam recusou o nome ${m.caminho}; ele fica só neste PC. Renomeie para ele ir para os outros.`);
+        } else if (!this.recusados.has(m.caminho)) {
+          // Recusado por outro motivo (nome que a sala não aceita, outra
+          // caixa de um que já circula, versão que a sala não conhece): o
+          // arquivo fica só aqui, e quem trabalha precisa saber (gate da 3.4,
+          // REL-003 e MNT-001).
+          this.recusados.add(m.caminho);
+          this.amb.escrever(`A jam recusou ${m.caminho}; ele fica só neste PC por enquanto.`);
         }
         return;
       }

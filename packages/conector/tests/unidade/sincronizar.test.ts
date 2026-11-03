@@ -236,6 +236,6 @@ describe("nome recusado pela sala (gate da 3.4, REL-003)", () => {
     const t = await preparar();
     await t.daSala({ v: 1, tipo: "recusado", caminho: "x.txt", motivo: "caminho_invalido" });
     await t.daSala({ v: 1, tipo: "recusado", caminho: "x.txt", motivo: "caminho_invalido" });
-    expect(t.linhas.filter((l) => l.includes("A jam recusou o nome x.txt"))).toHaveLength(1);
+    expect(t.linhas.filter((l) => l.includes("A jam recusou x.txt"))).toHaveLength(1);
   });
 });
