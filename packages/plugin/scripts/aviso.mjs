@@ -49,24 +49,39 @@ export async function acharJam(pastas, dados) {
   return null;
 }
 
-// Só o que o conector usa; o prompt e a última mensagem ficam aqui.
+// Só o que o conector usa; o prompt, a última mensagem e o conteúdo da
+// edição ficam aqui. Da edição (PreToolUse, Story 4.2) vai só a ferramenta e
+// o caminho do arquivo.
 export function corpoDoAviso(entrada) {
+  const caminho = entrada.tool_input?.file_path ?? entrada.tool_input?.notebook_path;
   return {
     session_id: entrada.session_id,
     hook_event_name: entrada.hook_event_name,
     error: entrada.error ?? entrada.error_type ?? null,
     reason: entrada.reason ?? null,
+    ...(entrada.hook_event_name === "PreToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null } : {}),
   };
 }
 
+// A saída do hook PreToolUse que recusa a edição, com o motivo para o Claude (FR14).
+export function recusa(motivo) {
+  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: motivo } };
+}
+
+// Avisa o conector. No PreToolUse, devolve a recusa quando o conector manda
+// recusar; em qualquer outro caso (sem jam, sem resposta), null: a edição
+// segue normal.
 export async function rodar(entrada, env = process.env) {
-  if (!entrada || typeof entrada.hook_event_name !== "string" || typeof entrada.session_id !== "string") return;
+  if (!entrada || typeof entrada.hook_event_name !== "string" || typeof entrada.session_id !== "string") return null;
   const jam = await acharJam([env.CLAUDE_PROJECT_DIR, entrada.cwd], pastaDados(env));
-  if (!jam) return;
-  await fetch(`http://127.0.0.1:${jam.porta}/hook/${encodeURIComponent(entrada.hook_event_name)}`, {
+  if (!jam) return null;
+  const resposta = await fetch(`http://127.0.0.1:${jam.porta}/hook/${encodeURIComponent(entrada.hook_event_name)}`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${jam.segredo}` },
     body: JSON.stringify(corpoDoAviso(entrada)),
     signal: AbortSignal.timeout(PRAZO_DO_AVISO_MS),
   });
+  if (entrada.hook_event_name !== "PreToolUse" || resposta.status !== 200) return null;
+  const corpo = await resposta.json().catch(() => null);
+  return corpo?.decisao === "recusar" && typeof corpo.motivo === "string" ? recusa(corpo.motivo) : null;
 }
