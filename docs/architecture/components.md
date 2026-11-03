@@ -81,6 +81,13 @@ fora de jam.
 
 **MCP:** servidor stdio `coodevelopment` com a ferramenta `anunciar(resumo,
 arquivos)`. Nome visto pelo Claude: `mcp__plugin_coodevelopment_coodevelopment__anunciar`.
+**Story 4.2:** `scripts/mcp.mjs` fala JSON-RPC por linha sem dependências
+(no lugar do `@modelcontextprotocol/server`, para o plugin não precisar de
+`node_modules`); a lógica fica em `scripts/anunciar.mjs` e chama `POST
+/mcp/anunciar` do conector. O `PreToolUse` de `Edit|Write|MultiEdit|NotebookEdit`
+pergunta ao conector e devolve `permissionDecision: deny` sem aviso ativo.
+Conferido com o Claude Code 2.1.316: a edição foi recusada, o Claude chamou
+`anunciar` e a edição seguinte passou; o MCP do plugin não pediu aprovação.
 
 **Technology Stack:** Node, `@modelcontextprotocol/server` v2, zod. Estrutura
 de plugin: `.claude-plugin/plugin.json`, `hooks/hooks.json` (com o invólucro

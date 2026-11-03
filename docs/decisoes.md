@@ -128,6 +128,8 @@ Detalhes em `docs/architecture.md`; pesquisa em
 | A16 | Status do Claude sem o prompt (Story 4.1, 03/11) | A página mostra "Claude Code de {nome} está trabalhando", sem o texto do prompt: ele pode ter segredo e não sai do PC (o hook nem o envia). O "em: ..." da D9 vem do resumo do `anunciar` (Story 4.2). Parada por erro aparece por 8 s com o motivo |
 | A17 | Pasta do clone e site do projeto (pedidos do Lucas, 03/11) | O `entrar` aceita `--pasta <caminho>` (criada se não existir; é o repositório ou onde clonar), e o passo de conexão tem o campo "Onde clonar", que entra no comando. A página da jam tem à direita o site do projeto: o Website do repositório no GitHub (cache de 5 min), com prévia em iframe isolado quando o site permite (X-Frame-Options e frame-ancestors conferidos no servidor) e sempre com o link |
 
+| A18 | Aviso do Claude (Story 4.2, 03/11) | Um aviso por pasta, que o `anunciar` substitui e que termina quando o status do Claude volta a parado (Stop, ocioso ou validade da 4.1). Sem aviso ativo, `Edit`, `Write`, `MultiEdit` e `NotebookEdit` em arquivo da pasta da jam são recusados (fora da pasta, seguem). Mudança que chega à sala sem aviso ativo de nenhuma pasta do autor leva a marca "sem aviso" no feed, com folga de 30 s depois do fim do aviso para gravações atrasadas. Servidor MCP sem dependências |
+
 ## Decisões de design (2026-10-27)
 
 Detalhes na front-end spec 0.5 (Branding & Style Guide).

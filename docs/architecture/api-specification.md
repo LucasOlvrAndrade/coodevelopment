@@ -105,7 +105,7 @@ Todas com `{ v: 1, tipo, ... }`, validadas com zod nas duas pontas. Resumo
 | conector → sala | `status` | `estado` (`trabalhando` ou `parado`) e `motivo` (o erro do `StopFailure`, ou null), vindos dos hooks pelo servidor local do conector (Story 4.1) |
 | sala → páginas | `claudes` | `trabalhando`: `usuarioId` e `desde` de quem está com o Claude trabalhando, ao abrir e a cada mudança; some quando o conector cai (Story 4.1) |
 | sala → páginas | `parou` | `usuarioId` e `motivo` quando o Claude parou por erro; a página mostra por 8 s (Story 4.1) |
-| conector → sala | `anunciar` | `resumo`, `arquivos` |
+| conector → sala | `aviso` | `resumo` (até 300) e `arquivos` (até 50, relativos à pasta): o Claude anunciou pelo `anunciar` do MCP do plugin; vale até o status voltar a parado. A sala guarda na conexão, põe um item `aviso` no feed e o resumo no `claudes` (Story 4.2) |
 | sala → todos | `presenca`, `status`, `aviso`, `evento` | atualizações incrementais |
 | sala → conector | `divergencia-pedido` / conector → sala `divergencia` | lista de arquivos diferentes ao reabrir (D17) |
 | página → sala | `divergencia-escolha` | `atualizar` ou `soLocal` |
