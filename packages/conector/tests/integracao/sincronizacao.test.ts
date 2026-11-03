@@ -40,7 +40,7 @@ class SalaEmMemoria {
         const texto = JSON.stringify(msg);
         setTimeout(async () => {
           const msg = mensagemDoConector.parse(JSON.parse(texto));
-          if (msg.tipo === "status") return;
+          if (msg.tipo === "status" || msg.tipo === "aviso") return;
           const envios = msg.tipo === "ignorado" ? this.sinc.ignorado(eu, msg) : await this.sinc.escrever(eu, msg);
           for (const { para, mensagem } of envios) {
             // Aqui só há conectores; o feed é das páginas (Story 3.4).

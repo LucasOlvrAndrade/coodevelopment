@@ -83,8 +83,16 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
   const enviar = (m: MensagemDoConector) => (conexaoDaSala ? conexaoDaSala.enviar(m) : antesDaConexao.push(m));
   const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, { enviar });
   // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
-  const status = new StatusDoClaude(enviar);
-  const hooks = await abrirServidorDeHooks((nome, corpo) => status.evento(nome, corpo));
+  const status = new StatusDoClaude(enviar, Date.now, pasta);
+  const hooks = await abrirServidorDeHooks({
+    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.decidirEdicao(corpo) : status.evento(nome, corpo)),
+    // O anunciar do servidor MCP do plugin (Story 4.2).
+    aoAnunciar: (corpo) => {
+      if (typeof corpo.resumo !== "string" || !corpo.resumo.trim() || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };
+      const aviso = status.anunciar(corpo.resumo, corpo.arquivos.filter((a): a is string => typeof a === "string"));
+      return { status: 200, corpo: { mensagem: `Anunciado para a jam: ${aviso.resumo}. Pode editar.` } };
+    },
+  });
   const vencerSessoes = setInterval(() => status.vencer(), 60_000);
   vencerSessoes.unref();
   await sincronizador.preparar();
@@ -93,8 +101,10 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>)
     aoReceber: (m) => sincronizador.receber(m),
     aoReconectar: () => {
       sincronizador.reconectou();
-      // A sala esquece o status da conexão que caiu: manda de novo.
+      // A sala esquece o status da conexão que caiu: manda de novo, com o aviso.
       if (status.trabalhando) conexao.enviar({ v: 1, tipo: "status", estado: "trabalhando", motivo: null });
+      const aviso = status.avisoAtual;
+      if (aviso) conexao.enviar(aviso);
     },
   }).catch(async (e: unknown) => {
     await hooks.fechar();

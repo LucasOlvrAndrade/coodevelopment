@@ -25,7 +25,7 @@ function temporaria() {
 describe("StatusDoClaude", () => {
   it("muda só quando a primeira sessão começa e a última termina; parada por erro leva o motivo (AC 2 e 3)", () => {
     const mensagens: MensagemStatus[] = [];
-    const s = new StatusDoClaude((m) => mensagens.push(m));
+    const s = new StatusDoClaude((m) => mensagens.push(m as MensagemStatus));
     s.evento("UserPromptSubmit", { session_id: "a" });
     s.evento("UserPromptSubmit", { session_id: "b" });
     s.evento("UserPromptSubmit", { session_id: "a" });
@@ -48,7 +48,7 @@ describe("StatusDoClaude", () => {
   it("Esc ou janela fechada sem Stop: o Claude ocioso (Notification) ou a validade tiram o status (gate da 4.1, REL-001)", () => {
     let agora = 0;
     const mensagens: MensagemStatus[] = [];
-    const s = new StatusDoClaude((m) => mensagens.push(m), () => agora);
+    const s = new StatusDoClaude((m) => mensagens.push(m as MensagemStatus), () => agora);
     s.evento("UserPromptSubmit", { session_id: "a" });
     s.evento("Notification", { session_id: "a" });
     expect(s.trabalhando).toBe(false);
@@ -68,7 +68,7 @@ describe("StatusDoClaude", () => {
 
   it("PostToolUse atrasado, depois do Stop, não liga o status de novo (gate da 4.1, REL-008)", () => {
     const mensagens: MensagemStatus[] = [];
-    const s = new StatusDoClaude((m) => mensagens.push(m));
+    const s = new StatusDoClaude((m) => mensagens.push(m as MensagemStatus));
     s.evento("UserPromptSubmit", { session_id: "a" });
     s.evento("Stop", { session_id: "a" });
     s.evento("PostToolUse", { session_id: "a" });
@@ -78,7 +78,7 @@ describe("StatusDoClaude", () => {
 
   it("evento sem sessão, desconhecido ou Stop de sessão que não começou não muda nada", () => {
     const mensagens: MensagemStatus[] = [];
-    const s = new StatusDoClaude((m) => mensagens.push(m));
+    const s = new StatusDoClaude((m) => mensagens.push(m as MensagemStatus));
     s.evento("UserPromptSubmit", {});
     s.evento("PreToolUse", { session_id: "a" });
     s.evento("Stop", { session_id: "a" });
@@ -89,7 +89,7 @@ describe("StatusDoClaude", () => {
 describe("servidor local dos hooks (AC 4)", () => {
   it("só em 127.0.0.1, só com o segredo; responde na hora", async () => {
     const eventos: [string, unknown][] = [];
-    const servidor = await abrirServidorDeHooks((nome, corpo) => eventos.push([nome, corpo]));
+    const servidor = await abrirServidorDeHooks((nome, corpo) => void eventos.push([nome, corpo]));
     try {
       const url = `http://127.0.0.1:${servidor.porta}/hook/UserPromptSubmit`;
       const corpo = JSON.stringify({ session_id: "s" });
@@ -111,7 +111,7 @@ describe("do hook do Claude Code até a mensagem para a sala (AC 5)", () => {
     const local = temporaria();
     const projeto = temporaria();
     const mensagens: unknown[] = [];
-    const status = new StatusDoClaude((m) => mensagens.push(m));
+    const status = new StatusDoClaude((m) => mensagens.push(m as MensagemStatus));
     const servidor = await abrirServidorDeHooks((nome, corpo) => status.evento(nome, corpo));
     try {
       const amb = { pastaDados: join(local, "coodevelopment"), plataforma: process.platform } as Ambiente;
