@@ -1,5 +1,6 @@
 import {
   mensagemDoConector,
+  type MensagemAviso,
   type MensagemClaudes,
   type MensagemFeed,
   type MensagemParou,
@@ -15,7 +16,16 @@ import { Sincronizacao, type Envio } from "./sincronizacao";
 
 // O estado de cada conexão sobrevive à hibernação. No conector, desde quando
 // o Claude daquela pasta está trabalhando (Story 4.1); null quando parado.
-type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & { trabalhandoDesde?: string | null };
+// O aviso ativo do Claude da pasta (Story 4.2) e quando o último terminou,
+// para a folga do "sem aviso".
+type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & {
+  trabalhandoDesde?: string | null;
+  aviso?: { resumo: string; arquivos: readonly string[] } | null;
+  avisoTerminouEm?: string | null;
+};
+
+// Gravações que ainda saem depois do fim do aviso não contam como "sem aviso".
+const FOLGA_DO_AVISO_MS = 30_000;
 
 // Uma sala por jam (Story 2.5). Só entra quem traz o token que o app emitiu
 // para esta jam, conferido aqui na entrada; a cada entrada e saída a sala
@@ -90,10 +100,14 @@ export class Jam extends Server<Env> {
       this.mudarStatus(conexao, msg.data);
       return;
     }
+    if (msg.data.tipo === "aviso") {
+      this.anunciar(conexao, msg.data);
+      return;
+    }
     const envios =
       msg.data.tipo === "ignorado"
         ? this.sincronizacao.ignorado(conexao.state.usuarioId, msg.data)
-        : await this.sincronizacao.escrever(conexao.state.usuarioId, msg.data);
+        : await this.sincronizacao.escrever(conexao.state.usuarioId, msg.data, this.semAviso(conexao.state.usuarioId));
     this.entregar(conexao, envios);
   }
 
@@ -130,12 +144,47 @@ export class Jam extends Server<Env> {
     const estado = conexao.state!;
     const antes = estado.trabalhandoDesde ?? null;
     const depois = msg.estado === "trabalhando" ? (antes ?? new Date().toISOString()) : null;
-    conexao.setState({ ...estado, trabalhandoDesde: depois });
-    if (antes !== depois) this.anunciarClaudes();
+    // O aviso termina quando o Claude termina (Story 4.2, AC 6).
+    const terminou = !depois && estado.aviso;
+    conexao.setState({
+      ...estado,
+      trabalhandoDesde: depois,
+      ...(terminou ? { aviso: null, avisoTerminouEm: new Date().toISOString() } : {}),
+    });
+    if (antes !== depois || terminou) this.anunciarClaudes();
     if (msg.estado === "parado" && msg.motivo) {
       const parou: MensagemParou = { v: 1, tipo: "parou", usuarioId: estado.usuarioId, motivo: msg.motivo };
       this.paraAsPaginas(JSON.stringify(parou));
     }
+  }
+
+  // O Claude da pasta anunciou (Story 4.2): o aviso fica no estado da
+  // conexão, vira item do feed e o resumo vai para o status.
+  private anunciar(conexao: Connection<Estado>, msg: MensagemAviso) {
+    const estado = conexao.state!;
+    conexao.setState({ ...estado, aviso: { resumo: msg.resumo, arquivos: msg.arquivos } });
+    const evento = (() => {
+      try {
+        return this.feed.aviso(estado.usuarioId, msg.resumo, msg.arquivos);
+      } catch (e) {
+        console.error(JSON.stringify({ nivel: "erro", evento: "feed_aviso", erro: String(e) }));
+        return null;
+      }
+    })();
+    if (evento) this.paraAsPaginas(JSON.stringify({ v: 1, tipo: "feed", eventos: [evento], inicial: false } satisfies MensagemFeed));
+    this.anunciarClaudes();
+  }
+
+  // A pessoa está sem aviso ativo em nenhuma pasta dela, e o último terminou
+  // há mais que a folga? Então a mudança dela é "sem aviso" (FR19).
+  private semAviso(usuarioId: string): boolean {
+    const limite = Date.now() - FOLGA_DO_AVISO_MS;
+    for (const c of this.getConnections<Estado>()) {
+      if (c.state?.via !== "conector" || c.state.usuarioId !== usuarioId) continue;
+      if (c.state.aviso) return false;
+      if (c.state.avisoTerminouEm && Date.parse(c.state.avisoTerminouEm) > limite) return false;
+    }
+    return true;
   }
 
   // Quem está com o Claude trabalhando, uma vez por pessoa (o desde mais
@@ -143,13 +192,21 @@ export class Jam extends Server<Env> {
   // de fora pelo id.
   private claudes(saindo?: string): MensagemClaudes {
     const desde = new Map<string, string>();
+    const resumo = new Map<string, string>();
     for (const c of this.getConnections<Estado>()) {
       const d = c.id === saindo ? null : c.state?.trabalhandoDesde;
       if (!d || c.state?.via !== "conector") continue;
       const atual = desde.get(c.state.usuarioId);
       if (!atual || d < atual) desde.set(c.state.usuarioId, d);
+      if (c.state.aviso) resumo.set(c.state.usuarioId, c.state.aviso.resumo);
     }
-    return { v: 1, tipo: "claudes", trabalhando: [...desde].sort(([a], [b]) => a.localeCompare(b)).map(([usuarioId, d]) => ({ usuarioId, desde: d })) };
+    return {
+      v: 1,
+      tipo: "claudes",
+      trabalhando: [...desde]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([usuarioId, d]) => ({ usuarioId, desde: d, resumo: resumo.get(usuarioId) ?? null })),
+    };
   }
 
   private anunciarClaudes(saindo?: string) {

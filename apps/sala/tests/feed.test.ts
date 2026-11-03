@@ -173,7 +173,7 @@ describe("Sincronizacao com o feed (AC 1 e 5)", () => {
       expect.objectContaining({
         tipo: "arquivos",
         autorId: "lucas",
-        arquivos: [{ caminho: "src/a.ts", mudanca: "alterado", binario: false, adicionadas: 1, removidas: 1, juntado: false }],
+        arquivos: [{ caminho: "src/a.ts", mudanca: "alterado", binario: false, adicionadas: 1, removidas: 1, juntado: false, semAviso: false }],
       }),
     ]);
   });

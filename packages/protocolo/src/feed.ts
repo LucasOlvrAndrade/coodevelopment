@@ -143,6 +143,9 @@ export const arquivoNoFeed = z.object({
   adicionadas: contagem,
   removidas: contagem,
   juntado: z.boolean(),
+  // Chegou sem aviso ativo do autor (Story 4.2, FR19): comando de terminal,
+  // edição à mão. Itens antigos não têm o campo.
+  semAviso: z.boolean().optional(),
 });
 
 const comum = {
@@ -162,6 +165,8 @@ const outros = z.number().int().min(0);
 export const arquivoGrande = z.object({ caminho, tamanho: z.number().int().min(0) });
 
 export const eventoFeed = z.discriminatedUnion("tipo", [
+  // O Claude do autor anunciou o que vai fazer (Story 4.2, FR13).
+  z.object({ ...comum, tipo: z.literal("aviso"), resumo: z.string().max(300), arquivos: z.array(caminho).max(ARQUIVOS_POR_ITEM) }),
   // Mudanças seguidas de uma pessoa, agrupadas (AC 3).
   z.object({ ...comum, tipo: z.literal("arquivos"), arquivos: z.array(arquivoNoFeed).max(ARQUIVOS_POR_ITEM), outros }),
   // Arquivos de dependências, com o mesmo resumo: quem está na jam reinstala (AC 2).

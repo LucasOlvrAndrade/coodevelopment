@@ -65,8 +65,8 @@ function anteriorDe(atual: Registro | null, msg: MensagemEscrever): Anterior {
 
 // A mudança que vai para o feed, ou null quando nada mudou de verdade
 // (apagar o que não existia, o mesmo conteúdo, só o final de linha).
-function mudancaDe(autorId: string, caminho: string, antes: Anterior, novo: Registro, juntado: boolean): Mudanca | null {
-  if (novo.apagado) return antes.existia ? { autorId, caminho, mudanca: "apagado", binario: novo.binario, diferenca: null, juntado } : null;
+function mudancaDe(autorId: string, caminho: string, antes: Anterior, novo: Registro, juntado: boolean, semAviso = false): Mudanca | null {
+  if (novo.apagado) return antes.existia ? { autorId, caminho, mudanca: "apagado", binario: novo.binario, diferenca: null, juntado, semAviso } : null;
   if (antes.existia && antes.hash === novo.hash) return null;
   const diferenca = novo.binario ? null : antes.existia ? (antes.texto === null ? null : resumoDaDiferenca(antes.texto, novo.conteudo)) : resumoDaDiferenca("", novo.conteudo);
   // Nenhuma linha mudou: ou é só o final de linha (fica fora), ou é o "\n"
@@ -74,7 +74,7 @@ function mudancaDe(autorId: string, caminho: string, antes: Anterior, novo: Regi
   // DATA-002).
   const semLinhas = antes.existia && diferenca && diferenca.adicionadas === 0 && diferenca.removidas === 0;
   if (semLinhas && antes.texto !== null && normalizarFinalDeLinha(antes.texto) === normalizarFinalDeLinha(novo.conteudo)) return null;
-  return { autorId, caminho, mudanca: antes.existia ? "alterado" : "criado", binario: novo.binario, diferenca: semLinhas ? null : diferenca, juntado };
+  return { autorId, caminho, mudanca: antes.existia ? "alterado" : "criado", binario: novo.binario, diferenca: semLinhas ? null : diferenca, juntado, semAviso };
 }
 
 const recusado = (caminho: string, motivo: "conflito_guardado" | "caminho_invalido" | "proibido" | "grande_demais" | "erro"): Envio => ({
@@ -147,8 +147,9 @@ export class Sincronizacao {
 
   // Qualquer erro no meio (base64 inválido, banco) volta como recusado para o
   // autor: sem resposta, a escrita dele ficaria no ar (gate da 3.3, REL-002).
-  escrever(autorId: string, msg: MensagemEscrever): Promise<Envio[]> {
-    const vez = this.fila.then(() => this.processar(autorId, msg)).catch((e: unknown) => {
+  // semAviso: o autor não tem aviso ativo agora (Story 4.2, FR19); vai para o feed.
+  escrever(autorId: string, msg: MensagemEscrever, semAviso = false): Promise<Envio[]> {
+    const vez = this.fila.then(() => this.processar(autorId, msg, semAviso)).catch((e: unknown) => {
       console.error(JSON.stringify({ nivel: "erro", evento: "escrever", caminho: msg.caminho, erro: String(e) }));
       return [recusado(msg.caminho, "erro")];
     });
@@ -156,7 +157,7 @@ export class Sincronizacao {
     return vez;
   }
 
-  private async processar(autorId: string, msg: MensagemEscrever): Promise<Envio[]> {
+  private async processar(autorId: string, msg: MensagemEscrever, semAviso: boolean): Promise<Envio[]> {
     const permitido = caminhoSincronizavel(msg.caminho);
     if (!permitido.ok) return [recusado(msg.caminho, permitido.motivo)];
     const caminho = permitido.caminho;
@@ -191,7 +192,7 @@ export class Sincronizacao {
         { para: "autor", mensagem: { v: 1, tipo: "aceito", caminho, versao: novo.versao, hash: novo.hash } },
         { para: "outros", mensagem: comoArquivo(novo, "escrita") },
         ...this.noFeed((feed) => {
-          const m = mudancaDe(autorId, caminho, antes, novo, false);
+          const m = mudancaDe(autorId, caminho, antes, novo, false, semAviso);
           return m ? [feed.mudanca(m)] : [];
         }),
       ];
@@ -212,7 +213,7 @@ export class Sincronizacao {
         { para: "autor", mensagem: { v: 1, tipo: "aceito", caminho, versao: novo.versao, hash: novo.hash } },
         { para: "outros", mensagem: comoArquivo(novo, "escrita") },
         ...this.noFeed((feed) => {
-          const m = mudancaDe(autorId, caminho, antes, novo, false);
+          const m = mudancaDe(autorId, caminho, antes, novo, false, semAviso);
           // A versão anterior foi para o histórico: item próprio no feed. Se
           // era uma exclusão, nada se perdeu (gate da 3.4, DATA-003); se é da
           // mesma pessoa (duas pastas), a página diz isso.
@@ -240,7 +241,7 @@ export class Sincronizacao {
     return [
       { para: "todos", mensagem: comoArquivo(novo, "merge") },
       ...this.noFeed((feed) => {
-        const m = mudancaDe(autorId, caminho, antes, novo, true);
+        const m = mudancaDe(autorId, caminho, antes, novo, true, semAviso);
         return m ? [feed.mudanca(m)] : [];
       }),
     ];

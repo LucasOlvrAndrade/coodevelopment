@@ -15,7 +15,11 @@ export {
   type MensagemIgnorado,
 } from "./feed";
 export {
+  ARQUIVOS_DO_AVISO,
   MOTIVOS_DE_PARADA,
+  RESUMO_MAXIMO,
+  mensagemAviso,
+  type MensagemAviso,
   mensagemClaudes,
   mensagemParou,
   mensagemStatus,

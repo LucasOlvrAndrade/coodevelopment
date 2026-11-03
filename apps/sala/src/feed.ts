@@ -23,6 +23,8 @@ export type Mudanca = {
   binario: boolean;
   diferenca: { adicionadas: number; removidas: number } | null;
   juntado: boolean;
+  // Sem aviso ativo do autor (Story 4.2, FR19).
+  semAviso?: boolean;
 };
 
 // Itens que a página recebe ao abrir (AC 6).
@@ -52,6 +54,8 @@ function juntarArquivo(antes: ArquivoNoFeed, m: Mudanca): ArquivoNoFeed {
     adicionadas: contar ? somar(antes.adicionadas, m.diferenca?.adicionadas ?? null) : null,
     removidas: contar ? somar(antes.removidas, m.diferenca?.removidas ?? null) : null,
     juntado: antes.juntado || m.juntado,
+    // Alguma das mudanças do arquivo no grupo veio sem aviso.
+    semAviso: Boolean(antes.semAviso || m.semAviso),
   };
 }
 
@@ -64,6 +68,7 @@ function comoArquivo(m: Mudanca): ArquivoNoFeed {
     adicionadas: contar ? (m.diferenca?.adicionadas ?? null) : null,
     removidas: contar ? (m.diferenca?.removidas ?? null) : null,
     juntado: m.juntado,
+    semAviso: Boolean(m.semAviso),
   };
 }
 
@@ -112,6 +117,13 @@ export class Feed {
 
   // Escrita que perdeu: sempre um item próprio, porque alguém tem trabalho
   // no histórico da sala (A2, gate da 3.3 REL-005).
+  // O Claude do autor anunciou o que vai fazer (Story 4.2): sempre um item
+  // próprio, que não entra em grupo nenhum.
+  aviso(autorId: string, resumo: string, arquivos: string[]): EventoFeed {
+    const agora = this.agora();
+    return this.inserir({ tipo: "aviso", autorId, resumo, arquivos: arquivos.slice(0, ARQUIVOS_POR_ITEM), em: agora, atualizadoEm: agora });
+  }
+
   conflito(autorId: string, outroId: string, caminho: string, resolvido: "guardado" | "sobrescrito"): EventoFeed {
     const agora = this.agora();
     return this.inserir({ tipo: "conflito", autorId, outroId, caminho, resolvido, em: agora, atualizadoEm: agora });
