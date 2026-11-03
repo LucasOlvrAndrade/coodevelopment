@@ -134,3 +134,13 @@ banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 - **Armadilhas desta sessão:** (1) o heredoc com Python come `\n` e `\U` e o acento às vezes chega quebrado: usar o Edit para texto com barra invertida ou acento; (2) `git push ... | tail` esconde push recusado: conferir o código de saída; (3) correção esquecida fora do commit deixou o CI vermelho por várias horas: conferir o CI depois de cada push; (4) no CI do GitHub a pasta temporária tem nome curto (`RUNNER~1`): resolver com `realpath` antes de comparar caminhos; (5) parar o `entrar` pelo TaskStop deixa o `node.exe` vivo: matar pelo PID do arquivo de descoberta.
 - Dívidas da 3.3 no gate: aviso a quem perdeu num binário, a mesma pessoa com duas pastas na mesma jam, memória do estado da sala, teste do AC 1 com 5 s e repetição.
 - **Próximo: Story 3.4** (feed de arquivos alterados), a última do Epic 3. Pastas de teste `teste-jam` e `teste-jam2` em `ProjetosC` podem ser apagadas.
+
+**03/11: Story 3.4 Done (feed de arquivos alterados). Epic 3 completo.**
+- Página da jam com "O que mudou" ao vivo: autor, arquivos e resumo (linhas acrescentadas e tiradas), dependências destacadas pedindo reinstalação, conflitos (trabalho no histórico) e arquivos acima de 1 MB. Mudanças seguidas do mesmo autor agrupadas (ninguém mais no meio, menos de 5 min). Decisão A15.
+- A sala agrupa e guarda (tabela `feed`, 200 itens; a página recebe 100 ao abrir); a página só mostra. Conector 0.3.0 manda `ignorado` para arquivo grande; 0.3.1 avisa no terminal arquivo recusado pela sala.
+- Gate PASS depois de duas rodadas CONCERNS com revisor independente. O mais sério: o `diffPatch` do node-diff3 levava 9 s com linhas repetidas e travava o Durable Object; trocado por Myers próprio com teto de 1.000 edições.
+- **Dívida alta (PERF-003):** o `juntar` da 3.3 (diff3Merge) tem o mesmo problema, sem teto. Fazer como story própria antes do Epic 4.
+- Achado de carona: o título da jam com nome longo rolava a página a 320 px (desde a 2.4); corrigido.
+- Produção: script `feed-producao.mjs` no scratchpad (conectores em `teste-jam` e `teste-jam2`, participante temporário com cookie assinado, apagado no fim; lê `apps/web/.env.local`). As pastas de teste seguem úteis para isso.
+- **Armadilhas:** heredoc com Python continua comendo `\n` dentro de strings: para texto com barra invertida, script em arquivo (Write) ou Edit. Cadeia `&&` com typecheck no meio deixou um commit para trás e o CI vermelho por um commit: conferir `git status` depois de cada commit.
+- **Próximo:** story do teto de custo do merge (PERF-003) e depois o Epic 4 (Claudes coordenados).
