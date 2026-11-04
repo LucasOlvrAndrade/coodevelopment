@@ -173,3 +173,13 @@ banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 - Pedido do Lucas no mesmo dia: dia e hora em cada item do "O que mudou" ("04/11 às 14:32 · há 2 min").
 - **Armadilha de novo:** o Write converte ` ` e afins em caractere de verdade (quebra regex); escrever escapes por Python com `chr(92)`, ou `String.fromCodePoint` nos testes. `cat > arquivo` sem heredoc trava esperando entrada.
 - **Próximo:** 4.4 (alerta de conflito: arquivo reservado por outro pede confirmação no terminal). Produção de ponta a ponta continua esperando um repositório de teste.
+
+**04/11 (tarde): Story 4.4 em InReview, gate em reavaliação; conector 0.7.0 ainda não publicado.**
+- Duas rodadas CONCERNS corrigidas. Os avisos saíram do estado da conexão (teto de 16 KB) para a tabela `aviso_ativo` no SQLite da sala. O id do aviso nasce no conector e sobrevive à reconexão. Cada sessão do Claude tem o seu aviso (`outros` na mensagem, `avisos` no `claudes`). Queda do dono mantém a reserva por 2 min só para os conectores. Hook da edição com 2 s e aviso `PerguntaEntregue`: só com ele o feed e o terminal ficam sabendo e o `PostToolUse` libera.
+- **Armadilha:** o partysocket reconecta com o mesmo `_pk`, que vira o `conexao.id`. O fechamento atrasado do socket antigo apagava a reserva do novo. Por isso existe `soquete` no estado da conexão; nunca usar `conexao.id` para saber qual socket é.
+- **Conferência interativa de verdade é possível:** `reserva-real.mjs` no scratchpad usa `@lydell/node-pty`. Na tela de confiança da pasta, "No, exit" já vem selecionado: descer antes do Enter.
+- **Limitação do Claude Code 2.1.318:** a tela do `ask` só diz "Do you want to make this edit?"; o motivo não aparece, e o `systemMessage` só depois da resposta. A documentação de hooks diz o contrário.
+- **Decisão pendente do Lucas (REQ-002, AC 1):** aceitar assim (recomendado), ou recusar na primeira tentativa para o Claude contar à pessoa, ou esperar o Claude Code mudar.
+- **Dívidas baixas da 4.4:** dois donos do mesmo arquivo (só o primeiro é citado), nome 8.3 e `::$DATA` não casam, edição fora do prazo do hook passa sem rastro.
+- **O hook do AIOX bloqueia qualquer comando com `git push`:** commitar à parte e enviar pelo agente `aiox-devops`.
+- **Próximo:** fechar a 4.4 (decisão do AC 1, publicar `conector-v0.7.0`), depois o Epic 5. Produção de ponta a ponta segue esperando um repositório de teste.
