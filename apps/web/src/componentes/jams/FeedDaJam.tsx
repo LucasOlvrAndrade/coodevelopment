@@ -176,8 +176,9 @@ function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
         <>
           <Caminho>{e.caminho}</Caminho>
           <p className="text-texto-suave">
-            Aviso {e.donoId === eu ? "do seu Claude Code" : `do Claude Code de ${nome(e.donoId)}`}: “{e.resumo}”. A edição só segue se{" "}
-            {e.autorId === eu ? "você confirmar" : `${nome(e.autorId)} confirmar`} no Claude Code.
+            {/* Sem estado: o item não sabe se a pessoa confirmou (gate da 4.4, UX-002). */}
+            Aviso {e.donoId === eu ? "do seu Claude Code" : `do Claude Code de ${nome(e.donoId)}`}: “{e.resumo}”. O Claude Code perguntou{" "}
+            {e.autorId === eu ? "a você" : `a ${nome(e.autorId)}`} antes de editar.
           </p>
         </>
       );

@@ -232,12 +232,15 @@ describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
     expect(await item).toMatchObject({ eventos: [{ tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login com Google" }] });
     expect(await pedida).toMatchObject({ autorId: "lucas", caminho: "src/auth.ts", donoId: "pai" });
 
-    // Arquivo sem dono, ou o próprio arquivo do autor: nada.
+    // O mesmo pedido de novo (gate da 4.4, SEC-001), arquivo sem dono, ou o
+    // próprio arquivo do autor: nada.
+    lucas.enviar({ tipo: "reserva", caminho: "src/auth.ts" });
     lucas.enviar({ tipo: "reserva", caminho: "src/livre.ts" });
     pai.enviar({ tipo: "reserva", caminho: "src/auth.ts" });
     await new Promise((r) => setTimeout(r, 50));
     expect(pagina.recebidas.filter(feedVivo("reserva"))).toHaveLength(1);
     expect(lucas.recebidas.some((m) => m.tipo === "reserva_pedida")).toBe(false);
+    expect(pai.recebidas.filter((m) => m.tipo === "reserva_pedida")).toHaveLength(1);
     for (const c of [pai, lucas, pagina]) c.ws.close();
   });
 });

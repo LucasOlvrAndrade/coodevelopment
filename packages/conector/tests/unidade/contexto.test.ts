@@ -208,6 +208,52 @@ describe("arquivo no aviso de outro (Story 4.4)", () => {
     const ctx = new ContextoDosOutros("lucas", nomes);
     ctx.atualizar(claudes(doPai));
     expect(responderAoHook(status, ctx, "PreToolUse", editar("s9", "src/auth.ts"))?.decisao).toBe("recusar");
-    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google" }]);
+    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google", desde: doPai.desde }]);
+  });
+});
+
+describe("reserva: casos do gate da 4.4", () => {
+  const pasta = process.cwd();
+  function preparar() {
+    let agora = 0;
+    const status = new StatusDoClaude(() => {}, Date.now, pasta);
+    const ctx = new ContextoDosOutros("lucas", nomes, { agora: () => agora });
+    const responder = (nome: string, corpo: Record<string, unknown>) => responderAoHook(status, ctx, nome, corpo);
+    responder("UserPromptSubmit", { session_id: "s1" });
+    status.anunciar("Meu plano", ["src/auth.ts"], "s1");
+    ctx.atualizar(claudes(doPai));
+    return { ctx, responder, avancar: (ms: number) => (agora += ms) };
+  }
+  const edicao = (tool_name: string, caminho: string) => ({ session_id: "s1", tool_name, file_path: `${pasta}/${caminho}` });
+
+  it("Write de arquivo novo, MultiEdit e NotebookEdit também perguntam (TEST-001)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, arquivos: ["src/novo.ts", "src/b.ts", "nb/analise.ipynb"] }));
+    expect(responder("PreToolUse", edicao("Write", "src/novo.ts"))?.decisao).toBe("perguntar");
+    expect(responder("PreToolUse", edicao("MultiEdit", "src/b.ts"))?.decisao).toBe("perguntar");
+    expect(responder("PreToolUse", edicao("NotebookEdit", "nb/analise.ipynb"))?.decisao).toBe("perguntar");
+  });
+
+  it.runIf(process.platform === "win32" || process.platform === "darwin")("no Windows e no macOS, caixa diferente é o mesmo arquivo; a reserva leva o caminho do dono (REL-002)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, arquivos: ["src/Auth.ts"] }));
+    expect(responder("PreToolUse", edicao("Edit", "SRC/auth.ts"))?.motivo).toContain("`src/Auth.ts`");
+  });
+
+  it("o mesmo resumo num aviso novo do dono pergunta de novo (REL-001)", () => {
+    const { ctx, responder } = preparar();
+    responder("PreToolUse", edicao("Edit", "src/auth.ts"));
+    responder("PostToolUse", edicao("Edit", "src/auth.ts"));
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBeUndefined();
+    ctx.atualizar(claudes({ ...doPai, desde: "2026-11-04T13:00:00.000Z" }));
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
+  });
+
+  it("pergunta recusada não vira liberação muito depois (REL-003)", () => {
+    const { responder, avancar } = preparar();
+    responder("PreToolUse", edicao("Edit", "src/auth.ts"));
+    avancar(11 * 60 * 1000);
+    responder("PostToolUse", edicao("Edit", "src/auth.ts"));
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
   });
 });

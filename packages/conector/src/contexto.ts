@@ -11,7 +11,20 @@ const EDICAO = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 type AvisoDeOutro = { usuarioId: string; desde: string; resumo: string; arquivos: string[] };
 
 // Um arquivo no aviso ativo de outro participante (Story 4.4).
-export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string };
+// O caminho vem como o dono anunciou (a sala compara assim); "desde" e o
+// resumo identificam aquele aviso (gate da 4.4, REL-001).
+export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string; desde: string };
+
+// A confirmação vale se a edição rodar logo depois da pergunta (gate da 4.4,
+// REL-003): uma pergunta recusada não vira liberação muito tempo depois.
+const PERGUNTA_VALE_MS = 10 * 60 * 1000;
+
+// Windows e macOS não diferenciam maiúsculas nos nomes de arquivo (gate da
+// 4.4, REL-002); a sala reduz espaços e tira invisíveis do aviso (textoLimpo).
+const comparavel = (caminho: string, plataforma = process.platform) => {
+  const limpo = textoLimpo(caminho);
+  return plataforma === "win32" || plataforma === "darwin" ? limpo.toLowerCase() : limpo;
+};
 
 // Quantos pedidos e liberações o conector lembra.
 const RESERVAS_LEMBRADAS = 200;
@@ -24,7 +37,7 @@ function guardar<T>(conjunto: Set<T>, valor: T) {
 
 // O que o Claude e a pessoa leem antes de confirmar (FR16).
 export function motivoDaReserva(r: Reserva): string {
-  return `Coodevelopment: \`${r.caminho}\` está no aviso do Claude Code de ${r.nome}: "${r.resumo}". Mexer agora pode desfazer o trabalho dessa pessoa; confirme só se combinou com ela.`;
+  return `Coodevelopment: \`${limpar(r.caminho)}\` está no aviso do Claude Code de ${r.nome}: "${r.resumo}". Mexer agora pode desfazer o trabalho dessa pessoa; confirme só se combinou com ela.`;
 }
 
 // Quantos arquivos de cada pessoa entram no texto; o resto vira "e mais N".
@@ -80,7 +93,7 @@ export class ContextoDosOutros {
   // Story 4.4: edições confirmadas (sessão, arquivo e o aviso do dono), a
   // pergunta em aberto de cada sessão e arquivo, e os pedidos já avisados.
   private liberados = new Set<string>();
-  private pendentes = new Map<string, string>();
+  private pendentes = new Map<string, { chave: string; em: number }>();
   private pedidos = new Set<string>();
   private agora: () => number;
 
@@ -116,10 +129,16 @@ export class ContextoDosOutros {
     return cortar(limpar(this.nomes.get(usuarioId) ?? ""), NOME_MAXIMO) || "outro participante";
   }
 
-  // De quem é o arquivo: o primeiro aviso ativo de outro que o inclui.
+  // De quem é o arquivo: o primeiro aviso ativo de outro que o inclui. A
+  // sala manda o claudes em ordem de usuarioId e escolhe o dono na mesma
+  // ordem (gate da 4.4, UX-001).
   donoDe(caminho: string): Reserva | null {
-    const a = this.avisos.find((x) => x.arquivos.includes(caminho));
-    return a ? { caminho, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo) } : null;
+    const procurado = comparavel(caminho);
+    for (const a of this.avisos) {
+      const doDono = a.arquivos.find((x) => comparavel(x) === procurado);
+      if (doDono) return { caminho: doDono, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo), desde: a.desde };
+    }
+    return null;
   }
 
   // Edição de um arquivo de outro: a reserva a confirmar, ou null (sem dono,
@@ -128,11 +147,14 @@ export class ContextoDosOutros {
   pedirReserva(sessao: string, caminho: string): { reserva: Reserva; nova: boolean } | null {
     const reserva = this.donoDe(caminho);
     if (!reserva) return null;
-    const chave = JSON.stringify([sessao, caminho, reserva.donoId, reserva.resumo]);
+    const aviso = [reserva.caminho, reserva.donoId, reserva.resumo, reserva.desde];
+    const chave = JSON.stringify([sessao, ...aviso]);
     if (this.liberados.has(chave)) return null;
-    this.pendentes.set(JSON.stringify([sessao, caminho]), chave);
+    const id = JSON.stringify([sessao, comparavel(caminho)]);
+    this.pendentes.delete(id);
+    this.pendentes.set(id, { chave, em: this.agora() });
     if (this.pendentes.size > RESERVAS_LEMBRADAS) this.pendentes.delete(this.pendentes.keys().next().value!);
-    const pedido = JSON.stringify([caminho, reserva.donoId, reserva.resumo]);
+    const pedido = JSON.stringify(aviso);
     const nova = !this.pedidos.has(pedido);
     guardar(this.pedidos, pedido);
     return { reserva, nova };
@@ -140,11 +162,11 @@ export class ContextoDosOutros {
 
   // A ferramenta rodou (PostToolUse): a pessoa confirmou a edição perguntada.
   confirmou(sessao: string, caminho: string): void {
-    const id = JSON.stringify([sessao, caminho]);
-    const chave = this.pendentes.get(id);
-    if (!chave) return;
+    const id = JSON.stringify([sessao, comparavel(caminho)]);
+    const pendente = this.pendentes.get(id);
+    if (!pendente) return;
     this.pendentes.delete(id);
-    guardar(this.liberados, chave);
+    if (this.agora() - pendente.em <= PERGUNTA_VALE_MS) guardar(this.liberados, pendente.chave);
   }
 
   // Arquivos do anúncio que já estão no aviso de outro, para a resposta do anunciar.

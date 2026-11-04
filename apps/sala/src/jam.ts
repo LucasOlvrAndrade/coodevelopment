@@ -28,10 +28,15 @@ type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & {
   avisoTerminouEm?: string | null;
   // Os últimos avisos que já viraram item no feed (gate da 4.2, UX-004).
   avisosVistos?: readonly string[];
+  // Os últimos pedidos de reserva desta conexão (gate da 4.4, SEC-001).
+  reservasVistas?: readonly string[];
 };
 
 // Quantos avisos de cada conexão a sala lembra para não repetir no feed.
 const AVISOS_LEMBRADOS = 10;
+
+// Quantos pedidos de reserva de cada conexão a sala lembra.
+const RESERVAS_LEMBRADAS = 50;
 
 // Gravações que ainda saem depois do fim do aviso não contam como "sem aviso".
 const FOLGA_DO_AVISO_MS = 30_000;
@@ -226,13 +231,21 @@ export class Jam extends Server<Env> {
     const autorId = conexao.state!.usuarioId;
     const caminho = normalizarCaminho(textoLimpo(msg.caminho));
     if (!caminho) return;
+    // Com dois donos, o de menor id, na mesma ordem do claudes que o conector
+    // usa (gate da 4.4, UX-001).
     let dono: { usuarioId: string; resumo: string } | null = null;
     for (const c of this.getConnections<Estado>()) {
       if (c.state?.via !== "conector" || c.state.usuarioId === autorId || !c.state.aviso?.arquivos.includes(caminho)) continue;
-      dono = { usuarioId: c.state.usuarioId, resumo: c.state.aviso.resumo };
-      break;
+      if (!dono || c.state.usuarioId < dono.usuarioId) dono = { usuarioId: c.state.usuarioId, resumo: c.state.aviso.resumo };
     }
     if (!dono) return;
+    // O mesmo pedido de novo (conector modificado em loop, reconexão) não
+    // vira outro item nem outro aviso no terminal do dono (gate da 4.4, SEC-001).
+    const estado = conexao.state!;
+    const chave = JSON.stringify([caminho, dono.usuarioId, dono.resumo]);
+    const vistas = estado.reservasVistas ?? [];
+    if (vistas.includes(chave)) return;
+    conexao.setState({ ...estado, reservasVistas: [...vistas, chave].slice(-RESERVAS_LEMBRADAS) });
     const evento = (() => {
       try {
         return this.feed.reserva(autorId, dono.usuarioId, caminho, dono.resumo);

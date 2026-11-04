@@ -261,7 +261,7 @@ describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
     feed([{ ...comum, id: 1, tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login com Google" }], true);
     const [item] = itens();
     expect(item).toHaveTextContent("Claude Code de Lucas Andrade pediu para mexer em src/auth.ts, que o seu anunciou");
-    expect(item).toHaveTextContent("Aviso do seu Claude Code: “Login com Google”. A edição só segue se Lucas Andrade confirmar no Claude Code.");
+    expect(item).toHaveTextContent("Aviso do seu Claude Code: “Login com Google”. O Claude Code perguntou a Lucas Andrade antes de editar.");
   });
 
   it("do lado de quem pediu", async () => {
@@ -269,6 +269,6 @@ describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
     feed([{ ...comum, id: 1, tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login" }], true);
     const [item] = itens();
     expect(item).toHaveTextContent("Seu Claude Code pediu para mexer em src/auth.ts, que o de Kelson anunciou");
-    expect(item).toHaveTextContent("A edição só segue se você confirmar");
+    expect(item).toHaveTextContent("O Claude Code perguntou a você antes de editar.");
   });
 });

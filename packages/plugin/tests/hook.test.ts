@@ -169,3 +169,14 @@ describe("pergunta antes de mexer em arquivo de outro (Story 4.4)", () => {
     });
   });
 });
+
+describe("caminho do NotebookEdit (gate da 4.4, TEST-001)", () => {
+  it("o notebook_path vai como file_path no PreToolUse e no PostToolUse", () => {
+    for (const evento of ["PreToolUse", "PostToolUse"]) {
+      expect(corpoDoAviso({ session_id: "s", hook_event_name: evento, tool_name: "NotebookEdit", tool_input: { notebook_path: "nb/a.ipynb" } })).toMatchObject({
+        tool_name: "NotebookEdit",
+        file_path: "nb/a.ipynb",
+      });
+    }
+  });
+});
