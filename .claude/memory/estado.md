@@ -164,3 +164,12 @@ banco Neon pela Vercel (Task 8); 2FA do npm ao publicar (Task 9).
 - **O Lucas apagou o repositório `testejam` e as pastas `teste-jam`/`teste-jam2`.** A jam `vsud-6ykt` aponta para um repositório que não existe; para conferir em produção de ponta a ponta, precisa de uma jam nova (com um repositório de teste que ele crie ou autorize).
 - Achado de carona: `entrar --pasta` numa pasta vazia dentro de outro repositório git (o `%TEMP%` desta máquina é um) pegava o repositório de cima; agora clona na pasta escolhida.
 - **Próximo:** 4.3 (contexto cruzado: avisos dos outros injetados no prompt) e 4.4 (conflito em arquivo reservado).
+
+**04/11: Story 4.3 Done (contexto cruzado), conector 0.6.0 no npm.**
+- A sala manda o `claudes` também aos conectores, com os arquivos anunciados; o conector (`src/contexto.ts`, `ContextoDosOutros`) devolve aos hooks o texto dos avisos dos **outros**: no `UserPromptSubmit` sempre que há alguém com aviso, no `PreToolUse` de edição e do `anunciar` só quando mudou (por sessão). Recusa de edição sai sem contexto. Decisão A19.
+- Texto de outra pessoa limpo na sala e no conector (`textoLimpo` do protocolo: controle, formatação, bloco Tags), resumo entre aspas, caminhos entre crases, teto de 4.000 (encurta só a lista de arquivos). Sala fora: o texto avisa que pode estar velho.
+- Conferido no Claude Code 2.1.316 (`contexto-local.mjs` no scratchpad): `additionalContext` do `UserPromptSubmit` e do `PreToolUse` chega ao Claude.
+- Gate PASS depois de duas rodadas CONCERNS (revisor independente).
+- Pedido do Lucas no mesmo dia: dia e hora em cada item do "O que mudou" ("04/11 às 14:32 · há 2 min").
+- **Armadilha de novo:** o Write converte ` ` e afins em caractere de verdade (quebra regex); escrever escapes por Python com `chr(92)`, ou `String.fromCodePoint` nos testes. `cat > arquivo` sem heredoc trava esperando entrada.
+- **Próximo:** 4.4 (alerta de conflito: arquivo reservado por outro pede confirmação no terminal). Produção de ponta a ponta continua esperando um repositório de teste.
