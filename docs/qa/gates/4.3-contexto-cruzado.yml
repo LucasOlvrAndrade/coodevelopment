@@ -1,0 +1,43 @@
+schema: 1
+story: '4.3'
+story_title: 'Contexto cruzado entre os Claudes'
+gate: PASS
+status_reason: 'Revisor independente em três rodadas, 04/11. Rodada 1: CONCERNS (texto invisível no resumo, caminhos e nomes fora das aspas, avisos velhos com a sala fora, busca de nomes, entrega reenviada sem mudança, recusa com contexto, teto de tamanho, testes da ligação). Rodada 2: CONCERNS só pelo REL-005 (o teto escondia a pessoa inteira). Rodada 3: PASS. Conferido com o Claude Code 2.1.316 real: o additionalContext do UserPromptSubmit e o do PreToolUse do anunciar chegam ao Claude.'
+reviewer: 'Quinn (@qa), via Claude, com revisor independente em três rodadas'
+reviewed_revision: 'commit:HEAD da Story 4.3'
+updated: '2026-11-04T00:00:00Z'
+
+top_issues: []
+
+resolved_issues:
+  - { id: 'SEC-001', severity: medium, fix: 'textoLimpo no protocolo (\p{Cc}\p{Cf}, Tags, seletores, quebras), aplicado pela sala ao guardar o aviso e pelo conector' }
+  - { id: 'REL-001', severity: medium, fix: 'conexão com a sala caída marca os avisos como possivelmente desatualizados até o próximo claudes' }
+  - { id: 'TEST-001', severity: medium, fix: 'testes de SessionEnd, 50 sessões, teto, Tags, aoCair, sala limpando o aviso, busca de nomes' }
+  - { id: 'REL-005', severity: medium, fix: 'teto de 4.000 encurta a lista de arquivos; nome e resumo de todos sempre entram' }
+  - { id: 'SEC-002', severity: low, fix: 'caminhos normalizados na sala e entre crases, cortados em 200; nome cortado em 60; aspas curvas e crase trocadas; cabeçalho cita nomes e caminhos' }
+  - { id: 'REL-002', severity: low, fix: 'primeira busca de nomes na hora, depois no máximo uma por minuto, também no prompt; falha avisada uma vez' }
+  - { id: 'REL-003', severity: low, fix: 'chave estável (quem, resumo, arquivos, sala fora) sem nome nem hora' }
+  - { id: 'REL-004', severity: low, fix: 'recusa de edição sai sem contexto; ele vai no anunciar seguinte, que nunca é recusado' }
+  - { id: 'PERF-001', severity: low, fix: 'teto de 4.000 caracteres' }
+  - { id: 'REL-006', severity: low, fix: 'resumo limpo também no conector; só invisível dá 400 e não vira aviso' }
+  - { id: 'TEST-003', severity: low, fix: 'teste do resumo só de caracteres invisíveis' }
+
+waived_issues:
+  - { id: 'UX-002', severity: low, finding: 'emoji composto (ZWJ, FE0F) aparece separado no feed e no status', reason: 'cosmético; o ganho contra texto escondido vale mais' }
+  - { id: 'SEC-003', severity: low, finding: 'nome e caminho válidos ainda podem conter frases', reason: 'residual: chegam entre crases e com o cabeçalho dizendo que não são instruções' }
+  - { id: 'REL-007', severity: low, finding: 'corte do resumo em 300 pode partir um emoji', reason: 'cosmético' }
+  - { id: 'REL-008', severity: low, finding: 'num deploy da sala o Claude pode receber "arquivos livres" e logo depois o aviso de novo', reason: 'raro; a entrega seguinte corrige' }
+  - { id: 'PROD-001', severity: low, finding: 'caminho sala → conector → Claude não conferido em produção de ponta a ponta', reason: 'o repositório de teste foi apagado pelo dono; sala no workerd, conector e hook em teste, Claude Code real com conector simulado' }
+
+evidence:
+  tools: 'pnpm test: protocolo 68, plugin 10, conector 119 e 1 pulado, sala 69 (workerd), web 350; typecheck e lint ok'
+  production: '04/11: Claude Code 2.1.316 com o plugin pelo marketplace local e conector simulado (contexto-local.mjs): o Claude repetiu literalmente o resumo do UserPromptSubmit e o que chegou no PreToolUse do anunciar no meio da resposta'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: []
+
+nfr_validation:
+  security: { status: PASS, notes: 'Texto de outra pessoa limpo na sala e no conector, citado e marcado como informação.' }
+  reliability: { status: PASS, notes: 'Entrega uma vez por mudança e por sessão; sala fora avisada.' }
+  performance: { status: PASS, notes: 'Texto montado em memória, dentro do prazo do hook; teto de 4.000.' }
+  maintainability: { status: PASS, notes: 'ContextoDosOutros isolado e testado; decisão A19.' }

@@ -145,3 +145,13 @@ describe("responderAoHook", () => {
     expect(ctx.paraFerramenta("s1")).toContain("Login com Google");
   });
 });
+
+describe("resumo só de caracteres invisíveis (gate da 4.3, TEST-003)", () => {
+  it("o PreToolUse do anunciar não registra aviso", () => {
+    const status = new StatusDoClaude(() => {}, Date.now, process.cwd());
+    status.evento("UserPromptSubmit", { session_id: "s1" });
+    const invisivel = String.fromCodePoint(0x200b, 0xe0041, 0x202e);
+    status.preToolUse({ session_id: "s1", tool_name: "mcp__plugin_coodevelopment_coodevelopment__anunciar", resumo: ` ${invisivel} `, arquivos: [] });
+    expect(status.avisoAtivo).toBe(false);
+  });
+});
