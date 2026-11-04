@@ -133,6 +133,92 @@ export class ArmazenamentoSqlite implements Armazenamento {
   }
 }
 
+export type AvisoGuardado = {
+  conexao: string;
+  usuarioId: string;
+  id: string;
+  resumo: string;
+  arquivos: string[];
+  // Desde quando o Claude trabalha, gravado quando a conexão cai.
+  desde: string | null;
+  // Quando a conexão de quem anunciou caiu; null com ela de pé.
+  caiuEm: number | null;
+};
+
+// Os avisos ativos ficam no SQLite, não no estado da conexão: esse estado tem
+// teto de 16 KB, e um aviso de 50 caminhos longos não caberia (gate da 4.4,
+// REL-008). Na ordem de usuário e, dentro dele, na ordem em que chegaram: o
+// primeiro de cada conexão é o mais recente dela.
+export class ArmazenamentoAvisosSqlite {
+  constructor(private sql: SqlStorage) {
+    sql.exec(`create table if not exists aviso_ativo (
+      usuario_id text not null,
+      id text not null,
+      conexao text not null,
+      resumo text not null,
+      arquivos text not null,
+      desde text,
+      caiu_em integer,
+      primary key (usuario_id, id)
+    )`);
+  }
+
+  // Tudo o que está ativo nesta conexão passa a ser esta lista. O mesmo id de
+  // uma conexão que caiu volta a valer aqui, sem a marca da queda.
+  trocar(conexao: string, usuarioId: string, avisos: readonly { id: string; resumo: string; arquivos: readonly string[] }[]): void {
+    this.limpar(conexao);
+    for (const a of avisos) {
+      this.sql.exec(
+        "insert or replace into aviso_ativo (usuario_id, id, conexao, resumo, arquivos, desde, caiu_em) values (?, ?, ?, ?, ?, null, null)",
+        usuarioId,
+        a.id,
+        conexao,
+        a.resumo,
+        JSON.stringify(a.arquivos),
+      );
+    }
+  }
+
+  limpar(conexao: string): void {
+    this.sql.exec("delete from aviso_ativo where conexao = ?", conexao);
+  }
+
+  todos(): AvisoGuardado[] {
+    return this.sql
+      .exec<Linha>("select * from aviso_ativo order by usuario_id, rowid")
+      .toArray()
+      .map((l) => ({
+        conexao: String(l.conexao),
+        usuarioId: String(l.usuario_id),
+        id: String(l.id),
+        resumo: String(l.resumo),
+        arquivos: JSON.parse(String(l.arquivos)) as string[],
+        desde: l.desde === null ? null : String(l.desde),
+        caiuEm: l.caiu_em === null ? null : Number(l.caiu_em),
+      }));
+  }
+
+  caiu(conexao: string, desde: string, em: number): void {
+    this.sql.exec("update aviso_ativo set desde = ?, caiu_em = ? where conexao = ?", desde, em, conexao);
+  }
+
+  // A sala reiniciou sem o fechamento de alguma conexão: conta como queda.
+  soltarOrfaos(vivas: ReadonlySet<string>, em: number): void {
+    for (const a of this.todos()) {
+      if (a.caiuEm === null && !vivas.has(a.conexao)) this.caiu(a.conexao, a.desde ?? new Date(em).toISOString(), em);
+    }
+  }
+
+  vencer(limite: number): void {
+    this.sql.exec("delete from aviso_ativo where caiu_em is not null and caiu_em <= ?", limite);
+  }
+
+  primeiraQueda(): number | null {
+    const [l] = this.sql.exec<Linha>("select min(caiu_em) as em from aviso_ativo").toArray();
+    return l?.em === null || l?.em === undefined ? null : Number(l.em);
+  }
+}
+
 // Itens do feed guardados por jam: os mais antigos saem. A página recebe os
 // últimos 100 ao abrir (Story 3.4); a retenção ligada ao commit fica para o
 // Epic 5.

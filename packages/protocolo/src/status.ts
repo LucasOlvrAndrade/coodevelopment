@@ -32,14 +32,30 @@ export const mensagemStatus = z.object({
 // Limites do aviso (Story 4.2): o resumo vira o texto do status e um item do feed.
 export const RESUMO_MAXIMO = 300;
 export const ARQUIVOS_DO_AVISO = 50;
+// Avisos de outras sessões do Claude na mesma pasta, além do mais recente.
+export const OUTROS_AVISOS = 9;
+
+const idDoAviso = z.string().regex(/^[\w-]{1,64}$/);
+
+// Um aviso de uma sessão do Claude.
+export const avisoDaSessao = z.object({
+  id: idDoAviso,
+  resumo: z.string().min(1).max(RESUMO_MAXIMO),
+  arquivos: z.array(z.string().min(1).max(1024)).max(ARQUIVOS_DO_AVISO),
+});
 
 // Conector → sala: o Claude desta pasta anunciou o que vai fazer (FR13). O
-// aviso vale até o status voltar a parado; um aviso novo substitui o anterior.
+// aviso vale até o status voltar a parado; a mensagem nova substitui a
+// anterior e traz tudo o que está ativo na pasta: o aviso mais recente e, em
+// `outros`, os das outras sessões (gate da 4.4, REL-009). O `id` nasce no
+// conector e não muda ao reconectar (REL-007); sem ele, a sala gera um.
 export const mensagemAviso = z.object({
   v: z.literal(1),
   tipo: z.literal("aviso"),
+  id: idDoAviso.optional(),
   resumo: z.string().min(1).max(RESUMO_MAXIMO),
   arquivos: z.array(z.string().min(1).max(1024)).max(ARQUIVOS_DO_AVISO),
+  outros: z.array(avisoDaSessao).max(OUTROS_AVISOS).optional(),
 });
 
 // Conector → sala: o aviso acabou antes de o status voltar a parado (prompt
@@ -82,6 +98,10 @@ export const mensagemClaudes = z.object({
       arquivos: z.array(z.string()).optional(),
       // Identifica o aviso: o mesmo resumo num aviso novo é outro aviso (Story 4.4).
       avisoId: z.string().optional(),
+      // Cada aviso ativo da pessoa, com os arquivos dele (gate da 4.4, REL-009
+      // e REL-013). `queda`: a conexão de quem anunciou caiu há pouco, e a
+      // reserva continua valendo por um tempo (REL-010).
+      avisos: z.array(z.object({ id: z.string(), resumo: z.string(), arquivos: z.array(z.string()), queda: z.boolean().optional() })).optional(),
     }),
   ),
 });
@@ -96,6 +116,7 @@ export const mensagemParou = z.object({
 });
 
 export type MotivoDeParada = z.infer<typeof motivoDeParada>;
+export type AvisoDaSessao = z.infer<typeof avisoDaSessao>;
 export type MensagemAviso = z.infer<typeof mensagemAviso>;
 export type MensagemFimDoAviso = z.infer<typeof mensagemFimDoAviso>;
 export type MensagemStatus = z.infer<typeof mensagemStatus>;

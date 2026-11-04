@@ -132,11 +132,13 @@ export class Feed {
   // O Claude do autor pediu para mexer num arquivo do aviso de outro (Story
   // 4.4). O mesmo pedido de novo, com o item dele ainda no topo e aberto, só
   // atualiza a hora.
-  reserva(autorId: string, donoId: string, caminho: string, resumo: string): EventoFeed {
+  // Aviso novo do dono, mesmo com o mesmo resumo, é item novo (gate da 4.4, UX-003).
+  reserva(autorId: string, donoId: string, caminho: string, resumo: string, avisoId?: string): EventoFeed {
     const agora = this.agora();
     const anterior = this.grupoAberto(autorId, "reserva", agora);
-    if (anterior && anterior.caminho === caminho && anterior.donoId === donoId && anterior.resumo === resumo) return this.atualizar({ ...anterior, atualizadoEm: agora });
-    return this.inserir({ tipo: "reserva", autorId, donoId, caminho, resumo, em: agora, atualizadoEm: agora });
+    if (anterior && anterior.caminho === caminho && anterior.donoId === donoId && anterior.resumo === resumo && anterior.avisoId === avisoId)
+      return this.atualizar({ ...anterior, atualizadoEm: agora });
+    return this.inserir({ tipo: "reserva", autorId, donoId, caminho, resumo, ...(avisoId ? { avisoId } : {}), em: agora, atualizadoEm: agora });
   }
 
   conflito(autorId: string, outroId: string, caminho: string, resolvido: "guardado" | "sobrescrito"): EventoFeed {

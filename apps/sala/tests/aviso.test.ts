@@ -1,4 +1,5 @@
 import { assinarTokenSala, hashDoConteudo } from "@coodevelopment/protocolo";
+import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
@@ -118,7 +119,9 @@ describe("fim do aviso e aviso repetido (gate da 4.2)", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(pagina.recebidas.filter(feedVivo("aviso"))).toHaveLength(1);
 
-    status = pagina.proxima(claudes);
+    // Pelo conteúdo: com a máquina ocupada, o claudes do aviso repetido pode
+    // chegar depois daqui.
+    status = pagina.proxima((m) => claudes(m) && JSON.stringify(m).includes('"resumo":null'));
     conector.enviar({ tipo: "aviso_fim" });
     expect(await status).toMatchObject({ trabalhando: [{ usuarioId: "lucas", resumo: null }] });
     conector.ws.close();
@@ -254,5 +257,123 @@ describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
     await segundo;
     expect(pai.recebidas.filter((m) => m.tipo === "reserva_pedida")).toHaveLength(2);
     for (const c of [pai, lucas, pagina]) c.ws.close();
+  });
+});
+
+describe("avisos no SQLite, sessões e quedas (gate da 4.4)", () => {
+  type Claudes = { trabalhando: { usuarioId: string; resumo: string | null; avisoId?: string; arquivos: string[]; avisos: { id: string; resumo: string; arquivos: string[]; queda?: boolean }[] }[] };
+  const doPai = (ms: Mensagem[]) => (ms.filter(claudes).at(-1) as unknown as Claudes).trabalhando.find((t) => t.usuarioId === "pai");
+  const espera = (ms = 50) => new Promise((r) => setTimeout(r, ms));
+  const salaDe = (jamId: string) => env.Jam.getByName(jamId);
+
+  it("o id do conector identifica o aviso: voltar com ele não pergunta nem avisa de novo (REL-007)", async () => {
+    const jam = "jam-id-estavel";
+    let pai = await conectar(jam, "pai", "conector");
+    const lucas = await conectar(jam, "lucas", "conector");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    let visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("aviso-1"));
+    pai.enviar({ tipo: "aviso", id: "aviso-1", resumo: "Plano", arquivos: ["a.ts"] });
+    await visto;
+    const pedida = pai.proxima((m) => m.tipo === "reserva_pedida");
+    lucas.enviar({ tipo: "reserva", caminho: "a.ts" });
+    await pedida;
+    pai.ws.close(4000, "rede");
+    pai = await conectar(jam, "pai", "conector");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("aviso-1") && !JSON.stringify(m).includes("queda"));
+    pai.enviar({ tipo: "aviso", id: "aviso-1", resumo: "Plano", arquivos: ["a.ts"] });
+    await visto;
+    lucas.enviar({ tipo: "reserva", caminho: "a.ts" });
+    await espera();
+    expect(pai.recebidas.some((m) => m.tipo === "reserva_pedida")).toBe(false);
+    for (const c of [pai, lucas]) c.ws.close();
+  });
+
+  it("aviso de 50 caminhos longos e 50 pedidos diferentes cabem (REL-008)", async () => {
+    const jam = "jam-estado-grande";
+    const pai = await conectar(jam, "pai", "conector");
+    const lucas = await conectar(jam, "lucas", "conector");
+    const arquivos = Array.from({ length: 50 }, (_, i) => `pasta/${"x".repeat(900)}/${i}.ts`);
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    let visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("Plano grande"));
+    pai.enviar({ tipo: "aviso", id: "grande", resumo: "Plano grande", arquivos });
+    await visto;
+    expect(doPai(lucas.recebidas)?.arquivos).toHaveLength(50);
+    for (let i = 0; i < 50; i++) lucas.enviar({ tipo: "reserva", caminho: arquivos[i] });
+    const ultima = (n: number) => pai.proxima(() => pai.recebidas.filter((m) => m.tipo === "reserva_pedida").length >= n);
+    const pedidas = ultima(50);
+    await pedidas;
+    // O conector de quem pediu segue funcionando: um aviso dele também chega.
+    lucas.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    visto = pai.proxima((m) => claudes(m) && JSON.stringify(m).includes("Depois de tudo"));
+    lucas.enviar({ tipo: "aviso", id: "depois", resumo: "Depois de tudo", arquivos: arquivos.slice(0, 50) });
+    await visto;
+    for (const c of [pai, lucas]) c.ws.close();
+  });
+
+  it("duas sessões do dono: os dois avisos valem, e o pedido cita o resumo certo (REL-009 e REL-013)", async () => {
+    const jam = "jam-duas-sessoes";
+    const pai = await conectar(jam, "pai", "conector");
+    const lucas = await conectar(jam, "lucas", "conector");
+    const pagina = await conectar(jam, "kelson", "pagina");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    const visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("Plano B"));
+    pai.enviar({ tipo: "aviso", id: "b", resumo: "Plano B", arquivos: ["b.ts"], outros: [{ id: "a", resumo: "Plano A", arquivos: ["a.ts"] }] });
+    await visto;
+    expect(doPai(lucas.recebidas)).toMatchObject({ resumo: "Plano B", avisoId: "b", arquivos: ["b.ts", "a.ts"] });
+    expect(doPai(lucas.recebidas)?.avisos.map((a) => a.id)).toEqual(["b", "a"]);
+    const item = pagina.proxima(feedVivo("reserva"));
+    lucas.enviar({ tipo: "reserva", caminho: "a.ts" });
+    expect(await item).toMatchObject({ eventos: [{ caminho: "a.ts", donoId: "pai", resumo: "Plano A", avisoId: "a" }] });
+    for (const c of [pai, lucas, pagina]) c.ws.close();
+  });
+
+  it("queda do dono: a reserva continua para os conectores, e a página não; depois da tolerância, acaba (REL-010)", async () => {
+    const jam = "jam-queda";
+    const pai = await conectar(jam, "pai", "conector");
+    const lucas = await conectar(jam, "lucas", "conector");
+    const pagina = await conectar(jam, "kelson", "pagina");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    let visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("Plano"));
+    pai.enviar({ tipo: "aviso", id: "a", resumo: "Plano", arquivos: ["a.ts"] });
+    await visto;
+
+    visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes('"queda":true'));
+    const paginaSabe = pagina.proxima((m) => claudes(m) && (m as unknown as Claudes).trabalhando.length === 0);
+    pai.ws.close(4000, "rede");
+    await visto;
+    await paginaSabe;
+    expect(doPai(lucas.recebidas)?.avisos[0]).toMatchObject({ id: "a", queda: true });
+
+    // Quem chega durante a tolerância também sabe.
+    const novo = await conectar(jam, "ana", "conector");
+    if (!novo.recebidas.some(claudes)) await novo.proxima(claudes);
+    expect(doPai(novo.recebidas)?.avisos[0]).toMatchObject({ queda: true });
+
+    const salaDaJam = salaDe(jam);
+    await runInDurableObject(salaDaJam, (_i, estado) => {
+      estado.storage.sql.exec("update aviso_ativo set caiu_em = 1");
+    });
+    visto = lucas.proxima((m) => claudes(m) && (m as unknown as Claudes).trabalhando.length === 0);
+    await runInDurableObject(salaDaJam, async (_i, estado) => {
+      await estado.storage.setAlarm(Date.now());
+    });
+    await runDurableObjectAlarm(salaDaJam);
+    await visto;
+    for (const c of [lucas, pagina, novo]) c.ws.close();
+  });
+
+  it("saída normal do conector (Ctrl+C) encerra a reserva na hora (REL-010)", async () => {
+    const jam = "jam-saida-normal";
+    const pai = await conectar(jam, "pai", "conector");
+    const lucas = await conectar(jam, "lucas", "conector");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    let visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes("Plano"));
+    pai.enviar({ tipo: "aviso", id: "a", resumo: "Plano", arquivos: ["a.ts"] });
+    await visto;
+    visto = lucas.proxima((m) => claudes(m) && (m as unknown as Claudes).trabalhando.length === 0);
+    pai.ws.close(1000, "saiu");
+    await visto;
+    lucas.ws.close();
   });
 });

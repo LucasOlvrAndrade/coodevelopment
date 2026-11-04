@@ -16,6 +16,7 @@ export {
 } from "./feed";
 export {
   ARQUIVOS_DO_AVISO,
+  OUTROS_AVISOS,
   MOTIVOS_DE_PARADA,
   RESUMO_MAXIMO,
   textoLimpo,
