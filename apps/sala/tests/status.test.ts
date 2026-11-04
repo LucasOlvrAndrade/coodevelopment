@@ -55,8 +55,9 @@ describe("status do Claude na sala (Story 4.1)", () => {
     conector.status("parado", "rate_limit");
     expect(await vazio).toMatchObject({ trabalhando: [] });
     expect(await parou).toMatchObject({ usuarioId: "lucas", motivo: "rate_limit" });
-    // O conector não recebe o status.
-    expect(conector.recebidas.some((x) => x.tipo === "claudes" || x.tipo === "parou")).toBe(false);
+    // O conector recebe o claudes (Story 4.3), mas não o parou, que é da página.
+    expect(conector.recebidas.some((x) => x.tipo === "claudes")).toBe(true);
+    expect(conector.recebidas.some((x) => x.tipo === "parou")).toBe(false);
     for (const c of [conector, paginaQuieta, depois]) c.ws.close();
   });
 

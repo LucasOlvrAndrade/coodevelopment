@@ -70,8 +70,12 @@ export class Jam extends Server<Env> {
     }
     conexao.setState({ usuarioId: quem.usuarioId, via: quem.via });
     this.anunciarPresenca();
-    // O conector que chega recebe o que mudou desde o baseSha (FR21).
-    if (quem.via === "conector") for (const m of this.sincronizacao.estado()) conexao.send(JSON.stringify(m));
+    // O conector que chega recebe o que mudou desde o baseSha (FR21) e os
+    // Claudes trabalhando (Story 4.3).
+    if (quem.via === "conector") {
+      for (const m of this.sincronizacao.estado()) conexao.send(JSON.stringify(m));
+      conexao.send(JSON.stringify(this.claudes()));
+    }
     // A página que abre recebe os últimos itens do feed (Story 3.4, AC 6).
     else {
       conexao.send(JSON.stringify({ v: 1, tipo: "feed", eventos: this.feedGuardado(), inicial: true } satisfies MensagemFeed));
@@ -222,29 +226,38 @@ export class Jam extends Server<Env> {
   }
 
   // Quem está com o Claude trabalhando, uma vez por pessoa (o desde mais
-  // antigo, se ela tem duas pastas ligadas). O conector que está saindo fica
-  // de fora pelo id.
+  // antigo, se ela tem duas pastas ligadas, e os arquivos anunciados de todas
+  // elas; Story 4.3). O conector que está saindo fica de fora pelo id.
   private claudes(saindo?: string): MensagemClaudes {
     const desde = new Map<string, string>();
     const resumo = new Map<string, string>();
+    const arquivos = new Map<string, Set<string>>();
     for (const c of this.getConnections<Estado>()) {
       const d = c.id === saindo ? null : c.state?.trabalhandoDesde;
       if (!d || c.state?.via !== "conector") continue;
       const atual = desde.get(c.state.usuarioId);
       if (!atual || d < atual) desde.set(c.state.usuarioId, d);
-      if (c.state.aviso) resumo.set(c.state.usuarioId, c.state.aviso.resumo);
+      if (c.state.aviso) {
+        resumo.set(c.state.usuarioId, c.state.aviso.resumo);
+        const dele = arquivos.get(c.state.usuarioId) ?? new Set<string>();
+        for (const a of c.state.aviso.arquivos) dele.add(a);
+        arquivos.set(c.state.usuarioId, dele);
+      }
     }
     return {
       v: 1,
       tipo: "claudes",
       trabalhando: [...desde]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([usuarioId, d]) => ({ usuarioId, desde: d, resumo: resumo.get(usuarioId) ?? null })),
+        .map(([usuarioId, d]) => ({ usuarioId, desde: d, resumo: resumo.get(usuarioId) ?? null, arquivos: [...(arquivos.get(usuarioId) ?? [])] })),
     };
   }
 
+  // Para as páginas (status) e para os conectores, que passam os avisos dos
+  // outros ao Claude de cada pasta (Story 4.3).
   private anunciarClaudes(saindo?: string) {
-    this.paraAsPaginas(JSON.stringify(this.claudes(saindo)));
+    const texto = JSON.stringify(this.claudes(saindo));
+    for (const c of this.getConnections<Estado>()) if (c.id !== saindo && c.state) c.send(texto);
   }
 
   private paraAsPaginas(texto: string) {

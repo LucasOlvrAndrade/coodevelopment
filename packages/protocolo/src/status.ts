@@ -46,12 +46,20 @@ export const mensagemAviso = z.object({
 // novo depois de um Esc, aviso vencido; gate da 4.2, REL-001 e REL-002).
 export const mensagemFimDoAviso = z.object({ v: z.literal(1), tipo: z.literal("aviso_fim") });
 
-// Sala → páginas: quem está com o Claude trabalhando agora, desde quando, e
-// o resumo do aviso ativo, se houver (Story 4.2).
+// Sala → páginas e conectores: quem está com o Claude trabalhando agora,
+// desde quando, o resumo do aviso ativo, se houver (Story 4.2), e os arquivos
+// anunciados, que o conector passa aos outros Claudes (Story 4.3).
 export const mensagemClaudes = z.object({
   v: z.literal(1),
   tipo: z.literal("claudes"),
-  trabalhando: z.array(z.object({ usuarioId: z.string(), desde: z.string(), resumo: z.string().nullable().optional() })),
+  trabalhando: z.array(
+    z.object({
+      usuarioId: z.string(),
+      desde: z.string(),
+      resumo: z.string().nullable().optional(),
+      arquivos: z.array(z.string()).optional(),
+    }),
+  ),
 });
 
 // Sala → páginas: o Claude de alguém parou por erro; a página mostra por

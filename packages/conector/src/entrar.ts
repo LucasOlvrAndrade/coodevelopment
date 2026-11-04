@@ -1,7 +1,8 @@
-import { idDeJamValido, type MensagemDoConector } from "@coodevelopment/protocolo";
+import { idDeJamValido, type MensagemClaudes, type MensagemDoConector } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
+import { ContextoDosOutros, responderAoHook } from "./contexto";
 import { esquecerPasta, registrarPasta } from "./descoberta";
 import { StatusDoClaude, abrirServidorDeHooks } from "./hooks";
 import { entrarPorDispositivo } from "./login";
@@ -64,6 +65,8 @@ async function prepararPasta(amb: Ambiente, sessao: string, jam: DadosDaJam, pas
   return destino.pasta;
 }
 
+const nomesDe = (jam: DadosDaJam) => new Map((jam.participantes ?? []).map((p) => [p.id, p.nome]));
+
 export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>, pastaEscolhida = false): Promise<void> {
   if (!idDeJamValido(jamId)) {
     throw new ErroDoUsuario(`"${jamId}" não parece o identificador de uma jam. Ele tem o formato k7m2-rbq9 e aparece na página da jam.`);
@@ -88,8 +91,21 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   const sincronizador = new Sincronizador(amb, pasta, jam.baseSha, jam.eu, { enviar });
   // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
   const status = new StatusDoClaude(enviar, Date.now, pasta);
+  // O que os Claudes dos outros anunciaram vai ao Claude desta pasta (Story 4.3).
+  const contexto = new ContextoDosOutros(jam.eu, nomesDe(jam));
+  let procurouNomesEm = Date.now();
+  const receberClaudes = (m: MensagemClaudes) => {
+    contexto.atualizar(m);
+    // Alguém que entrou na jam depois: busca os nomes de novo, no máximo uma vez por minuto.
+    if (contexto.desconhecidos.length && Date.now() - procurouNomesEm > 60_000) {
+      procurouNomesEm = Date.now();
+      dadosDaJam(amb, sessao, jamId)
+        .then((d) => contexto.nomear(nomesDe(d)))
+        .catch(() => {});
+    }
+  };
   const hooks = await abrirServidorDeHooks({
-    aoEvento: (nome, corpo) => (nome === "PreToolUse" ? status.preToolUse(corpo) : status.evento(nome, corpo)),
+    aoEvento: (nome, corpo) => responderAoHook(status, contexto, nome, corpo),
     // O anunciar do servidor MCP do plugin (Story 4.2).
     aoAnunciar: (corpo) => {
       if (typeof corpo.resumo !== "string" || !corpo.resumo.trim() || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };
@@ -102,7 +118,7 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   await sincronizador.preparar();
   const conexao = await conectarNaSala(amb, sessao, jamId, {
     aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
-    aoReceber: (m) => sincronizador.receber(m),
+    aoReceber: (m) => (m.tipo === "claudes" ? receberClaudes(m) : sincronizador.receber(m)),
     aoReconectar: () => {
       sincronizador.reconectou();
       // A sala esquece o status da conexão que caiu: manda de novo, com o aviso.

@@ -13,6 +13,10 @@ const obterJam = vi.fn(async (): Promise<object | null> => ({
   repoOwner: "lucas",
   repoNome: "projeto",
   branch: "main",
+  participantes: [
+    { id: "lucas", nome: "Lucas Andrade", login: "lucas", foto: null, papel: "criador", colaborador: "ok", vaga: 1 },
+    { id: "pai", nome: "Kelson", login: "kelson", foto: null, papel: "convidado", colaborador: "ok", vaga: 2 },
+  ],
 }));
 const tokenDeLeitura = vi.fn(async () => ({ token: "ghs_leitura", expiraEm: "2026-10-29T13:00:00Z" }));
 
@@ -56,6 +60,11 @@ describe("GET /api/jams/[id]/conector (Story 3.1, AC 2)", () => {
       branch: "main",
       baseSha: "abc123",
       eu: "pai",
+      // Só id e nome, para o contexto dos outros Claudes (Story 4.3).
+      participantes: [
+        { id: "lucas", nome: "Lucas Andrade" },
+        { id: "pai", nome: "Kelson" },
+      ],
     });
     expect(obterJam).toHaveBeenCalledWith({ banco: "de teste" }, "pai", "k7m2-rbq9");
   });

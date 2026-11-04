@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { chaveDaPasta as chaveDoConector } from "../../conector/src/descoberta";
-import { acharJam, chaveDaPasta, corpoDoAviso } from "../scripts/aviso.mjs";
+import { acharJam, chaveDaPasta, corpoDoAviso, saida } from "../scripts/aviso.mjs";
 
 // O script dos hooks (Story 4.1, AC 4 e 5): a entrada JSON documentada do
 // Claude Code, o arquivo de descoberta do conector e um conector falso.
@@ -22,14 +22,20 @@ function temporaria() {
   return p;
 }
 
-// Um conector falso: guarda o que chega e responde 204.
-async function conectorFalso() {
+// Um conector falso: guarda o que chega e responde 204, ou o que o teste pedir.
+async function conectorFalso(responder?: (url: string) => unknown) {
   const recebidos: { url: string; autorizacao: string | undefined; corpo: unknown }[] = [];
   const servidor = createServer((req: IncomingMessage, res) => {
     let texto = "";
     req.on("data", (d) => (texto += d));
     req.on("end", () => {
       recebidos.push({ url: req.url ?? "", autorizacao: req.headers.authorization, corpo: JSON.parse(texto) });
+      const resposta = responder?.(req.url ?? "");
+      if (resposta) {
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(resposta));
+        return;
+      }
       res.statusCode = 204;
       res.end();
     });
@@ -113,5 +119,33 @@ describe("hook.mjs rodando como o Claude Code roda (AC 4 e 5)", () => {
     const r = await rodarHook({ session_id: "s1", cwd: projeto, hook_event_name: "UserPromptSubmit" }, env);
     expect(r).toMatchObject({ codigo: 0, saida: "" });
     expect(r.ms).toBeLessThan(1500);
+  });
+});
+
+describe("contexto dos outros Claudes (Story 4.3)", () => {
+  it("a saída leva o contexto no UserPromptSubmit e no PreToolUse, junto com a recusa", () => {
+    expect(saida("UserPromptSubmit", { contexto: "texto" })).toEqual({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: "texto" } });
+    expect(saida("PreToolUse", { decisao: "recusar", motivo: "anuncie", contexto: "texto" })).toEqual({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "anuncie", additionalContext: "texto" },
+    });
+    expect(saida("PreToolUse", { contexto: "texto" })).toEqual({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: "texto" } });
+    // Recusa só no PreToolUse; nada sem contexto nem recusa.
+    expect(saida("UserPromptSubmit", { decisao: "recusar", motivo: "x" })).toBeNull();
+    expect(saida("UserPromptSubmit", { contexto: "" })).toBeNull();
+    expect(saida("UserPromptSubmit", null)).toBeNull();
+  });
+
+  it("hook.mjs escreve o contexto que o conector manda no prompt", async () => {
+    const conector = await conectorFalso((url) => (url === "/hook/UserPromptSubmit" ? { contexto: "Kelson está no login" } : null));
+    try {
+      const local = temporaria();
+      const projeto = temporaria();
+      registrar(join(local, "coodevelopment"), projeto, conector.porta);
+      const r = await rodarHook({ session_id: "s1", cwd: projeto, hook_event_name: "UserPromptSubmit", prompt: "faça x" }, { LOCALAPPDATA: local, CLAUDE_PROJECT_DIR: projeto });
+      expect(r.codigo).toBe(0);
+      expect(JSON.parse(r.saida)).toEqual({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: "Kelson está no login" } });
+    } finally {
+      await conector.fechar();
+    }
   });
 });

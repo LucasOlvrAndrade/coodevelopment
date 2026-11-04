@@ -9,8 +9,8 @@ const fim = setTimeout(() => process.exit(0), Math.max(PRAZO_DO_AVISO_MS + 100, 
 try {
   let texto = "";
   for await (const pedaco of process.stdin) texto += pedaco;
-  // Só a recusa da edição vai para a saída (o Claude Code lê como decisão);
-  // nada mais é escrito nela, porque viraria contexto do Claude.
+  // Só a recusa da edição e o contexto dos outros Claudes vão para a saída
+  // (o Claude Code lê como decisão e contexto); nada mais é escrito nela.
   const decisao = await rodar(JSON.parse(texto));
   if (decisao) process.stdout.write(JSON.stringify(decisao));
 } catch {

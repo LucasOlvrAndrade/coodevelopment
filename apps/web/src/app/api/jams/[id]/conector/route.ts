@@ -7,7 +7,8 @@ import { ErroApp, rota } from "@/servidor/erros";
 // repositório (para clonar ou conferir o origin) e a branch. Só para quem
 // participa; quem não participa e jam que não existe recebem o mesmo 403.
 // O baseSha é a base do merge da primeira escrita de cada arquivo, e o id de
-// quem chama separa as próprias escritas das dos outros (Story 3.3).
+// quem chama separa as próprias escritas das dos outros (Story 3.3). Os nomes
+// dos participantes vão no contexto dos outros Claudes (Story 4.3).
 export const GET = rota(async (_req: Request, { params }: RouteContext<"/api/jams/[id]/conector">) => {
   const [{ usuario: eu }, { id }] = await Promise.all([exigirSessaoDoConector(), params]);
   const daJam = idDeJamValido(id) ? await obterJam(db(), eu.id, id) : null;
@@ -21,6 +22,7 @@ export const GET = rota(async (_req: Request, { params }: RouteContext<"/api/jam
       branch: daJam.branch,
       baseSha: daJam.baseSha,
       eu: eu.id,
+      participantes: daJam.participantes.map((p) => ({ id: p.id, nome: p.nome })),
     },
     { headers: { "cache-control": "no-store" } },
   );

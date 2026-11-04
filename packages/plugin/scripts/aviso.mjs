@@ -72,9 +72,26 @@ export function recusa(motivo) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: motivo } };
 }
 
-// Avisa o conector. No PreToolUse, devolve a recusa quando o conector manda
-// recusar; em qualquer outro caso (sem jam, sem resposta), null: a edição
-// segue normal.
+// A saída do hook a partir da resposta do conector: a recusa da edição
+// (PreToolUse) e o contexto dos outros Claudes (UserPromptSubmit e
+// PreToolUse, Story 4.3). Sem nada disso, null.
+export function saida(evento, corpo) {
+  if (!corpo || typeof corpo !== "object") return null;
+  const contexto = typeof corpo.contexto === "string" && corpo.contexto ? corpo.contexto : null;
+  const recusar = evento === "PreToolUse" && corpo.decisao === "recusar" && typeof corpo.motivo === "string";
+  if (!recusar && !contexto) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName: evento,
+      ...(recusar ? { permissionDecision: "deny", permissionDecisionReason: corpo.motivo } : {}),
+      ...(contexto ? { additionalContext: contexto } : {}),
+    },
+  };
+}
+
+// Avisa o conector. No PreToolUse e no UserPromptSubmit, devolve a saída do
+// hook quando o conector manda recusar ou passa contexto; em qualquer outro
+// caso (sem jam, sem resposta), null: o Claude Code segue normal.
 export async function rodar(entrada, env = process.env) {
   if (!entrada || typeof entrada.hook_event_name !== "string" || typeof entrada.session_id !== "string") return null;
   const jam = await acharJam([env.CLAUDE_PROJECT_DIR, entrada.cwd], pastaDados(env));
@@ -85,7 +102,6 @@ export async function rodar(entrada, env = process.env) {
     body: JSON.stringify(corpoDoAviso(entrada)),
     signal: AbortSignal.timeout(PRAZO_DO_AVISO_MS),
   });
-  if (entrada.hook_event_name !== "PreToolUse" || resposta.status !== 200) return null;
-  const corpo = await resposta.json().catch(() => null);
-  return corpo?.decisao === "recusar" && typeof corpo.motivo === "string" ? recusa(corpo.motivo) : null;
+  if ((entrada.hook_event_name !== "PreToolUse" && entrada.hook_event_name !== "UserPromptSubmit") || resposta.status !== 200) return null;
+  return saida(entrada.hook_event_name, await resposta.json().catch(() => null));
 }

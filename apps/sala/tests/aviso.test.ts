@@ -172,3 +172,30 @@ describe("mesmo anúncio em outro período de trabalho (gate da 4.2, UX-005)", (
     pagina.ws.close();
   });
 });
+
+describe("claudes para os conectores (Story 4.3)", () => {
+  it("o conector recebe ao entrar e a cada mudança, com os arquivos anunciados das pastas da pessoa (AC 5)", async () => {
+    const lucas = await conectar("jam-cruzado", "lucas", "conector");
+    const lucas2 = await conectar("jam-cruzado", "lucas", "conector");
+    const pai = await conectar("jam-cruzado", "pai", "conector");
+    if (!pai.recebidas.some(claudes)) await pai.proxima(claudes);
+    for (const c of [lucas, lucas2]) c.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    let comArquivos = pai.proxima((m) => claudes(m) && JSON.stringify(m).includes("src/b.ts"));
+    lucas.enviar({ tipo: "aviso", resumo: "Login", arquivos: ["src/a.ts"] });
+    lucas2.enviar({ tipo: "aviso", resumo: "Login 2", arquivos: ["src/a.ts", "src/b.ts"] });
+    const m = (await comArquivos) as unknown as { trabalhando: { usuarioId: string; arquivos: string[] }[] };
+    expect(m.trabalhando).toHaveLength(1);
+    expect(m.trabalhando[0]!.usuarioId).toBe("lucas");
+    expect([...m.trabalhando[0]!.arquivos].sort()).toEqual(["src/a.ts", "src/b.ts"]);
+
+    // Quem entra depois recebe o estado na entrada.
+    const outro = await conectar("jam-cruzado", "tia", "conector");
+    const inicial = outro.recebidas.find(claudes) ?? (await outro.proxima(claudes));
+    expect(JSON.stringify(inicial)).toContain("src/b.ts");
+
+    comArquivos = pai.proxima((m) => claudes(m) && (m.trabalhando as unknown[]).length === 0);
+    for (const c of [lucas, lucas2]) c.enviar({ tipo: "status", estado: "parado", motivo: null });
+    await comArquivos;
+    for (const c of [lucas, lucas2, pai, outro]) c.ws.close();
+  });
+});

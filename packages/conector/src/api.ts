@@ -48,6 +48,8 @@ export type DadosDaJam = {
   baseSha: string;
   // Quem está usando o conector: separa as próprias escritas das dos outros.
   eu: string;
+  // Nome de cada participante, para o contexto dos outros Claudes (Story 4.3).
+  participantes?: { id: string; nome: string }[];
 };
 
 export const dadosDaJam = (amb: Ambiente, sessao: string, jamId: string) =>
