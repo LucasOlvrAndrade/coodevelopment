@@ -1,5 +1,8 @@
 import { textoLimpo, type MensagemClaudes } from "@coodevelopment/protocolo";
-import { FERRAMENTA_ANUNCIAR, type StatusDoClaude } from "./hooks";
+import type { StatusDoClaude } from "./hooks";
+
+// As ferramentas de edição do Claude Code (o matcher do PreToolUse no hooks.json).
+const EDICAO = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 
 // Contexto cruzado (Story 4.3): o que os Claudes dos outros participantes
 // anunciaram, vindo da sala, entregue ao Claude desta pasta a cada prompt e,
@@ -254,8 +257,10 @@ export function responderAoHook(
   aoReservar?: (r: Reserva) => void,
 ): { decisao?: "recusar" | "perguntar"; motivo?: string; contexto?: string } | undefined {
   const sessao = typeof corpo.session_id === "string" ? corpo.session_id : null;
+  // Só as ferramentas de edição perguntam e confirmam: o PostToolUse de um
+  // Read também traz o caminho, e não é confirmação (achado na conferência real).
   const caminho =
-    sessao && corpo.tool_name !== FERRAMENTA_ANUNCIAR && typeof corpo.file_path === "string" ? status.relativo(corpo.file_path) : null;
+    sessao && typeof corpo.tool_name === "string" && EDICAO.has(corpo.tool_name) && typeof corpo.file_path === "string" ? status.relativo(corpo.file_path) : null;
   if (nome === "PreToolUse") {
     const decisao = status.preToolUse(corpo);
     if (decisao) return decisao;

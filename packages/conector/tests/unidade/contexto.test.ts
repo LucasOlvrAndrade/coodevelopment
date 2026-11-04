@@ -184,6 +184,9 @@ describe("arquivo no aviso de outro (Story 4.4)", () => {
   it("confirmada (a ferramenta rodou), não pergunta de novo na mesma sessão; outra sessão e aviso novo perguntam (AC 3)", () => {
     const { ctx, responder, status, reservas } = preparar();
     responder("PreToolUse", editar("s1", "src/auth.ts"));
+    // Ler o arquivo depois de recusar a pergunta não é confirmar.
+    responder("PostToolUse", { ...editar("s1", "src/auth.ts"), tool_name: "Read" });
+    expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBe("perguntar");
     responder("PostToolUse", editar("s1", "src/auth.ts"));
     expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBeUndefined();
     responder("UserPromptSubmit", { session_id: "s2" });
