@@ -1,4 +1,4 @@
-import { idDeJamValido, type MensagemDoConector } from "@coodevelopment/protocolo";
+import { idDeJamValido, textoLimpo, type MensagemDoConector } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
@@ -108,7 +108,7 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
     aoEvento: (nome, corpo) => responderAoHook(status, contexto, nome, corpo),
     // O anunciar do servidor MCP do plugin (Story 4.2).
     aoAnunciar: (corpo) => {
-      if (typeof corpo.resumo !== "string" || !corpo.resumo.trim() || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };
+      if (typeof corpo.resumo !== "string" || !textoLimpo(corpo.resumo) || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };
       const aviso = status.anunciar(corpo.resumo, corpo.arquivos.filter((a): a is string => typeof a === "string"));
       return { status: 200, corpo: { mensagem: `Anunciado para a jam: ${aviso.resumo}. Pode editar.` } };
     },

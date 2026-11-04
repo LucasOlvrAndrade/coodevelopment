@@ -102,14 +102,19 @@ describe("ContextoDosOutros", () => {
     expect(ctx.paraPrompt("s1")).not.toMatch(/caiu/);
   });
 
-  it("o texto tem teto; quem não cabe vira 'e mais N participantes' (gate PERF-001)", () => {
+  it("o texto tem teto; nome e resumo de todos ficam, a lista de arquivos encurta (gate PERF-001 e REL-005)", () => {
     const ctx = new ContextoDosOutros("lucas", nomes);
-    const grande = Array.from({ length: 20 }, (_, i) => `${"p".repeat(190)}${i}.ts`);
-    ctx.atualizar(claudes(...["a", "b", "d", "e"].map((usuarioId) => ({ ...doPai, usuarioId, arquivos: grande }))));
-    const texto = ctx.texto()!;
-    expect(texto.length).toBeLessThanOrEqual(4000);
-    expect(texto).toMatch(/- e mais \d participantes? com aviso\./);
-    expect(texto.endsWith("diga isso a quem está falando com você antes.")).toBe(true);
+    const resumo = "r".repeat(300);
+    for (const tamanho of [67, 127, 187, 1000]) {
+      const grande = Array.from({ length: 20 }, (_, i) => `${"p".repeat(tamanho)}${i}.ts`);
+      ctx.atualizar(claudes(...["a", "b", "d"].map((usuarioId) => ({ ...doPai, usuarioId, resumo, arquivos: grande }))));
+      const texto = ctx.texto()!;
+      expect(texto.length).toBeLessThanOrEqual(4000);
+      expect(texto.split("\n").filter((l) => l.includes(`"${resumo}"`))).toHaveLength(3);
+      expect(texto).toMatch(/p0\.ts`|p…`|Anunciou 20 arquivos/);
+      expect(texto.endsWith("diga isso a quem está falando com você antes.")).toBe(true);
+    }
+    expect(ctx.texto()).toContain("e mais");
   });
 
   it("lembra no máximo 50 sessões", () => {

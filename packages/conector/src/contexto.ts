@@ -115,27 +115,35 @@ export class ContextoDosOutros {
     const cabeca = [CABECALHO];
     if (this.semSalaDesde !== null)
       cabeca.push(`A conexão com a jam caiu às ${hora(this.semSalaDesde)}; os avisos abaixo podem estar desatualizados até ela voltar.`);
-    let tamanho = cabeca.join("\n").length + RODAPE.length + 2;
-    const linhas: string[] = [];
-    for (const [i, a] of this.avisos.entries()) {
+    // Nome e resumo de cada um sempre entram (no máximo uns 430 caracteres
+    // por pessoa); o que sobra do teto é dividido entre as listas de
+    // arquivos, que encurtam em "e mais N" (gate da 4.3, REL-005).
+    const inicios = this.avisos.map((a) => {
       const nome = cortar(limpar(this.nomes.get(a.usuarioId) ?? ""), NOME_MAXIMO) || "outro participante";
-      const arquivos = a.arquivos
-        .slice(0, ARQUIVOS_NO_TEXTO)
-        .map((c) => cortar(limpar(c), CAMINHO_MAXIMO))
-        .filter(Boolean)
-        .map((c) => `\`${c}\``);
-      const resto = a.arquivos.length - arquivos.length;
-      const lista = arquivos.length ? ` Arquivos anunciados: ${arquivos.join(", ")}${resto > 0 ? ` e mais ${resto}` : ""}.` : " Nenhum arquivo anunciado.";
-      const linha = `- Claude Code de ${nome}, trabalhando desde ${hora(Date.parse(a.desde))}: "${limpar(a.resumo)}".${lista}`;
-      const faltam = this.avisos.length - i;
-      if (tamanho + linha.length + 1 > TEXTO_MAXIMO) {
-        linhas.push(`- e mais ${faltam} ${faltam === 1 ? "participante" : "participantes"} com aviso.`);
-        break;
-      }
-      linhas.push(linha);
-      tamanho += linha.length + 1;
-    }
+      return `- Claude Code de ${nome}, trabalhando desde ${hora(Date.parse(a.desde))}: "${limpar(a.resumo)}".`;
+    });
+    const fixo = [...cabeca, ...inicios, RODAPE].join("\n").length;
+    const porPessoa = Math.max(0, Math.floor((TEXTO_MAXIMO - fixo) / this.avisos.length));
+    const linhas = this.avisos.map((a, i) => `${inicios[i]}${this.listaDeArquivos(a.arquivos, porPessoa)}`);
     return [...cabeca, ...linhas, RODAPE].join("\n");
+  }
+
+  // Os arquivos de uma pessoa dentro do espaço dela.
+  private listaDeArquivos(todos: string[], espaco: number): string {
+    if (todos.length === 0) return " Nenhum arquivo anunciado.";
+    const caminhos = todos
+      .slice(0, ARQUIVOS_NO_TEXTO)
+      .map((c) => cortar(limpar(c), CAMINHO_MAXIMO))
+      .filter(Boolean)
+      .map((c) => `\`${c}\``);
+    const montar = (n: number) => {
+      const resto = todos.length - n;
+      if (n === 0) return ` Anunciou ${todos.length} ${todos.length === 1 ? "arquivo" : "arquivos"}.`;
+      return ` Arquivos anunciados: ${caminhos.slice(0, n).join(", ")}${resto > 0 ? ` e mais ${resto}` : ""}.`;
+    };
+    let n = caminhos.length;
+    while (n > 0 && montar(n).length > espaco) n--;
+    return montar(n);
   }
 
   // UserPromptSubmit: o estado atual, sempre que há alguém (AC 1).

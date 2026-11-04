@@ -3,6 +3,7 @@ import {
   MOTIVOS_DE_PARADA,
   RESUMO_MAXIMO,
   normalizarCaminho,
+  textoLimpo,
   type MensagemAviso,
   type MensagemFimDoAviso,
   type MensagemStatus,
@@ -96,7 +97,8 @@ export class StatusDoClaude {
     const mensagem: MensagemAviso = {
       v: 1,
       tipo: "aviso",
-      resumo: resumo.trim().slice(0, RESUMO_MAXIMO),
+      // Limpo como a sala limpa: resumo só de caracteres invisíveis é vazio (gate da 4.3, REL-006).
+      resumo: textoLimpo(resumo).slice(0, RESUMO_MAXIMO),
       arquivos: [...new Set(relativos)].slice(0, ARQUIVOS_DO_AVISO),
     };
     // O MCP repetindo o que o hook da mesma chamada já registrou, mesmo que a
@@ -115,7 +117,7 @@ export class StatusDoClaude {
   preToolUse(corpo: Record<string, unknown>): { decisao: "recusar"; motivo: string } | null {
     if (corpo.tool_name === FERRAMENTA_ANUNCIAR) {
       const sessao = typeof corpo.session_id === "string" ? corpo.session_id : SEM_SESSAO;
-      if (typeof corpo.resumo === "string" && corpo.resumo.trim()) {
+      if (typeof corpo.resumo === "string" && textoLimpo(corpo.resumo)) {
         const arquivos = Array.isArray(corpo.arquivos) ? corpo.arquivos.filter((a): a is string => typeof a === "string") : [];
         this.anunciar(corpo.resumo, arquivos, sessao);
       }
