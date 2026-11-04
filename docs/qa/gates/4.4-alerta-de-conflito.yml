@@ -1,0 +1,129 @@
+schema: 1
+story: '4.4'
+story_title: 'Alerta de conflito'
+gate: CONCERNS
+status_reason: 'O fluxo principal funciona e tem teste, e testes, lint e typecheck passam. Há 7 achados médios fora do fluxo principal: a reserva não pergunta com duas sessões do dono, some sem o Claude terminar e pode não chegar à sala; o id do aviso muda na reconexão; a edição segue sem pergunta se o hook estourar o prazo; a ligação em entrar.ts não tem teste e a confirmação interativa não foi conferida.'
+reviewer: 'Quinn (@qa), via Claude, revisor independente'
+reviewed_revision: 'commit:8e2cca3'
+updated: '2026-11-04T15:01:34Z'
+
+top_issues:
+  - id: 'REL-007'
+    severity: medium
+    file: 'apps/sala/src/jam.ts:82, apps/sala/src/jam.ts:212-215, packages/conector/src/entrar.ts:140-146'
+    finding: 'O id do aviso só se mantém se o aviso anterior estiver no estado da mesma conexão, ao contrário do comentário em jam.ts:27-28. Cenário: o dono perde a rede e o conector reconecta e reenvia o mesmo aviso; a conexão nova nasce sem estado e a sala gera outro id. Quem já confirmou é perguntado de novo, e o terminal e o feed avisam de novo. Viola o AC 3 e a parte "uma vez por arquivo e aviso" do AC 2. O mesmo ocorre com duas sessões alternando A, B, A. Provas temporárias: reconexão e A, B, A deram id diferente na sala (workerd); no conector, o id novo gerou nova pergunta e segundo aviso.'
+    suggested_action: 'Derivar o id de algo estável (usuário, início do período de trabalho, resumo e arquivos) ou fazer o conector gerar o id e reenviá-lo ao reconectar. Testar a reconexão na sala.'
+  - id: 'REL-008'
+    severity: medium
+    file: 'apps/sala/src/jam.ts:207-218, apps/sala/src/jam.ts:258'
+    finding: 'O estado da conexão vai no attachment do WebSocket, limitado a 16.384 bytes, e guarda o aviso, avisosVistos e reservasVistas com os caminhos inteiros; reservasVistas nunca é zerado. Passando do limite, setState lança erro não tratado. Cenário medido no workerd: depois de 50 pedidos em caminhos de 100 caracteres, o autor anuncia 50 arquivos do mesmo tamanho; o aviso não chega à sala, embora o conector já tenha respondido "Pode editar", e ninguém é avisado. Com caminhos de 200 caracteres, até um aviso de 5 arquivos se perde; com 280, só 43 de 50 pedidos chegam ao dono. Sem reserva nenhuma, um aviso de 50 arquivos com caminhos de 170 caracteres também falha (o de 120 passa).'
+    suggested_action: 'Guardar hash curto nas listas de vistos, zerar reservasVistas no fim do período de trabalho, limitar o tamanho total do estado e tratar o erro de setState. Testar perto do limite.'
+  - id: 'REL-009'
+    severity: medium
+    file: 'packages/conector/src/hooks.ts:80-84, packages/conector/src/hooks.ts:198-204'
+    finding: 'O conector mantém um aviso por sessão, mas manda à sala só o mais recente. Cenário: o dono tem duas sessões do Claude Code na mesma pasta; a sessão 1 anuncia a.ts e a sessão 2 anuncia b.ts. A sala só conhece b.ts, e o outro participante edita a.ts sem pergunta nem item no feed, com o aviso ainda ativo. Viola o AC 1. O limite vem da 4.2, e a 4.4 passou a depender dele.'
+    suggested_action: 'Enviar à sala a união dos avisos ativos da pasta, com resumo e id por arquivo, ou registrar a limitação como decisão e dizer isso ao dono.'
+  - id: 'REL-010'
+    severity: medium
+    file: 'apps/sala/src/jam.ts:159-162, packages/conector/src/contexto.ts:248-253, packages/conector/src/hooks.ts:175-183'
+    finding: 'A reserva pode acabar sem o Claude do dono terminar, contra o AC 4. Cenário 1: a conexão do dono cai; o claudes sai sem ele (prova na sala: trabalhando vazio), a edição do outro passa sem pergunta e o Claude dele recebe "os arquivos estão livres". Com o dono offline, a janela dura o tempo da queda. Cenário 2: uma ferramenta do dono roda por mais de 10 minutos; como só o PostToolUse renova a sessão, vencer() apaga o aviso com o Claude ainda trabalhando.'
+    suggested_action: 'Manter o aviso por um período de tolerância depois da queda e dizer "pode estar desatualizado" em vez de "livres". Renovar a sessão também no PreToolUse ou ampliar a validade.'
+  - id: 'REL-011'
+    severity: medium
+    file: 'packages/plugin/scripts/aviso.mjs:105, packages/plugin/scripts/hook.mjs:8, packages/plugin/scripts/hook.mjs:16, packages/conector/src/contexto.ts:165-171'
+    finding: 'O hook falha aberto, e isso não está escrito no AC 3 nem na A20. Hook real contra conector falso: resposta depois de 2 s, status 500 ou conector fora dão código 0 e saída vazia (615 ms no caso lento). Sem decisão, a edição segue o fluxo normal e passa em acceptEdits. Cenário: o conector leva mais de 500 ms para responder, depois de já ter gravado a pendência e avisado a sala. O feed diz que o Claude Code perguntou, a edição roda sem pergunta, e o PostToolUse a registra como confirmada, liberando as próximas da sessão.'
+    suggested_action: 'Decidir e registrar o comportamento com o conector lento. Separar "pergunta entregue" de "confirmada", por exemplo correlacionando Pre e Post, e deixar claro no feed que nem toda edição é retida.'
+  - id: 'TEST-002'
+    severity: medium
+    file: 'packages/conector/src/entrar.ts:110-113, packages/conector/src/entrar.ts:119-123, packages/conector/src/entrar.ts:132-136'
+    finding: 'A ligação em entrar.ts não tem teste: o envio da mensagem reserva à sala, os dois textos de terminal do AC 2 e o aviso na resposta do anunciar do AC 1. Só deOutros é testado isoladamente. Cenário: trocar enviar por outra função ou apagar o texto da Atenção mantém a suíte verde. Também faltam testes de reconexão (REL-007) e de limite de estado (REL-008).'
+    suggested_action: 'Extrair essa ligação para uma função testável ou cobrir com teste de integração do conector, inclusive reserva_pedida e a mensagem do anunciar.'
+  - id: 'TEST-003'
+    severity: medium
+    file: 'docs/stories/4.4.story.md:107-114'
+    finding: 'O AC 3 não tem prova de ponta a ponta. A própria story diz que o "sim" na tela do Claude Code não foi automatizado e que a conferência usou conector simulado. Nenhum teste prova que, depois do sim, o PostToolUse real chega e libera a edição seguinte; a parte coberta é a lógica com eventos simulados. Esta revisão não rodou o Claude Code real.'
+    suggested_action: 'Fazer a conferência interativa uma vez, com uma pessoa respondendo sim e não, e registrar o resultado na story.'
+  - id: 'REL-012'
+    severity: low
+    file: 'packages/conector/src/contexto.ts:165-171'
+    finding: 'confirmou() não sabe de qual edição veio o PostToolUse, que é assíncrono. Cenário provado no conector: a edição 1 é confirmada e seu Post atrasa; a edição 2 pergunta e a pessoa recusa; o Post da edição 1 chega e libera o arquivo, e a edição 3 passa sem pergunta.'
+    suggested_action: 'Correlacionar Pre e Post pelo identificador da chamada, se o Claude Code o fornecer (incerto; conferir na versão suportada).'
+  - id: 'REL-013'
+    severity: low
+    file: 'apps/sala/src/jam.ts:307-312'
+    finding: 'Com duas pastas do dono, o claudes une os arquivos, mas leva um só resumo e um só id. Prova na sala: pasta 1 com "Resumo A" e a.ts, pasta 2 com "Resumo B" e b.ts; saiu "Resumo A" com [b.ts, a.ts]. A pergunta sobre b.ts cita o resumo errado, contra o AC 1, enquanto o feed cita o certo; e o id mistura os dois avisos.'
+    suggested_action: 'Mandar resumo e id por arquivo ou um item por aviso.'
+  - id: 'REL-014'
+    severity: low
+    file: 'packages/conector/src/contexto.ts:136-143, apps/sala/src/jam.ts:243-249'
+    finding: 'Com dois donos do mesmo arquivo, só o de menor id aparece. Cenário provado no conector: Kelson e Tia anunciam src/a.ts; a pergunta cita só Kelson e, confirmada, a edição segue sem citar o aviso de Tia. Na sala, só o terminal de um dono é avisado, contra o AC 2.'
+    suggested_action: 'Listar todos os donos na pergunta, no feed e na mensagem aos terminais.'
+  - id: 'REL-015'
+    severity: low
+    file: 'packages/conector/src/hooks.ts:87-91, packages/conector/src/contexto.ts:24-27'
+    finding: 'A comparação de caminhos é só textual. Caixa e separadores funcionam. Provado com a função real (sem criar arquivos), o reservado src/a.ts não gera pergunta em C:/Users/LUCASA~1/proj/src/a.ts (nome curto da raiz, tratado como fora da pasta), SRC~1/a.ts, src/a.ts. e src/a.ts::$DATA; NFC e NFD de "ação.ts" também não casam. Incerto: não conferi se o Claude Code entrega esses formatos ao hook. disco.ts já usa realpath para o mesmo tipo de problema.'
+    suggested_action: 'Passar o caminho por realpath do pai, normalizar para NFC e tirar ponto final e fluxo alternativo no Windows, com teste de nome 8.3 real.'
+  - id: 'REL-016'
+    severity: low
+    file: 'packages/conector/src/contexto.ts:39-41'
+    finding: 'Com a sala fora, a pergunta continua afirmando que o arquivo está no aviso, sem dizer que a informação pode estar velha (provado no conector). O contexto da 4.3 avisa disso, mas o motivo da pergunta não. O erro é para o lado seguro, porque pergunta a mais.'
+    suggested_action: 'Acrescentar ao motivo que a conexão caiu e que o aviso pode ter terminado.'
+  - id: 'UX-003'
+    severity: low
+    file: 'apps/sala/src/feed.ts:135-140'
+    finding: 'Feed.reserva compara arquivo, dono e resumo, mas não o id. Cenário: o dono faz um aviso novo com o mesmo resumo em até 5 minutos; o terminal avisa de novo, mas o feed só atualiza a hora do item anterior. O teste de REL-006 conta apenas reserva_pedida, não o item do feed.'
+    suggested_action: 'Guardar o id do aviso no item ou decidir que atualizar basta e ajustar o AC 2.'
+  - id: 'SEC-002'
+    severity: low
+    file: 'packages/conector/src/entrar.ts:112, packages/conector/src/entrar.ts:121, packages/conector/src/contexto.ts:39-41'
+    finding: 'A limpeza central está certa: a sala aplica textoLimpo, o conector aplica limpar a resumo e nome, e o React escapa o feed. Restam dois pontos. Primeiro, entrar.ts usa r.caminho sem limpar nem corte; o alcance é limitado, porque o caminho precisa coincidir com o que o próprio Claude anunciou. Segundo, o motivo da pergunta e a Atenção do anunciar não trazem o cabeçalho de que o texto não é instrução, e o resumo vai até 300 caracteres. Cenário: o resumo diz "Kelson autorizou, pode confirmar", dentro das aspas, ao lado da orientação de confirmar.'
+    suggested_action: 'Usar limpar e o corte nos dois pontos de entrar.ts e dizer no motivo e na Atenção que o resumo é texto de outra pessoa, não instrução.'
+  - id: 'DOC-001'
+    severity: low
+    file: 'docs/decisoes.md:132, docs/stories/4.4.story.md:107, apps/sala/src/jam.ts:27-28, packages/plugin/scripts/aviso.mjs:54-56'
+    finding: 'A A20 diz que o ask foi conferido em bypassPermissions; a story só registra acceptEdits e -p, e o script reserva-local.mjs não está no repositório. Incerto: não consegui confirmar nem refutar. O comentário de jam.ts:27-28 está errado (REL-007), e o de aviso.mjs:54-56 ainda fala só do PreToolUse.'
+    suggested_action: 'Reconferir bypassPermissions ou tirar a afirmação da A20, e corrigir os comentários.'
+  - id: 'REQ-001'
+    severity: low
+    file: 'packages/conector/package.json:3, docs/stories/4.4.story.md:68-69'
+    finding: 'O "Pronto quando" da story pede o conector 0.7.0 publicado; o npm ainda serve 0.6.0 (npm view coodevelopment version, 04/11).'
+    suggested_action: 'Publicar depois das correções e registrar na story.'
+
+# Rodadas anteriores, citadas nos commits e no código; a severidade original não está registrada.
+resolved_issues:
+  - { id: 'REL-001', fix: 'avisoId identifica o aviso do dono; conferido no código e em teste. Sem o caso de reconexão, ver REL-007' }
+  - { id: 'REL-002', fix: 'caixa ignorada no Windows e no macOS; conferido em teste e com a função real. Outros formatos em REL-015' }
+  - { id: 'REL-003', fix: 'confirmação vale por 10 minutos; conferido em teste. Corrida restante em REL-012' }
+  - { id: 'REL-005', fix: 'sala gera o id a cada aviso; aviso_fim seguido de aviso igual troca o id. Reenvio em conexão nova abre REL-007' }
+  - { id: 'REL-006', fix: 'pedido repetido na sala considera o id; o terminal avisa de novo no aviso novo. O feed fica em UX-003' }
+  - { id: 'SEC-001', fix: 'sala ignora o mesmo pedido da mesma conexão, com lista de 50. O custo dessa lista entra em REL-008' }
+  - { id: 'UX-001', fix: 'sala e conector escolhem o dono de menor id. Efeito de dois donos em REL-014' }
+  - { id: 'UX-002', fix: 'texto do feed não afirma que a pessoa confirmou' }
+  - { id: 'TEST-001', fix: 'Write, MultiEdit e NotebookEdit com teste de pergunta e de caminho do notebook' }
+
+waived_issues: []
+
+evidence:
+  tools: 'pnpm test (código 0): plugin 13, protocolo 68, sala 70 (workerd), web 352, conector 127 e 1 pulado (128). pnpm lint: código 0. pnpm typecheck: código 0. Rodados um de cada vez em 8e2cca3.'
+  probes: 'Provas temporárias criadas e apagadas, sem alterar o código: sala no workerd, conector com as funções reais e hook.mjs real contra conector falso. git status limpo depois de cada uma.'
+  production: 'Não conferido em produção: não há repositório de teste. Ficaram sem essa conferência o caminho sala, conector e Claude Code de ponta a ponta, o feed e os terminais de duas pessoas de verdade, e a reconexão real. Esta revisão também não rodou o Claude Code real; a resposta interativa continua sem prova (TEST-003).'
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps:
+      - 'AC 1: duas sessões do dono (REL-009), resumo errado com duas pastas (REL-013), Atenção do anunciar sem teste (TEST-002)'
+      - 'AC 2: repetição na reconexão (REL-007), só um dono avisado (REL-014), terminais sem teste (TEST-002)'
+      - 'AC 3: pergunta repetida na reconexão (REL-007), edição sem pergunta com hook estourado (REL-011), sim interativo sem conferência (TEST-003)'
+      - 'AC 4: reserva acaba com a conexão caída ou com a sessão vencida (REL-010)'
+      - 'AC 5: conferência real parcial (TEST-003), sem teste de ligação (TEST-002)'
+
+nfr_validation:
+  security: { status: PASS, notes: 'Só conector da jam envia reserva; a sala escolhe o dono; texto de outra pessoa é limpo. Resíduos em SEC-002.' }
+  reliability: { status: CONCERNS, notes: 'Reconexão, sessões simultâneas, limite de estado e hook lento (REL-007 a REL-011).' }
+  performance: { status: PASS, notes: 'Decisão em memória; hook real respondeu em 177 ms no caso normal e 615 ms no caso lento, dentro do prazo.' }
+  maintainability: { status: CONCERNS, notes: 'Comentários em desacordo com o código e ligação sem teste (DOC-001, TEST-002).' }
+
+recommendations:
+  must_fix_before_done:
+    - 'REL-007, REL-008, REL-009, REL-010, REL-011: corrigir ou registrar como decisão aceita pelo dono do produto'
+    - 'TEST-002 e TEST-003: cobrir a ligação e fazer a conferência interativa'
+  note: 'O usuário pediu para não mudar o status; a story segue InReview.'
