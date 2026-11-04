@@ -9,13 +9,28 @@ import { useFeed } from "./PresencaDaJam";
 
 export type PessoaDoFeed = { id: string; nome: string; foto: string | null; vaga: number };
 
-// Hora relativa curta: "agora", "há 5 min", "há 2 h"; mais de um dia, a data.
-export function quando(iso: string, agora: number): string {
+// Hora relativa curta: "agora", "há 5 min", "há 2 h"; mais de um dia, nada
+// (o dia e a hora já dizem).
+export function quando(iso: string, agora: number): string | null {
   const segundos = Math.max(0, Math.round((agora - Date.parse(iso)) / 1000));
   if (segundos < 60) return "agora";
   if (segundos < 3600) return `há ${Math.floor(segundos / 60)} min`;
   if (segundos < 86_400) return `há ${Math.floor(segundos / 3600)} h`;
-  return new Date(iso).toLocaleString("pt-BR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return null;
+}
+
+// Dia e hora no fuso de quem lê: "04/11 às 14:32" (pedido do Lucas, 04/11).
+export function diaEHora(iso: string, fuso?: string): string {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: fuso });
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: fuso });
+  return `${dia} às ${hora}`;
+}
+
+// O que aparece no item: dia e hora, e há quanto tempo quando é recente.
+export function momento(iso: string, agora: number, fuso?: string): string {
+  const relativo = quando(iso, agora);
+  return relativo ? `${diaEHora(iso, fuso)} · ${relativo}` : diaEHora(iso, fuso);
 }
 
 function megabytes(bytes: number): string {
@@ -228,7 +243,7 @@ export function FeedDaJam({ pessoas, eu }: { pessoas: PessoaDoFeed[]; eu: string
                   <p className="flex flex-wrap items-baseline justify-between gap-x-3">
                     <span className="min-w-0 font-medium break-words">{fraseDoEvento(e, nome)}</span>
                     <time dateTime={e.atualizadoEm} className="shrink-0 text-pequeno text-texto-suave">
-                      {quando(e.atualizadoEm, agora)}
+                      {momento(e.atualizadoEm, agora)}
                     </time>
                   </p>
                   <Detalhe e={e} nome={nome} eu={eu} />

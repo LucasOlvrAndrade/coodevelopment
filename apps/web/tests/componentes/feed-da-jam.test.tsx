@@ -18,7 +18,7 @@ const { sockets, SocketDeTeste } = vi.hoisted(() => {
 vi.mock("partysocket", () => ({ default: SocketDeTeste }));
 
 const { PresencaDaJam, aplicarFeed } = await import("@/componentes/jams/PresencaDaJam");
-const { FeedDaJam, quando } = await import("@/componentes/jams/FeedDaJam");
+const { FeedDaJam, quando, diaEHora, momento } = await import("@/componentes/jams/FeedDaJam");
 
 const AGORA = Date.parse("2026-11-03T12:10:00.000Z");
 const pessoas = [
@@ -107,7 +107,7 @@ describe("feed da jam (Story 3.4)", () => {
     expect(primeiro).toHaveTextContent("e mais 3 mudanças em arquivos que não cabem aqui");
     expect(segundo).toHaveTextContent("Lucas Andrade mudou 1 arquivo");
     expect(segundo).toHaveTextContent("3 linhas acrescentadas, 1 tirada");
-    expect(segundo).toHaveTextContent("há 2 min");
+    expect(segundo).toHaveTextContent(/\d{2}\/11 às \d{2}:08 · há 2 min/);
   });
 
   it("dependências aparecem destacadas, pedindo reinstalação (AC 2)", async () => {
@@ -216,7 +216,13 @@ describe("aplicarFeed e quando", () => {
   it("hora relativa", () => {
     expect(quando("2026-11-03T12:09:30.000Z", AGORA)).toBe("agora");
     expect(quando("2026-11-03T11:10:00.000Z", AGORA)).toBe("há 1 h");
-    expect(quando("2026-11-01T11:10:00.000Z", AGORA)).toMatch(/1 de nov/);
+    expect(quando("2026-11-01T11:10:00.000Z", AGORA)).toBeNull();
+  });
+
+  it("dia e hora, com há quanto tempo quando é recente", () => {
+    expect(diaEHora("2026-11-03T12:08:00.000Z", "America/Sao_Paulo")).toBe("03/11 às 09:08");
+    expect(momento("2026-11-03T12:08:00.000Z", AGORA, "America/Sao_Paulo")).toBe("03/11 às 09:08 · há 2 min");
+    expect(momento("2026-11-01T11:10:00.000Z", AGORA, "America/Sao_Paulo")).toBe("01/11 às 08:10");
   });
 });
 
