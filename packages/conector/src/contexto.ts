@@ -8,12 +8,12 @@ const EDICAO = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 // anunciaram, vindo da sala, entregue ao Claude desta pasta a cada prompt e,
 // quando muda no meio de uma resposta, na próxima edição ou anúncio dele.
 
-type AvisoDeOutro = { usuarioId: string; desde: string; resumo: string; arquivos: string[] };
+type AvisoDeOutro = { usuarioId: string; desde: string; resumo: string; arquivos: string[]; avisoId: string };
 
 // Um arquivo no aviso ativo de outro participante (Story 4.4).
-// O caminho vem como o dono anunciou (a sala compara assim); "desde" e o
-// resumo identificam aquele aviso (gate da 4.4, REL-001).
-export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string; desde: string };
+// O caminho vem como o dono anunciou (a sala compara assim); o avisoId,
+// gerado pela sala, identifica aquele aviso (gate da 4.4, REL-001 e REL-005).
+export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string; avisoId: string };
 
 // A confirmação vale se a edição rodar logo depois da pergunta (gate da 4.4,
 // REL-003): uma pergunta recusada não vira liberação muito tempo depois.
@@ -111,7 +111,8 @@ export class ContextoDosOutros {
     this.semSalaDesde = null;
     this.avisos = m.trabalhando
       .filter((t) => t.usuarioId !== this.eu && t.resumo)
-      .map((t) => ({ usuarioId: t.usuarioId, desde: t.desde, resumo: t.resumo!, arquivos: t.arquivos ?? [] }));
+      // Sala antiga, sem id do aviso: o desde e o resumo fazem as vezes.
+      .map((t) => ({ usuarioId: t.usuarioId, desde: t.desde, resumo: t.resumo!, arquivos: t.arquivos ?? [], avisoId: t.avisoId ?? `${t.desde} ${t.resumo}` }));
     this.talvezBuscarNomes();
   }
 
@@ -136,7 +137,7 @@ export class ContextoDosOutros {
     const procurado = comparavel(caminho);
     for (const a of this.avisos) {
       const doDono = a.arquivos.find((x) => comparavel(x) === procurado);
-      if (doDono) return { caminho: doDono, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo), desde: a.desde };
+      if (doDono) return { caminho: doDono, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo), avisoId: a.avisoId };
     }
     return null;
   }
@@ -147,7 +148,7 @@ export class ContextoDosOutros {
   pedirReserva(sessao: string, caminho: string): { reserva: Reserva; nova: boolean } | null {
     const reserva = this.donoDe(caminho);
     if (!reserva) return null;
-    const aviso = [reserva.caminho, reserva.donoId, reserva.resumo, reserva.desde];
+    const aviso = [reserva.caminho, reserva.donoId, reserva.avisoId];
     const chave = JSON.stringify([sessao, ...aviso]);
     if (this.liberados.has(chave)) return null;
     const id = JSON.stringify([sessao, comparavel(caminho)]);

@@ -241,6 +241,18 @@ describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
     expect(pagina.recebidas.filter(feedVivo("reserva"))).toHaveLength(1);
     expect(lucas.recebidas.some((m) => m.tipo === "reserva_pedida")).toBe(false);
     expect(pai.recebidas.filter((m) => m.tipo === "reserva_pedida")).toHaveLength(1);
+
+    // O dono termina o aviso e anuncia o mesmo resumo de novo: aviso novo,
+    // id novo, pedido novo (gate da 4.4, REL-005 e REL-006).
+    const antes = pagina.recebidas.filter(claudes).at(-1) as unknown as { trabalhando: { avisoId?: string }[] };
+    const novoId = pagina.proxima((m) => claudes(m) && JSON.stringify(m).includes("avisoId") && !JSON.stringify(m).includes(String(antes.trabalhando[0]?.avisoId)));
+    pai.enviar({ tipo: "aviso_fim" });
+    pai.enviar({ tipo: "aviso", resumo: "Login com Google", arquivos: ["src/auth.ts"] });
+    await novoId;
+    const segundo = pai.proxima((m) => m.tipo === "reserva_pedida");
+    lucas.enviar({ tipo: "reserva", caminho: "src/auth.ts" });
+    await segundo;
+    expect(pai.recebidas.filter((m) => m.tipo === "reserva_pedida")).toHaveLength(2);
     for (const c of [pai, lucas, pagina]) c.ws.close();
   });
 });

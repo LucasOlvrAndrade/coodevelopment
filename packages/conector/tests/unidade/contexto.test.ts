@@ -208,7 +208,7 @@ describe("arquivo no aviso de outro (Story 4.4)", () => {
     const ctx = new ContextoDosOutros("lucas", nomes);
     ctx.atualizar(claudes(doPai));
     expect(responderAoHook(status, ctx, "PreToolUse", editar("s9", "src/auth.ts"))?.decisao).toBe("recusar");
-    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google", desde: doPai.desde }]);
+    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google", avisoId: `${doPai.desde} Login com Google` }]);
   });
 });
 
@@ -240,12 +240,14 @@ describe("reserva: casos do gate da 4.4", () => {
     expect(responder("PreToolUse", edicao("Edit", "SRC/auth.ts"))?.motivo).toContain("`src/Auth.ts`");
   });
 
-  it("o mesmo resumo num aviso novo do dono pergunta de novo (REL-001)", () => {
+  it("o mesmo resumo num aviso novo do dono pergunta de novo, mesmo com o dono ainda trabalhando (REL-001 e REL-005)", () => {
     const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, avisoId: "a1" }));
     responder("PreToolUse", edicao("Edit", "src/auth.ts"));
     responder("PostToolUse", edicao("Edit", "src/auth.ts"));
     expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBeUndefined();
-    ctx.atualizar(claudes({ ...doPai, desde: "2026-11-04T13:00:00.000Z" }));
+    // Esc e prompt novo do dono: o desde não muda, o id do aviso sim.
+    ctx.atualizar(claudes({ ...doPai, avisoId: "a2" }));
     expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
   });
 

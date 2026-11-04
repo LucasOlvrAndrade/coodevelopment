@@ -24,7 +24,9 @@ import { Sincronizacao, type Envio } from "./sincronizacao";
 // para a folga do "sem aviso".
 type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & {
   trabalhandoDesde?: string | null;
-  aviso?: { resumo: string; arquivos: readonly string[] } | null;
+  // O id é novo a cada aviso; o mesmo aviso reenviado (reconexão) mantém o
+  // id (gate da 4.4, REL-005).
+  aviso?: { resumo: string; arquivos: readonly string[]; id?: string } | null;
   avisoTerminouEm?: string | null;
   // Os últimos avisos que já viraram item no feed (gate da 4.2, UX-004).
   avisosVistos?: readonly string[];
@@ -204,7 +206,14 @@ export class Jam extends Server<Env> {
     const repetido = vistos.includes(chave);
     conexao.setState({
       ...estado,
-      aviso: { resumo: msg.resumo, arquivos: msg.arquivos },
+      aviso: {
+        resumo: msg.resumo,
+        arquivos: msg.arquivos,
+        id:
+          estado.aviso?.id && estado.aviso.resumo === msg.resumo && estado.aviso.arquivos.join("\n") === msg.arquivos.join("\n")
+            ? estado.aviso.id
+            : crypto.randomUUID(),
+      },
       avisosVistos: repetido ? vistos : [...vistos, chave].slice(-AVISOS_LEMBRADOS),
     });
     if (repetido) {
@@ -233,16 +242,17 @@ export class Jam extends Server<Env> {
     if (!caminho) return;
     // Com dois donos, o de menor id, na mesma ordem do claudes que o conector
     // usa (gate da 4.4, UX-001).
-    let dono: { usuarioId: string; resumo: string } | null = null;
+    let dono: { usuarioId: string; resumo: string; avisoId: string } | null = null;
     for (const c of this.getConnections<Estado>()) {
       if (c.state?.via !== "conector" || c.state.usuarioId === autorId || !c.state.aviso?.arquivos.includes(caminho)) continue;
-      if (!dono || c.state.usuarioId < dono.usuarioId) dono = { usuarioId: c.state.usuarioId, resumo: c.state.aviso.resumo };
+      if (!dono || c.state.usuarioId < dono.usuarioId) dono = { usuarioId: c.state.usuarioId, resumo: c.state.aviso.resumo, avisoId: c.state.aviso.id ?? "" };
     }
     if (!dono) return;
     // O mesmo pedido de novo (conector modificado em loop, reconexão) não
     // vira outro item nem outro aviso no terminal do dono (gate da 4.4, SEC-001).
     const estado = conexao.state!;
-    const chave = JSON.stringify([caminho, dono.usuarioId, dono.resumo]);
+    // Com o id do aviso: o mesmo resumo num aviso novo do dono é pedido novo (REL-006).
+    const chave = JSON.stringify([caminho, dono.usuarioId, dono.avisoId]);
     const vistas = estado.reservasVistas ?? [];
     if (vistas.includes(chave)) return;
     conexao.setState({ ...estado, reservasVistas: [...vistas, chave].slice(-RESERVAS_LEMBRADAS) });
@@ -287,6 +297,7 @@ export class Jam extends Server<Env> {
   private claudes(saindo?: string): MensagemClaudes {
     const desde = new Map<string, string>();
     const resumo = new Map<string, string>();
+    const avisoId = new Map<string, string>();
     const arquivos = new Map<string, Set<string>>();
     for (const c of this.getConnections<Estado>()) {
       const d = c.id === saindo ? null : c.state?.trabalhandoDesde;
@@ -295,6 +306,7 @@ export class Jam extends Server<Env> {
       if (!atual || d < atual) desde.set(c.state.usuarioId, d);
       if (c.state.aviso) {
         resumo.set(c.state.usuarioId, c.state.aviso.resumo);
+        if (c.state.aviso.id) avisoId.set(c.state.usuarioId, c.state.aviso.id);
         const dele = arquivos.get(c.state.usuarioId) ?? new Set<string>();
         for (const a of c.state.aviso.arquivos) dele.add(a);
         arquivos.set(c.state.usuarioId, dele);
@@ -305,7 +317,10 @@ export class Jam extends Server<Env> {
       tipo: "claudes",
       trabalhando: [...desde]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([usuarioId, d]) => ({ usuarioId, desde: d, resumo: resumo.get(usuarioId) ?? null, arquivos: [...(arquivos.get(usuarioId) ?? [])] })),
+        .map(([usuarioId, d]) => ({ usuarioId, desde: d, resumo: resumo.get(usuarioId) ?? null,
+          arquivos: [...(arquivos.get(usuarioId) ?? [])],
+          ...(avisoId.has(usuarioId) ? { avisoId: avisoId.get(usuarioId) } : {}),
+        })),
     };
   }
 

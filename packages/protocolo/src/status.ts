@@ -80,6 +80,8 @@ export const mensagemClaudes = z.object({
       desde: z.string(),
       resumo: z.string().nullable().optional(),
       arquivos: z.array(z.string()).optional(),
+      // Identifica o aviso: o mesmo resumo num aviso novo é outro aviso (Story 4.4).
+      avisoId: z.string().optional(),
     }),
   ),
 });
