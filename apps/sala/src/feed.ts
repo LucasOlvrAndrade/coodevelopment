@@ -129,6 +129,16 @@ export class Feed {
     return this.inserir({ tipo: "aviso", autorId, resumo, arquivos: lista, em: agora, atualizadoEm: agora });
   }
 
+  // O Claude do autor pediu para mexer num arquivo do aviso de outro (Story
+  // 4.4). O mesmo pedido de novo, com o item dele ainda no topo e aberto, só
+  // atualiza a hora.
+  reserva(autorId: string, donoId: string, caminho: string, resumo: string): EventoFeed {
+    const agora = this.agora();
+    const anterior = this.grupoAberto(autorId, "reserva", agora);
+    if (anterior && anterior.caminho === caminho && anterior.donoId === donoId && anterior.resumo === resumo) return this.atualizar({ ...anterior, atualizadoEm: agora });
+    return this.inserir({ tipo: "reserva", autorId, donoId, caminho, resumo, em: agora, atualizadoEm: agora });
+  }
+
   conflito(autorId: string, outroId: string, caminho: string, resolvido: "guardado" | "sobrescrito"): EventoFeed {
     const agora = this.agora();
     return this.inserir({ tipo: "conflito", autorId, outroId, caminho, resolvido, em: agora, atualizadoEm: agora });

@@ -46,6 +46,20 @@ export const mensagemAviso = z.object({
 // novo depois de um Esc, aviso vencido; gate da 4.2, REL-001 e REL-002).
 export const mensagemFimDoAviso = z.object({ v: z.literal(1), tipo: z.literal("aviso_fim") });
 
+// Conector → sala: o Claude desta pasta pediu para mexer num arquivo que está
+// no aviso de outro participante (Story 4.4). A sala confere de quem é.
+export const mensagemReserva = z.object({ v: z.literal(1), tipo: z.literal("reserva"), caminho: z.string().min(1).max(1024) });
+
+// Sala → conectores de quem anunciou: o Claude de outro pediu para mexer
+// num arquivo do seu aviso (Story 4.4).
+export const mensagemReservaPedida = z.object({
+  v: z.literal(1),
+  tipo: z.literal("reserva_pedida"),
+  autorId: z.string(),
+  caminho: z.string(),
+  donoId: z.string(),
+});
+
 // Texto de uma pessoa que vai para a página e para o Claude de outra (Story
 // 4.3, gate SEC-001): sem caractere de controle, de formatação (direção de
 // texto, largura zero, o bloco Tags, que esconde texto do leitor e não do
@@ -84,4 +98,6 @@ export type MensagemAviso = z.infer<typeof mensagemAviso>;
 export type MensagemFimDoAviso = z.infer<typeof mensagemFimDoAviso>;
 export type MensagemStatus = z.infer<typeof mensagemStatus>;
 export type MensagemClaudes = z.infer<typeof mensagemClaudes>;
+export type MensagemReserva = z.infer<typeof mensagemReserva>;
+export type MensagemReservaPedida = z.infer<typeof mensagemReservaPedida>;
 export type MensagemParou = z.infer<typeof mensagemParou>;

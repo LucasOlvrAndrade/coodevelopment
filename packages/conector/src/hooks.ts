@@ -83,7 +83,8 @@ export class StatusDoClaude {
     return ultimo ? { v: 1, tipo: "aviso", resumo: ultimo.resumo, arquivos: ultimo.arquivos } : null;
   }
 
-  private relativo(caminho: string): string | null {
+  // O caminho relativo à pasta da jam, ou null fora dela.
+  relativo(caminho: string): string | null {
     // Espaço em volta sai dos dois lados (o MCP e o hook mandam a mesma lista).
     const r = relative(this.pasta, resolve(this.pasta, caminho.trim()));
     return dentroDaPasta(r) ? normalizarCaminho(r) : null;

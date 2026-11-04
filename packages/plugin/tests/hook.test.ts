@@ -149,3 +149,23 @@ describe("contexto dos outros Claudes (Story 4.3)", () => {
     }
   });
 });
+
+describe("pergunta antes de mexer em arquivo de outro (Story 4.4)", () => {
+  it("a saída do PreToolUse pede confirmação (ask) com o motivo", () => {
+    expect(saida("PreToolUse", { decisao: "perguntar", motivo: "é do Kelson" })).toEqual({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: "é do Kelson" },
+    });
+    expect(saida("PreToolUse", { decisao: "outra", motivo: "x" })).toBeNull();
+  });
+
+  it("o PostToolUse manda a ferramenta e o caminho", () => {
+    expect(corpoDoAviso({ session_id: "s", hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: "a.ts", new_string: "segredo" } })).toEqual({
+      session_id: "s",
+      hook_event_name: "PostToolUse",
+      error: null,
+      reason: null,
+      tool_name: "Edit",
+      file_path: "a.ts",
+    });
+  });
+});

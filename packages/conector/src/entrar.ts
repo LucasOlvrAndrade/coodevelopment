@@ -2,7 +2,7 @@ import { idDeJamValido, textoLimpo, type MensagemDoConector } from "@coodevelopm
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
-import { ContextoDosOutros, responderAoHook } from "./contexto";
+import { ContextoDosOutros, limpar, responderAoHook } from "./contexto";
 import { esquecerPasta, registrarPasta } from "./descoberta";
 import { StatusDoClaude, abrirServidorDeHooks } from "./hooks";
 import { entrarPorDispositivo } from "./login";
@@ -105,12 +105,22 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
         }),
   });
   const hooks = await abrirServidorDeHooks({
-    aoEvento: (nome, corpo) => responderAoHook(status, contexto, nome, corpo),
+    // Arquivo de outro: a sala põe no feed e avisa quem anunciou (Story 4.4).
+    aoEvento: (nome, corpo) =>
+      responderAoHook(status, contexto, nome, corpo, (r) => {
+        enviar({ v: 1, tipo: "reserva", caminho: r.caminho });
+        amb.escrever(`Seu Claude Code pediu para mexer em ${r.caminho}, que está no aviso de ${r.nome} ("${r.resumo}"). Ele só segue se você confirmar no Claude Code.`);
+      }),
     // O anunciar do servidor MCP do plugin (Story 4.2).
     aoAnunciar: (corpo) => {
       if (typeof corpo.resumo !== "string" || !textoLimpo(corpo.resumo) || !Array.isArray(corpo.arquivos)) return { status: 400, corpo: { mensagem: "Falta o resumo ou a lista de arquivos." } };
       const aviso = status.anunciar(corpo.resumo, corpo.arquivos.filter((a): a is string => typeof a === "string"));
-      return { status: 200, corpo: { mensagem: `Anunciado para a jam: ${aviso.resumo}. Pode editar.` } };
+      // Arquivos que já estão no aviso de outro: o Claude fica sabendo antes (Story 4.4).
+      const deOutros = contexto.deOutros(aviso.arquivos);
+      const atencao = deOutros.length
+        ? ` Atenção: ${deOutros.map((r) => `${r.caminho} está no aviso de ${r.nome} ("${r.resumo}")`).join("; ")}. Editar esses arquivos vai pedir confirmação a quem está falando com você; combine antes.`
+        : "";
+      return { status: 200, corpo: { mensagem: `Anunciado para a jam: ${aviso.resumo}. Pode editar.${atencao}` } };
     },
   });
   const vencerSessoes = setInterval(() => status.vencer(), 60_000);
@@ -118,7 +128,13 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   await sincronizador.preparar();
   const conexao = await conectarNaSala(amb, sessao, jamId, {
     aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
-    aoReceber: (m) => (m.tipo === "claudes" ? contexto.atualizar(m) : sincronizador.receber(m)),
+    aoReceber: (m) => {
+      if (m.tipo === "claudes") contexto.atualizar(m);
+      // O Claude de outro pediu para mexer num arquivo do seu aviso (Story 4.4).
+      else if (m.tipo === "reserva_pedida")
+        amb.escrever(`O Claude Code de ${contexto.nomeDe(m.autorId)} pediu para mexer em ${limpar(m.caminho)}, que o seu Claude Code anunciou.`);
+      else sincronizador.receber(m);
+    },
     // Sem a sala, os avisos dos outros podem estar velhos (gate da 4.3, REL-001).
     aoCair: () => contexto.semSala(),
     aoReconectar: () => {

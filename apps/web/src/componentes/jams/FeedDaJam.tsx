@@ -64,6 +64,9 @@ function quantos(e: { arquivos: unknown[]; outros: number }): string {
   return e.outros > 0 ? `mais de ${e.arquivos.length} arquivos` : plural(e.arquivos.length, "arquivo", "arquivos");
 }
 
+// O Claude de alguém: "Seu Claude Code" ou "Claude Code de Fulano" (D9).
+const claudeDe = (id: string, nome: Nomear) => (nome(id) === "você" ? "Seu Claude Code" : `Claude Code de ${nome(id)}`);
+
 // Frase curta do item, para o anúncio ao vivo e o título do item.
 export function fraseDoEvento(e: EventoFeed, nome: Nomear): string {
   switch (e.tipo) {
@@ -73,7 +76,10 @@ export function fraseDoEvento(e: EventoFeed, nome: Nomear): string {
       return `${maiuscula(nome(e.autorId))} mudou as dependências`;
     case "aviso":
       // Quem anuncia é o Claude da pessoa (D9; gate da 4.2, UX-003).
-      return `${nome(e.autorId) === "você" ? "Seu Claude Code" : `Claude Code de ${nome(e.autorId)}`} anunciou: ${e.resumo}`;
+      return `${claudeDe(e.autorId, nome)} anunciou: ${e.resumo}`;
+    case "reserva":
+      // Story 4.4 (FR16): o arquivo está no aviso de outro.
+      return `${claudeDe(e.autorId, nome)} pediu para mexer em ${e.caminho}, que ${nome(e.donoId) === "você" ? "o seu" : `o de ${nome(e.donoId)}`} anunciou`;
     case "conflito":
       return `Conflito em ${e.caminho}`;
     case "grande":
@@ -165,6 +171,16 @@ function Detalhe({ e, nome, eu }: { e: EventoFeed; nome: Nomear; eu: string }) {
           ))}
         </ul>
       ) : null;
+    case "reserva":
+      return (
+        <>
+          <Caminho>{e.caminho}</Caminho>
+          <p className="text-texto-suave">
+            Aviso {e.donoId === eu ? "do seu Claude Code" : `do Claude Code de ${nome(e.donoId)}`}: “{e.resumo}”. A edição só segue se{" "}
+            {e.autorId === eu ? "você confirmar" : `${nome(e.autorId)} confirmar`} no Claude Code.
+          </p>
+        </>
+      );
     case "conflito":
       return (
         <>
@@ -200,6 +216,7 @@ const DESTAQUE: Record<EventoFeed["tipo"], string> = {
   conflito: "ring-1 ring-erro/50 bg-erro/5",
   grande: "",
   aviso: "ring-1 ring-sucesso/40",
+  reserva: "ring-1 ring-alerta/60 bg-alerta/5",
 };
 
 // Feed da jam (Story 3.4): o que mudou, quem mudou e o resumo, ao vivo pela

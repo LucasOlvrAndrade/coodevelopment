@@ -21,6 +21,8 @@ export {
   textoLimpo,
   mensagemAviso,
   mensagemFimDoAviso,
+  mensagemReserva,
+  mensagemReservaPedida,
   type MensagemAviso,
   type MensagemFimDoAviso,
   mensagemClaudes,
@@ -29,6 +31,8 @@ export {
   motivoDeParada,
   type MensagemClaudes,
   type MensagemParou,
+  type MensagemReserva,
+  type MensagemReservaPedida,
   type MensagemStatus,
   type MotivoDeParada,
 } from "./status";

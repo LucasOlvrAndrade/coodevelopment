@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { mensagemFeed, mensagemIgnorado } from "./feed";
-import { mensagemAviso, mensagemClaudes, mensagemFimDoAviso, mensagemParou, mensagemStatus } from "./status";
+import { mensagemAviso, mensagemClaudes, mensagemFimDoAviso, mensagemParou, mensagemReserva, mensagemReservaPedida, mensagemStatus } from "./status";
 import { mensagemAceito, mensagemArquivo, mensagemEscrever, mensagemManifesto, mensagemRecusado } from "./sincronizacao";
 
 // Mensagens da sala para o navegador (api-specification.md). Por enquanto só a
@@ -25,10 +25,11 @@ export const mensagemDaSala = z.discriminatedUnion("tipo", [
   mensagemFeed,
   mensagemClaudes,
   mensagemParou,
+  mensagemReservaPedida,
 ]);
 
 // Do conector para a sala.
-export const mensagemDoConector = z.discriminatedUnion("tipo", [mensagemEscrever, mensagemIgnorado, mensagemStatus, mensagemAviso, mensagemFimDoAviso]);
+export const mensagemDoConector = z.discriminatedUnion("tipo", [mensagemEscrever, mensagemIgnorado, mensagemStatus, mensagemAviso, mensagemFimDoAviso, mensagemReserva]);
 
 export type MensagemPresenca = z.infer<typeof mensagemPresenca>;
 export type MensagemDaSala = z.infer<typeof mensagemDaSala>;

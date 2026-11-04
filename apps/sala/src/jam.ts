@@ -7,6 +7,8 @@ import {
   type MensagemFeed,
   type MensagemParou,
   type MensagemPresenca,
+  type MensagemReserva,
+  type MensagemReservaPedida,
   type MensagemStatus,
   type QuemNaSala,
   validarTokenSala,
@@ -119,6 +121,10 @@ export class Jam extends Server<Env> {
       this.terminarAviso(conexao);
       return;
     }
+    if (msg.data.tipo === "reserva") {
+      this.reservar(conexao, msg.data);
+      return;
+    }
     const envios =
       msg.data.tipo === "ignorado"
         ? this.sincronizacao.ignorado(conexao.state.usuarioId, msg.data)
@@ -210,6 +216,35 @@ export class Jam extends Server<Env> {
     })();
     if (evento) this.paraAsPaginas(JSON.stringify({ v: 1, tipo: "feed", eventos: [evento], inicial: false } satisfies MensagemFeed));
     this.anunciarClaudes();
+  }
+
+  // O Claude da pasta pediu para mexer num arquivo (Story 4.4). A sala
+  // decide de quem é o arquivo pelos avisos ativos dos outros; sem dono, nada
+  // (o aviso pode ter acabado no caminho). Vira item do feed para todos e
+  // aviso no terminal de quem anunciou.
+  private reservar(conexao: Connection<Estado>, msg: MensagemReserva) {
+    const autorId = conexao.state!.usuarioId;
+    const caminho = normalizarCaminho(textoLimpo(msg.caminho));
+    if (!caminho) return;
+    let dono: { usuarioId: string; resumo: string } | null = null;
+    for (const c of this.getConnections<Estado>()) {
+      if (c.state?.via !== "conector" || c.state.usuarioId === autorId || !c.state.aviso?.arquivos.includes(caminho)) continue;
+      dono = { usuarioId: c.state.usuarioId, resumo: c.state.aviso.resumo };
+      break;
+    }
+    if (!dono) return;
+    const evento = (() => {
+      try {
+        return this.feed.reserva(autorId, dono.usuarioId, caminho, dono.resumo);
+      } catch (e) {
+        console.error(JSON.stringify({ nivel: "erro", evento: "feed_reserva", erro: String(e) }));
+        return null;
+      }
+    })();
+    if (evento) this.paraAsPaginas(JSON.stringify({ v: 1, tipo: "feed", eventos: [evento], inicial: false } satisfies MensagemFeed));
+    const pedida: MensagemReservaPedida = { v: 1, tipo: "reserva_pedida", autorId, caminho, donoId: dono.usuarioId };
+    const texto = JSON.stringify(pedida);
+    for (const c of this.getConnections<Estado>()) if (c.state?.via === "conector" && c.state.usuarioId === dono.usuarioId) c.send(texto);
   }
 
   // O aviso acabou antes do status (prompt novo depois de um Esc, aviso

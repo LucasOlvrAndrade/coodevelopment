@@ -254,3 +254,21 @@ describe("aviso e sem aviso no feed (Story 4.2)", () => {
     expect(linhas[1]).not.toHaveTextContent("sem aviso");
   });
 });
+
+describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
+  it("todos veem quem pediu, o arquivo, de quem é o aviso e que a edição espera confirmação (AC 2)", async () => {
+    await pagina("pai");
+    feed([{ ...comum, id: 1, tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login com Google" }], true);
+    const [item] = itens();
+    expect(item).toHaveTextContent("Claude Code de Lucas Andrade pediu para mexer em src/auth.ts, que o seu anunciou");
+    expect(item).toHaveTextContent("Aviso do seu Claude Code: “Login com Google”. A edição só segue se Lucas Andrade confirmar no Claude Code.");
+  });
+
+  it("do lado de quem pediu", async () => {
+    await pagina("lucas");
+    feed([{ ...comum, id: 1, tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login" }], true);
+    const [item] = itens();
+    expect(item).toHaveTextContent("Seu Claude Code pediu para mexer em src/auth.ts, que o de Kelson anunciou");
+    expect(item).toHaveTextContent("A edição só segue se você confirmar");
+  });
+});

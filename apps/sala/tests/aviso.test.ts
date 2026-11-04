@@ -214,3 +214,30 @@ describe("aviso limpo na sala (gate da 4.3, SEC-001 e SEC-002)", () => {
     pai.ws.close();
   });
 });
+
+describe("pedido para mexer em arquivo de outro (Story 4.4)", () => {
+  it("vira item do feed para as páginas e aviso ao conector de quem anunciou; sem dono, nada (AC 2)", async () => {
+    const pai = await conectar("jam-reserva", "pai", "conector");
+    const lucas = await conectar("jam-reserva", "lucas", "conector");
+    const pagina = await conectar("jam-reserva", "tia", "pagina");
+    if (!pagina.recebidas.some(claudes)) await pagina.proxima(claudes);
+    const anunciado = pagina.proxima((m) => claudes(m) && JSON.stringify(m).includes("src/auth.ts"));
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    pai.enviar({ tipo: "aviso", resumo: "Login com Google", arquivos: ["src/auth.ts"] });
+    await anunciado;
+
+    const item = pagina.proxima(feedVivo("reserva"));
+    const pedida = pai.proxima((m) => m.tipo === "reserva_pedida");
+    lucas.enviar({ tipo: "reserva", caminho: "./src/auth.ts" });
+    expect(await item).toMatchObject({ eventos: [{ tipo: "reserva", autorId: "lucas", donoId: "pai", caminho: "src/auth.ts", resumo: "Login com Google" }] });
+    expect(await pedida).toMatchObject({ autorId: "lucas", caminho: "src/auth.ts", donoId: "pai" });
+
+    // Arquivo sem dono, ou o próprio arquivo do autor: nada.
+    lucas.enviar({ tipo: "reserva", caminho: "src/livre.ts" });
+    pai.enviar({ tipo: "reserva", caminho: "src/auth.ts" });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(pagina.recebidas.filter(feedVivo("reserva"))).toHaveLength(1);
+    expect(lucas.recebidas.some((m) => m.tipo === "reserva_pedida")).toBe(false);
+    for (const c of [pai, lucas, pagina]) c.ws.close();
+  });
+});

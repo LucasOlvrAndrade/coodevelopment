@@ -155,3 +155,56 @@ describe("resumo só de caracteres invisíveis (gate da 4.3, TEST-003)", () => {
     expect(status.avisoAtivo).toBe(false);
   });
 });
+
+describe("arquivo no aviso de outro (Story 4.4)", () => {
+  const pasta = process.cwd();
+  const editar = (sessao: string, caminho: string) => ({ session_id: sessao, tool_name: "Edit", file_path: `${pasta}/${caminho}` });
+
+  function preparar() {
+    const status = new StatusDoClaude(() => {}, Date.now, pasta);
+    const ctx = new ContextoDosOutros("lucas", nomes);
+    const reservas: string[] = [];
+    const responder = (nome: string, corpo: Record<string, unknown>) => responderAoHook(status, ctx, nome, corpo, (r) => reservas.push(`${r.caminho}:${r.donoId}`));
+    responder("UserPromptSubmit", { session_id: "s1" });
+    status.anunciar("Meu plano", ["src/auth.ts"], "s1");
+    ctx.atualizar(claudes(doPai));
+    return { status, ctx, reservas, responder };
+  }
+
+  it("pede confirmação com quem anunciou e por quê; o terminal e a sala sabem uma vez (AC 1 e 2)", () => {
+    const { reservas, responder } = preparar();
+    const r = responder("PreToolUse", editar("s1", "src/auth.ts"));
+    expect(r).toEqual({ decisao: "perguntar", motivo: expect.stringContaining('`src/auth.ts` está no aviso do Claude Code de Kelson: "Login com Google"') });
+    expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBe("perguntar");
+    expect(reservas).toEqual(["src/auth.ts:pai"]);
+    // Arquivo que não é de ninguém: segue.
+    expect(responder("PreToolUse", editar("s1", "src/outro.ts"))?.decisao).toBeUndefined();
+  });
+
+  it("confirmada (a ferramenta rodou), não pergunta de novo na mesma sessão; outra sessão e aviso novo perguntam (AC 3)", () => {
+    const { ctx, responder, status, reservas } = preparar();
+    responder("PreToolUse", editar("s1", "src/auth.ts"));
+    responder("PostToolUse", editar("s1", "src/auth.ts"));
+    expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBeUndefined();
+    responder("UserPromptSubmit", { session_id: "s2" });
+    status.anunciar("Outro plano", ["src/auth.ts"], "s2");
+    expect(responder("PreToolUse", editar("s2", "src/auth.ts"))?.decisao).toBe("perguntar");
+    ctx.atualizar(claudes({ ...doPai, resumo: "Login, parte 2" }));
+    expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBe("perguntar");
+    expect(reservas).toEqual(["src/auth.ts:pai", "src/auth.ts:pai"]);
+  });
+
+  it("a reserva acaba quando o Claude de quem anunciou termina (AC 4)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes());
+    expect(responder("PreToolUse", editar("s1", "src/auth.ts"))?.decisao).toBeUndefined();
+  });
+
+  it("sem aviso, a recusa vem antes da pergunta; o anunciar mostra os arquivos de outro", () => {
+    const status = new StatusDoClaude(() => {}, Date.now, pasta);
+    const ctx = new ContextoDosOutros("lucas", nomes);
+    ctx.atualizar(claudes(doPai));
+    expect(responderAoHook(status, ctx, "PreToolUse", editar("s9", "src/auth.ts"))?.decisao).toBe("recusar");
+    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google" }]);
+  });
+});

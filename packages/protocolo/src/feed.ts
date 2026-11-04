@@ -180,6 +180,9 @@ export const eventoFeed = z.discriminatedUnion("tipo", [
   // Arquivos acima do limite, que não foram para a jam (A14), agrupados como
   // os outros (gate da 3.4, SEC-001).
   z.object({ ...comum, tipo: z.literal("grande"), arquivos: z.array(arquivoGrande).max(ARQUIVOS_POR_ITEM), outros }),
+  // O Claude do autor pediu para mexer num arquivo do aviso ativo de outro
+  // (donoId), e a edição espera a confirmação de quem pediu (Story 4.4, FR16).
+  z.object({ ...comum, tipo: z.literal("reserva"), caminho, donoId: z.string(), resumo: z.string().max(300) }),
 ]);
 
 // Sala → página: itens novos ou atualizados (o mesmo id substitui o

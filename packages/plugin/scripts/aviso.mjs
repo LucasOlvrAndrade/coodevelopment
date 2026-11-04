@@ -61,7 +61,8 @@ export function corpoDoAviso(entrada) {
     hook_event_name: entrada.hook_event_name,
     error: entrada.error ?? entrada.error_type ?? null,
     reason: entrada.reason ?? null,
-    ...(entrada.hook_event_name === "PreToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null } : {}),
+    // Do PostToolUse também: a edição perguntada rodou (Story 4.4).
+    ...(entrada.hook_event_name === "PreToolUse" || entrada.hook_event_name === "PostToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null } : {}),
     // O anunciar passa pelo hook com a sessão: o aviso fica com ela (gate da 4.2, REL-001).
     ...(entrada.tool_name === FERRAMENTA_ANUNCIAR ? { resumo: entrada.tool_input?.resumo ?? null, arquivos: entrada.tool_input?.arquivos ?? [] } : {}),
   };
@@ -78,12 +79,13 @@ export function recusa(motivo) {
 export function saida(evento, corpo) {
   if (!corpo || typeof corpo !== "object") return null;
   const contexto = typeof corpo.contexto === "string" && corpo.contexto ? corpo.contexto : null;
-  const recusar = evento === "PreToolUse" && corpo.decisao === "recusar" && typeof corpo.motivo === "string";
-  if (!recusar && !contexto) return null;
+  // Recusar (sem aviso, FR14) ou perguntar à pessoa (arquivo de outro, FR16).
+  const decisao = evento === "PreToolUse" && typeof corpo.motivo === "string" ? { recusar: "deny", perguntar: "ask" }[corpo.decisao] : undefined;
+  if (!decisao && !contexto) return null;
   return {
     hookSpecificOutput: {
       hookEventName: evento,
-      ...(recusar ? { permissionDecision: "deny", permissionDecisionReason: corpo.motivo } : {}),
+      ...(decisao ? { permissionDecision: decisao, permissionDecisionReason: corpo.motivo } : {}),
       ...(contexto ? { additionalContext: contexto } : {}),
     },
   };
