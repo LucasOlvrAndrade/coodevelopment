@@ -87,6 +87,39 @@ describe("aviso.mjs", () => {
   });
 });
 
+describe("hook.mjs com a pergunta (gate da 4.4, TEST-004)", () => {
+  const edicao = (cwd: string) => ({ session_id: "s1", cwd, hook_event_name: "PreToolUse", tool_name: "Edit", tool_use_id: "t1", tool_input: { file_path: "a.ts", new_string: "segredo" } });
+
+  it("avisa que a pergunta saiu, com a mesma chamada, e devolve o ask", async () => {
+    const conector = await conectorFalso((url) => (url === "/hook/PreToolUse" ? { decisao: "perguntar", motivo: "de Kelson" } : undefined));
+    try {
+      const local = temporaria();
+      const projeto = temporaria();
+      registrar(join(local, "coodevelopment"), projeto, conector.porta);
+      const r = await rodarHook(edicao(projeto), { LOCALAPPDATA: local, CLAUDE_PROJECT_DIR: projeto });
+      expect(JSON.parse(r.saida)).toMatchObject({ hookSpecificOutput: { permissionDecision: "ask" } });
+      expect(conector.recebidos.map((x) => x.url)).toEqual(["/hook/PreToolUse", "/hook/PerguntaEntregue"]);
+      expect(conector.recebidos[1]!.corpo).toMatchObject({ session_id: "s1", tool_name: "Edit", file_path: "a.ts", tool_use_id: "t1" });
+      expect(JSON.stringify(conector.recebidos)).not.toContain("segredo\"");
+    } finally {
+      await conector.fechar();
+    }
+  });
+
+  it("sem pergunta, não avisa entrega", async () => {
+    const conector = await conectorFalso((url) => (url === "/hook/PreToolUse" ? { decisao: "recusar", motivo: "anuncie antes" } : undefined));
+    try {
+      const local = temporaria();
+      const projeto = temporaria();
+      registrar(join(local, "coodevelopment"), projeto, conector.porta);
+      await rodarHook(edicao(projeto), { LOCALAPPDATA: local, CLAUDE_PROJECT_DIR: projeto });
+      expect(conector.recebidos.map((x) => x.url)).toEqual(["/hook/PreToolUse"]);
+    } finally {
+      await conector.fechar();
+    }
+  });
+});
+
 describe("hook.mjs rodando como o Claude Code roda (AC 4 e 5)", () => {
   it("com a jam: avisa o conector com o segredo, sem escrever nada na saída", async () => {
     const conector = await conectorFalso();

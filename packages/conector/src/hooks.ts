@@ -27,8 +27,9 @@ const motivo = (erro: unknown): MotivoDeParada =>
 // Sem nenhum evento por esse tempo, a sessão conta como parada: o Stop não
 // vem quando a pessoa interrompe com Esc nem quando a janela é fechada à
 // força (gate da 4.1, REL-001). O início e o fim de cada ferramenta renovam.
-// Maior que o tempo máximo de um comando (10 min): a reserva do aviso não pode
-// acabar com o Claude ainda rodando uma ferramenta (gate da 4.4, REL-010).
+// Maior que o tempo máximo de um comando (10 min), para a reserva não acabar
+// com o Claude rodando uma ferramenta (gate da 4.4, REL-010). Em troca, com a
+// janela fechada à força, o aviso dura até uns 21 min (a varredura é por minuto).
 export const SESSAO_VALE_MS = 20 * 60 * 1000;
 
 const TERMINA = new Set(["Stop", "StopFailure", "SessionEnd", "Notification"]);

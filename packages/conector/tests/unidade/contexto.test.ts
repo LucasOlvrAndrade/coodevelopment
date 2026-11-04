@@ -102,6 +102,16 @@ describe("ContextoDosOutros", () => {
     expect(ctx.paraPrompt("s1")).not.toMatch(/caiu/);
   });
 
+  it("muitos avisos cabem no teto, com o resto em 'e mais N' (gate da 4.4, REL-020)", () => {
+    const ctx = new ContextoDosOutros("lucas", nomes);
+    const avisos = Array.from({ length: 20 }, (_, i) => ({ id: `a${i}`, resumo: "r".repeat(300), arquivos: [`src/${i}.ts`] }));
+    ctx.atualizar(claudes({ ...doPai, avisos }));
+    const texto = ctx.texto()!;
+    expect(texto.length).toBeLessThanOrEqual(4000);
+    expect(texto).toMatch(/E mais \d+ avisos/);
+    expect(ctx.donoDe("src/19.ts")).toMatchObject({ donoId: "pai" });
+  });
+
   it("o texto tem teto; nome e resumo de todos ficam, a lista de arquivos encurta (gate PERF-001 e REL-005)", () => {
     const ctx = new ContextoDosOutros("lucas", nomes);
     const resumo = "r".repeat(300);

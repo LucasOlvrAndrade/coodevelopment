@@ -52,6 +52,9 @@ const ARQUIVOS_NO_TEXTO = 20;
 const NOME_MAXIMO = 60;
 const CAMINHO_MAXIMO = 200;
 const TEXTO_MAXIMO = 4000;
+// O que guardar para a linha "e mais N" e para a menor lista de arquivos.
+const RESERVA_DO_FIM = 90;
+const RESERVA_DA_LISTA = 40;
 
 // Quantas sessões do Claude o conector lembra do que já entregou.
 const SESSOES_LEMBRADAS = 50;
@@ -78,7 +81,7 @@ export const RODAPE =
   "Evite mexer nos arquivos anunciados por outra pessoa e não desfaça o trabalho dela; se precisar mexer, diga isso a quem está falando com você antes.";
 
 export const NINGUEM_MAIS =
-  "Coodevelopment: os outros participantes desta jam não têm mais aviso ativo; os arquivos que eles tinham anunciado estão livres.";
+  "Coodevelopment: os outros participantes desta jam não têm mais aviso ativo na sala; os arquivos que eles tinham anunciado não pedem mais confirmação.";
 
 const hora = (ms: number) => new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -230,15 +233,26 @@ export class ContextoDosOutros {
     // Nome e resumo de cada um sempre entram (no máximo uns 430 caracteres
     // por pessoa); o que sobra do teto é dividido entre as listas de
     // arquivos, que encurtam em "e mais N" (gate da 4.3, REL-005).
-    const inicios = this.avisos.map((a) => {
+    // Muitos avisos (sessões e pessoas somadas): os mais antigos da lista viram
+    // "e mais N", para o texto caber no teto (gate da 4.4, REL-020).
+    const todas = this.avisos.map((a) => {
       const nome = this.nomeDe(a.usuarioId);
       const queda = a.queda ? " A conexão dessa pessoa caiu há pouco; o aviso pode estar desatualizado, mas continua valendo." : "";
       return `- Claude Code de ${nome}, trabalhando desde ${hora(Date.parse(a.desde))}: "${limpar(a.resumo)}".${queda}`;
     });
-    const fixo = [...cabeca, ...inicios, RODAPE].join("\n").length;
-    const porPessoa = Math.max(0, Math.floor((TEXTO_MAXIMO - fixo) / this.avisos.length));
-    const linhas = this.avisos.map((a, i) => `${inicios[i]}${this.listaDeArquivos(a.arquivos, porPessoa)}`);
-    return [...cabeca, ...linhas, RODAPE].join("\n");
+    const inicios: string[] = [];
+    let ocupado = [...cabeca, RODAPE].join("\n").length + RESERVA_DO_FIM;
+    for (const inicio of todas) {
+      if (ocupado + inicio.length + 1 + RESERVA_DA_LISTA > TEXTO_MAXIMO) break;
+      inicios.push(inicio);
+      ocupado += inicio.length + 1;
+    }
+    const resto = todas.length - inicios.length;
+    const fim = resto > 0 ? [`- E mais ${resto} ${resto === 1 ? "aviso" : "avisos"}; editar um arquivo deles também pede confirmação.`] : [];
+    const fixo = [...cabeca, ...inicios, ...fim, RODAPE].join("\n").length;
+    const porPessoa = Math.max(0, Math.floor((TEXTO_MAXIMO - fixo) / Math.max(1, inicios.length)));
+    const linhas = inicios.map((inicio, i) => `${inicio}${this.listaDeArquivos(this.avisos[i]!.arquivos, porPessoa)}`);
+    return [...cabeca, ...linhas, ...fim, RODAPE].join("\n");
   }
 
   // Os arquivos de uma pessoa dentro do espaço dela.
