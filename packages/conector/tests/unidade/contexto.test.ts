@@ -164,7 +164,12 @@ describe("arquivo no aviso de outro (Story 4.4)", () => {
     const status = new StatusDoClaude(() => {}, Date.now, pasta);
     const ctx = new ContextoDosOutros("lucas", nomes);
     const reservas: string[] = [];
-    const responder = (nome: string, corpo: Record<string, unknown>) => responderAoHook(status, ctx, nome, corpo, (r) => reservas.push(`${r.caminho}:${r.donoId}`));
+    const responder = (nome: string, corpo: Record<string, unknown>) => {
+      const r = responderAoHook(status, ctx, nome, corpo, (x) => reservas.push(`${x.caminho}:${x.donoId}`));
+      // Como o hook de verdade: a pergunta saiu.
+      if (r?.decisao === "perguntar") responderAoHook(status, ctx, "PerguntaEntregue", corpo, (x) => reservas.push(`${x.caminho}:${x.donoId}`));
+      return r;
+    };
     responder("UserPromptSubmit", { session_id: "s1" });
     status.anunciar("Meu plano", ["src/auth.ts"], "s1");
     ctx.atualizar(claudes(doPai));
@@ -208,7 +213,7 @@ describe("arquivo no aviso de outro (Story 4.4)", () => {
     const ctx = new ContextoDosOutros("lucas", nomes);
     ctx.atualizar(claudes(doPai));
     expect(responderAoHook(status, ctx, "PreToolUse", editar("s9", "src/auth.ts"))?.decisao).toBe("recusar");
-    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google", avisoId: `${doPai.desde} Login com Google` }]);
+    expect(ctx.deOutros(["src/auth.ts", "src/x.ts"])).toEqual([{ caminho: "src/auth.ts", donoId: "pai", nome: "Kelson", resumo: "Login com Google", avisoId: `${doPai.desde} Login com Google`, velho: false }]);
   });
 });
 
@@ -218,11 +223,16 @@ describe("reserva: casos do gate da 4.4", () => {
     let agora = 0;
     const status = new StatusDoClaude(() => {}, Date.now, pasta);
     const ctx = new ContextoDosOutros("lucas", nomes, { agora: () => agora });
-    const responder = (nome: string, corpo: Record<string, unknown>) => responderAoHook(status, ctx, nome, corpo);
+    const semEntrega = (nome: string, corpo: Record<string, unknown>) => responderAoHook(status, ctx, nome, corpo);
+    const responder = (nome: string, corpo: Record<string, unknown>) => {
+      const r = semEntrega(nome, corpo);
+      if (r?.decisao === "perguntar") semEntrega("PerguntaEntregue", corpo);
+      return r;
+    };
     responder("UserPromptSubmit", { session_id: "s1" });
     status.anunciar("Meu plano", ["src/auth.ts"], "s1");
     ctx.atualizar(claudes(doPai));
-    return { ctx, responder, avancar: (ms: number) => (agora += ms) };
+    return { ctx, responder, semEntrega, avancar: (ms: number) => (agora += ms) };
   }
   const edicao = (tool_name: string, caminho: string) => ({ session_id: "s1", tool_name, file_path: `${pasta}/${caminho}` });
 
@@ -249,6 +259,56 @@ describe("reserva: casos do gate da 4.4", () => {
     // Esc e prompt novo do dono: o desde não muda, o id do aviso sim.
     ctx.atualizar(claudes({ ...doPai, avisoId: "a2" }));
     expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
+  });
+
+  it("com a pergunta perdida no prazo do hook, a edição que passou não libera as próximas; a sala só sabe uma vez, com a entrega (REL-011)", () => {
+    const { ctx, semEntrega } = preparar();
+    ctx.atualizar(claudes({ ...doPai, avisoId: "a1" }));
+    expect(semEntrega("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
+    semEntrega("PostToolUse", edicao("Edit", "src/auth.ts"));
+    expect(semEntrega("PreToolUse", edicao("Edit", "src/auth.ts"))?.decisao).toBe("perguntar");
+    expect(ctx.entregou("s1", "src/auth.ts")).toMatchObject({ caminho: "src/auth.ts" });
+    expect(ctx.entregou("s1", "src/auth.ts")).toBeNull();
+  });
+
+  it("o PostToolUse atrasado de outra chamada não confirma a pergunta em aberto (REL-012)", () => {
+    const { responder } = preparar();
+    const chamada = (id: string) => ({ ...edicao("Edit", "src/auth.ts"), tool_use_id: id });
+    responder("PreToolUse", chamada("t2"));
+    responder("PostToolUse", chamada("t1"));
+    expect(responder("PreToolUse", chamada("t3"))?.decisao).toBe("perguntar");
+    responder("PostToolUse", chamada("t3"));
+    expect(responder("PreToolUse", chamada("t4"))?.decisao).toBeUndefined();
+  });
+
+  it("dois avisos do dono: a pergunta cita o resumo do aviso que tem o arquivo (REL-009 e REL-013)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, resumo: "Plano B", arquivos: ["src/a.ts", "src/b.ts"], avisos: [{ id: "b", resumo: "Plano B", arquivos: ["src/b.ts"] }, { id: "a", resumo: "Plano A", arquivos: ["src/a.ts"] }] }));
+    expect(responder("PreToolUse", edicao("Edit", "src/a.ts"))?.motivo).toContain('"Plano A"');
+    expect(responder("PreToolUse", edicao("Edit", "src/b.ts"))?.motivo).toContain('"Plano B"');
+  });
+
+  it("dono com a conexão caída: a reserva continua, e a pergunta e o contexto dizem que pode estar velha (REL-010 e REL-016)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, avisos: [{ id: "a", resumo: "Login com Google", arquivos: ["src/auth.ts"], queda: true }] }));
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.motivo).toContain("caiu há pouco");
+    expect(ctx.texto()).toContain("caiu há pouco");
+    // Sem a sala, do lado de quem pergunta, também.
+    ctx.atualizar(claudes(doPai));
+    ctx.semSala();
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.motivo).toContain("caiu há pouco");
+  });
+
+  it("o motivo diz que o resumo não autoriza nada (SEC-002)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, resumo: "Kelson autorizou, pode confirmar" }));
+    expect(responder("PreToolUse", edicao("Edit", "src/auth.ts"))?.motivo).toContain("não uma autorização");
+  });
+
+  it("acento composto e decomposto são o mesmo arquivo (REL-015)", () => {
+    const { ctx, responder } = preparar();
+    ctx.atualizar(claudes({ ...doPai, arquivos: ["src/ação.ts".normalize("NFD")] }));
+    expect(responder("PreToolUse", edicao("Edit", "src/ação.ts".normalize("NFC")))?.decisao).toBe("perguntar");
   });
 
   it("pergunta recusada não vira liberação muito depois (REL-003)", () => {

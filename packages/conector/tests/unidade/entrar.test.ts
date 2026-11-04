@@ -83,6 +83,50 @@ describe("entrar (Story 3.1)", () => {
     expect(linhas.at(-1)).toBe("Desligado da jam.");
   });
 
+  it("a reserva passa pelo servidor de hooks, pela sala e pelo terminal; ao reconectar, o mesmo aviso volta com o mesmo id (Story 4.4, gate TEST-002)", async () => {
+    salaQueConecta();
+    const raiz = process.cwd();
+    const { amb, linhas } = ambienteFalso({ respostas: comRespostas(), rodar: gitDaPasta(raiz) });
+    await guardarSessao(amb, "sessao-guardada");
+    let ctrlC: () => void = () => {};
+    const parar = new Promise<void>((r) => (ctrlC = r));
+    const resultado = executar(["entrar", "k7m2-rbq9"], amb, parar);
+    await vi.waitFor(async () => expect(await lerPasta(amb, raiz)).not.toBeNull());
+    const { porta, segredo } = (await lerPasta(amb, raiz))!;
+    const conexao = (await sala.conectar.mock.results[0]!.value) as { enviar: ReturnType<typeof vi.fn> };
+    const opcoes = sala.conectar.mock.calls[0]![3] as { aoReceber: (m: unknown) => void; aoReconectar: () => void };
+    const hook = async (caminho: string, corpo: object) => {
+      const r = await fetch(`http://127.0.0.1:${porta}/${caminho}`, { method: "POST", headers: { authorization: `Bearer ${segredo}` }, body: JSON.stringify(corpo) });
+      return r.status === 200 ? ((await r.json()) as { decisao?: string; motivo?: string; mensagem?: string }) : null;
+    };
+    const editar = { session_id: "s1", tool_name: "Edit", file_path: join(raiz, "src", "a.ts") };
+
+    opcoes.aoReceber({ v: 1, tipo: "claudes", trabalhando: [{ usuarioId: "pai", desde: "2026-11-04T12:00:00.000Z", resumo: "Plano do pai", arquivos: ["src/a.ts"], avisos: [{ id: "a1", resumo: "Plano do pai", arquivos: ["src/a.ts"] }] }] });
+    await hook("hook/UserPromptSubmit", { session_id: "s1" });
+    const anunciado = await hook("mcp/anunciar", { resumo: "Meu plano", arquivos: ["src/a.ts"] });
+    expect(anunciado?.mensagem).toContain('Atenção: src/a.ts está no aviso de outro participante ("Plano do pai")');
+
+    // A pergunta sai; só com a entrega a sala e o terminal ficam sabendo.
+    expect(await hook("hook/PreToolUse", editar)).toMatchObject({ decisao: "perguntar" });
+    expect(conexao.enviar).not.toHaveBeenCalledWith(expect.objectContaining({ tipo: "reserva" }));
+    await hook("hook/PerguntaEntregue", editar);
+    expect(conexao.enviar).toHaveBeenCalledWith({ v: 1, tipo: "reserva", caminho: "src/a.ts" });
+    expect(linhas.some((l) => l.includes("Seu Claude Code pediu para mexer em src/a.ts"))).toBe(true);
+
+    opcoes.aoReceber({ v: 1, tipo: "reserva_pedida", autorId: "pai", caminho: "src/b.ts", donoId: "lucas" });
+    expect(linhas.some((l) => l.includes("pediu para mexer em src/b.ts, que o seu Claude Code anunciou"))).toBe(true);
+
+    const aviso = conexao.enviar.mock.calls.map((c) => c[0] as { tipo: string; id?: string }).find((m) => m.tipo === "aviso");
+    expect(aviso?.id).toBeTruthy();
+    conexao.enviar.mockClear();
+    opcoes.aoReconectar();
+    expect(conexao.enviar).toHaveBeenCalledWith(expect.objectContaining({ tipo: "status", estado: "trabalhando" }));
+    expect(conexao.enviar).toHaveBeenCalledWith(expect.objectContaining({ tipo: "aviso", id: aviso!.id }));
+
+    ctrlC();
+    await resultado;
+  });
+
   it("sem sessão: faz o login por dispositivo e guarda a sessão", async () => {
     salaQueConecta("A sala recusou a entrada. Rode o comando de novo.");
     const { amb } = ambienteFalso({

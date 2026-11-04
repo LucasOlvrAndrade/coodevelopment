@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Ambiente } from "../../src/ambiente";
 import { registrarPasta } from "../../src/descoberta";
-import { FERRAMENTA_ANUNCIAR, MOTIVO_SEM_AVISO, StatusDoClaude, abrirServidorDeHooks } from "../../src/hooks";
+import { FERRAMENTA_ANUNCIAR, MOTIVO_SEM_AVISO, StatusDoClaude, abrirServidorDeHooks, SESSAO_VALE_MS } from "../../src/hooks";
 
 // Story 4.2: o anunciar do servidor MCP do plugin e a recusa da edição sem
 // aviso, com os scripts de verdade rodando como o Claude Code roda.
@@ -28,7 +28,7 @@ describe("StatusDoClaude: aviso (Story 4.2)", () => {
     const enviadas: MensagemDoConector[] = [];
     const s = new StatusDoClaude((m) => enviadas.push(m), Date.now, pasta);
     const m = s.anunciar("  Login com Google  ", [join(pasta, "src", "auth.ts"), "src/login.tsx", "src\\auth.ts", "../fora.txt", join(tmpdir(), "outro.txt")]);
-    expect(m).toEqual({ v: 1, tipo: "aviso", resumo: "Login com Google", arquivos: ["src/auth.ts", "src/login.tsx"] });
+    expect(m).toEqual({ v: 1, tipo: "aviso", id: expect.any(String), resumo: "Login com Google", arquivos: ["src/auth.ts", "src/login.tsx"] });
     expect(mensagemDoConector.safeParse(m).success).toBe(true);
     expect(enviadas).toEqual([m]);
     expect(s.avisoAtual).toEqual(m);
@@ -88,10 +88,40 @@ describe("aviso por sessão (gate da 4.2)", () => {
     enviadas.length = 0;
     sozinho.anunciar("Sem hook", []);
     expect(sozinho.decidirEdicao({ file_path: "x.ts", session_id: "z" })).toBeNull();
-    agora += 11 * 60 * 1000;
+    agora += SESSAO_VALE_MS + 1000;
     sozinho.vencer();
     expect(sozinho.avisoAtivo).toBe(false);
     expect(enviadas.map((m) => m.tipo)).toEqual(["aviso", "aviso_fim"]);
+  });
+
+  it("cada sessão tem o seu aviso: os dois vão à sala, com ids estáveis; aviso que acaba e volta igual é outro (gate da 4.4, REL-007 e REL-009)", () => {
+    let agora = 0;
+    const enviadas: MensagemDoConector[] = [];
+    const s = new StatusDoClaude((m) => enviadas.push(m), () => ++agora, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.evento("UserPromptSubmit", { session_id: "b" });
+    const a = s.anunciar("Plano A", ["a.ts"], "a");
+    const b = s.anunciar("Plano B", ["b.ts"], "b");
+    expect(s.avisoAtual).toEqual({ ...b, outros: [{ id: a.id, resumo: "Plano A", arquivos: ["a.ts"] }] });
+    expect(mensagemDoConector.safeParse(s.avisoAtual).success).toBe(true);
+    // A sessão A repete: o mesmo id, e agora ela é a mais recente.
+    expect(s.anunciar("Plano A", ["a.ts"], "a").id).toBe(a.id);
+    expect(s.avisoAtual).toMatchObject({ id: a.id, outros: [{ id: b.id }] });
+    // Prompt novo encerra o aviso da sessão A; o mesmo texto é aviso novo.
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    expect(s.anunciar("Plano A", ["a.ts"], "a").id).not.toBe(a.id);
+  });
+
+  it("o início de uma ferramenta renova a sessão (gate da 4.4, REL-010)", () => {
+    let agora = 0;
+    const s = new StatusDoClaude(() => {}, () => agora, temporaria());
+    s.evento("UserPromptSubmit", { session_id: "a" });
+    s.anunciar("Plano", ["a.ts"], "a");
+    agora += SESSAO_VALE_MS - 1000;
+    s.preToolUse({ tool_name: "Edit", session_id: "a", file_path: "a.ts" });
+    agora += SESSAO_VALE_MS - 1000;
+    s.vencer();
+    expect(s.avisoAtivo).toBe(true);
   });
 
   it("MCP que chega muito depois do hook (aprovação demorada) ou com espaço no caminho não vira aviso sem sessão (REL-004)", () => {
@@ -188,7 +218,7 @@ describe("servidor MCP do plugin (AC 1 e 4)", () => {
       expect(ferramenta.description).toMatch(/comandos de terminal/);
       expect(respostas[2].result).toEqual({ content: [{ type: "text", text: "Anunciado para a jam: Login com Google. Pode editar." }] });
       expect(respostas[3].error).toMatchObject({ code: -32601 });
-      expect(j.enviadas).toEqual([{ v: 1, tipo: "aviso", resumo: "Login com Google", arquivos: ["src/auth.ts"] }]);
+      expect(j.enviadas).toEqual([{ v: 1, tipo: "aviso", id: expect.any(String), resumo: "Login com Google", arquivos: ["src/auth.ts"] }]);
     } finally {
       await j.servidor.fechar();
     }

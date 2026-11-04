@@ -1,6 +1,7 @@
 import {
   ARQUIVOS_DO_AVISO,
   MOTIVOS_DE_PARADA,
+  OUTROS_AVISOS,
   RESUMO_MAXIMO,
   normalizarCaminho,
   textoLimpo,
@@ -9,7 +10,7 @@ import {
   type MensagemStatus,
   type MotivoDeParada,
 } from "@coodevelopment/protocolo";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type ServerResponse } from "node:http";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -25,8 +26,10 @@ const motivo = (erro: unknown): MotivoDeParada =>
 
 // Sem nenhum evento por esse tempo, a sessão conta como parada: o Stop não
 // vem quando a pessoa interrompe com Esc nem quando a janela é fechada à
-// força (gate da 4.1, REL-001). O fim de cada ferramenta renova.
-export const SESSAO_VALE_MS = 10 * 60 * 1000;
+// força (gate da 4.1, REL-001). O início e o fim de cada ferramenta renovam.
+// Maior que o tempo máximo de um comando (10 min): a reserva do aviso não pode
+// acabar com o Claude ainda rodando uma ferramenta (gate da 4.4, REL-010).
+export const SESSAO_VALE_MS = 20 * 60 * 1000;
 
 const TERMINA = new Set(["Stop", "StopFailure", "SessionEnd", "Notification"]);
 
@@ -44,7 +47,9 @@ export const MOTIVO_SEM_AVISO = `Esta pasta está numa jam do Coodevelopment, co
 // em que foi dado e termina no prompt seguinte ou no fim da sessão. A sessão
 // vem do PreToolUse da própria ferramenta anunciar; o anunciar pelo MCP, que
 // não sabe a sessão, só vale sozinho quando esse hook não chegou.
-type Aviso = { resumo: string; arquivos: string[]; em: number };
+// O id nasce aqui e acompanha o aviso, para a sala e os outros conectores
+// reconhecerem o mesmo aviso depois de uma reconexão (gate da 4.4, REL-007).
+type Aviso = { id: string; resumo: string; arquivos: string[]; em: number };
 
 // Chave do aviso que chegou só pelo MCP, sem a sessão.
 const SEM_SESSAO = "";
@@ -76,11 +81,22 @@ export class StatusDoClaude {
     return this.avisos.size > 0;
   }
 
-  // O aviso mais recente, como mensagem para a sala (também ao reconectar).
+  // O aviso mais recente, como mensagem para a sala (também ao reconectar),
+  // com os das outras sessões desta pasta (gate da 4.4, REL-009).
   get avisoAtual(): MensagemAviso | null {
-    let ultimo: Aviso | null = null;
-    for (const a of this.avisos.values()) if (!ultimo || a.em >= ultimo.em) ultimo = a;
-    return ultimo ? { v: 1, tipo: "aviso", resumo: ultimo.resumo, arquivos: ultimo.arquivos } : null;
+    const todos = [...this.avisos.values()].reverse().sort((a, b) => b.em - a.em);
+    const ultimo = todos[0];
+    if (!ultimo) return null;
+    const outros = new Map<string, { id: string; resumo: string; arquivos: string[] }>();
+    for (const { id, resumo, arquivos } of todos) if (id !== ultimo.id && !outros.has(id)) outros.set(id, { id, resumo, arquivos });
+    return {
+      v: 1,
+      tipo: "aviso",
+      id: ultimo.id,
+      resumo: ultimo.resumo,
+      arquivos: ultimo.arquivos,
+      ...(outros.size ? { outros: [...outros.values()].slice(0, OUTROS_AVISOS) } : {}),
+    };
   }
 
   // O caminho relativo à pasta da jam, ou null fora dela.
@@ -95,20 +111,20 @@ export class StatusDoClaude {
   // caracteres, não entra; gate da 4.2, DATA-001).
   anunciar(resumo: string, arquivos: string[], sessao: string = SEM_SESSAO): MensagemAviso {
     const relativos = arquivos.map((a) => this.relativo(a)).filter((a): a is string => Boolean(a) && a!.length <= 1024);
-    const mensagem: MensagemAviso = {
-      v: 1,
-      tipo: "aviso",
-      // Limpo como a sala limpa: resumo só de caracteres invisíveis é vazio (gate da 4.3, REL-006).
-      resumo: textoLimpo(resumo).slice(0, RESUMO_MAXIMO),
-      arquivos: [...new Set(relativos)].slice(0, ARQUIVOS_DO_AVISO),
-    };
+    // Limpo como a sala limpa: resumo só de caracteres invisíveis é vazio (gate da 4.3, REL-006).
+    const texto = textoLimpo(resumo).slice(0, RESUMO_MAXIMO);
+    const lista = [...new Set(relativos)].slice(0, ARQUIVOS_DO_AVISO);
+    // O mesmo aviso ainda ativo mantém o id (o hook e o MCP da mesma chamada, a
+    // mesma sessão repetindo); aviso que já acabou e volta igual é aviso novo.
+    const id = [...this.avisos.values()].find((a) => a.resumo === texto && a.arquivos.join("\n") === lista.join("\n"))?.id ?? randomUUID();
+    const mensagem: MensagemAviso = { v: 1, tipo: "aviso", id, resumo: texto, arquivos: lista };
     // O MCP repetindo o que o hook da mesma chamada já registrou, mesmo que a
     // aprovação do MCP tenha demorado (gate da 4.2, REL-004): basta o resumo
     // de um aviso de sessão; perto no tempo, também os arquivos.
     const igual = ([chave, a]: [string, Aviso]) =>
       chave !== SEM_SESSAO && a.resumo === mensagem.resumo && (a.arquivos.join("\n") === mensagem.arquivos.join("\n") || this.agora() - a.em >= MESMO_ANUNCIO_MS);
     if (sessao === SEM_SESSAO && [...this.avisos].some(igual)) return mensagem;
-    this.avisos.set(sessao, { resumo: mensagem.resumo, arquivos: mensagem.arquivos, em: this.agora() });
+    this.avisos.set(sessao, { id, resumo: mensagem.resumo, arquivos: mensagem.arquivos, em: this.agora() });
     this.mandarAviso();
     return mensagem;
   }
@@ -116,6 +132,7 @@ export class StatusDoClaude {
   // PreToolUse: a própria ferramenta anunciar registra o aviso com a sessão
   // (antes de o MCP responder); as de edição passam pela decisão.
   preToolUse(corpo: Record<string, unknown>): { decisao: "recusar"; motivo: string } | null {
+    if (typeof corpo.session_id === "string" && this.sessoes.has(corpo.session_id)) this.sessoes.set(corpo.session_id, this.agora());
     if (corpo.tool_name === FERRAMENTA_ANUNCIAR) {
       const sessao = typeof corpo.session_id === "string" ? corpo.session_id : SEM_SESSAO;
       if (typeof corpo.resumo === "string" && textoLimpo(corpo.resumo)) {

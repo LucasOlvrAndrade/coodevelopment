@@ -13,6 +13,14 @@ import { dirname, join, resolve } from "node:path";
 // processo (o prompt espera por ele; gate da 4.1, REL-005).
 export const PRAZO_DO_AVISO_MS = 500;
 export const PRAZO_MS = 800;
+// A edição espera mais: é onde sai a recusa ou a pergunta, e perder o prazo
+// deixa a edição seguir sem nenhuma das duas (gate da 4.4, REL-011). Passado
+// esse prazo, o Claude Code segue normal: a jam nunca trava o trabalho (NFR5).
+export const PRAZO_DA_EDICAO_MS = 2000;
+const PRAZO_DA_ENTREGA_MS = 300;
+
+// Quanto o hook inteiro pode durar, desde a leitura da entrada.
+export const prazoDoHook = (evento) => (evento === "PreToolUse" ? PRAZO_DA_EDICAO_MS + PRAZO_DA_ENTREGA_MS + 100 : PRAZO_DO_AVISO_MS + 100);
 
 // A mesma chave do conector (packages/conector/src/descoberta.ts).
 export function chaveDaPasta(pasta, plataforma = process.platform) {
@@ -52,8 +60,8 @@ export async function acharJam(pastas, dados) {
 export const FERRAMENTA_ANUNCIAR = "mcp__plugin_coodevelopment_coodevelopment__anunciar";
 
 // Só o que o conector usa; o prompt, a última mensagem e o conteúdo da
-// edição ficam aqui. Da edição (PreToolUse, Story 4.2) vai só a ferramenta e
-// o caminho do arquivo.
+// edição ficam aqui. Da edição (PreToolUse, Story 4.2) vai só a ferramenta, o
+// id da chamada e o caminho do arquivo.
 export function corpoDoAviso(entrada) {
   const caminho = entrada.tool_input?.file_path ?? entrada.tool_input?.notebook_path;
   return {
@@ -62,7 +70,7 @@ export function corpoDoAviso(entrada) {
     error: entrada.error ?? entrada.error_type ?? null,
     reason: entrada.reason ?? null,
     // Do PostToolUse também: a edição perguntada rodou (Story 4.4).
-    ...(entrada.hook_event_name === "PreToolUse" || entrada.hook_event_name === "PostToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null } : {}),
+    ...(entrada.hook_event_name === "PreToolUse" || entrada.hook_event_name === "PostToolUse" ? { tool_name: entrada.tool_name ?? null, file_path: typeof caminho === "string" ? caminho : null, ...(typeof entrada.tool_use_id === "string" ? { tool_use_id: entrada.tool_use_id } : {}) } : {}),
     // O anunciar passa pelo hook com a sessão: o aviso fica com ela (gate da 4.2, REL-001).
     ...(entrada.tool_name === FERRAMENTA_ANUNCIAR ? { resumo: entrada.tool_input?.resumo ?? null, arquivos: entrada.tool_input?.arquivos ?? [] } : {}),
   };
@@ -93,17 +101,24 @@ export function saida(evento, corpo) {
 
 // Avisa o conector. No PreToolUse e no UserPromptSubmit, devolve a saída do
 // hook quando o conector manda recusar ou passa contexto; em qualquer outro
-// caso (sem jam, sem resposta), null: o Claude Code segue normal.
+// caso (sem jam, sem resposta), null: o Claude Code segue normal. Se vai
+// perguntar à pessoa, avisa antes que a pergunta saiu: a edição que passou
+// porque o hook perdeu o prazo não conta como confirmada (gate da 4.4, REL-011).
 export async function rodar(entrada, env = process.env) {
   if (!entrada || typeof entrada.hook_event_name !== "string" || typeof entrada.session_id !== "string") return null;
   const jam = await acharJam([env.CLAUDE_PROJECT_DIR, entrada.cwd], pastaDados(env));
   if (!jam) return null;
-  const resposta = await fetch(`http://127.0.0.1:${jam.porta}/hook/${encodeURIComponent(entrada.hook_event_name)}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${jam.segredo}` },
-    body: JSON.stringify(corpoDoAviso(entrada)),
-    signal: AbortSignal.timeout(PRAZO_DO_AVISO_MS),
-  });
+  const avisar = (evento, corpo, prazo) =>
+    fetch(`http://127.0.0.1:${jam.porta}/hook/${encodeURIComponent(evento)}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${jam.segredo}` },
+      body: JSON.stringify(corpo),
+      signal: AbortSignal.timeout(prazo),
+    });
+  const corpo = corpoDoAviso(entrada);
+  const resposta = await avisar(entrada.hook_event_name, corpo, entrada.hook_event_name === "PreToolUse" ? PRAZO_DA_EDICAO_MS : PRAZO_DO_AVISO_MS);
   if ((entrada.hook_event_name !== "PreToolUse" && entrada.hook_event_name !== "UserPromptSubmit") || resposta.status !== 200) return null;
-  return saida(entrada.hook_event_name, await resposta.json().catch(() => null));
+  const decidido = await resposta.json().catch(() => null);
+  if (entrada.hook_event_name === "PreToolUse" && decidido?.decisao === "perguntar") await avisar("PerguntaEntregue", corpo, PRAZO_DA_ENTREGA_MS).catch(() => {});
+  return saida(entrada.hook_event_name, decidido);
 }

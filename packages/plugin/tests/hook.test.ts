@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { chaveDaPasta as chaveDoConector } from "../../conector/src/descoberta";
-import { acharJam, chaveDaPasta, corpoDoAviso, saida } from "../scripts/aviso.mjs";
+import { acharJam, chaveDaPasta, corpoDoAviso, prazoDoHook, saida } from "../scripts/aviso.mjs";
 
 // O script dos hooks (Story 4.1, AC 4 e 5): a entrada JSON documentada do
 // Claude Code, o arquivo de descoberta do conector e um conector falso.
@@ -171,6 +171,11 @@ describe("pergunta antes de mexer em arquivo de outro (Story 4.4)", () => {
 });
 
 describe("caminho do NotebookEdit (gate da 4.4, TEST-001)", () => {
+  it("o id da chamada vai junto quando o Claude Code manda (gate da 4.4, REL-012)", () => {
+    expect(prazoDoHook("PreToolUse")).toBeGreaterThan(prazoDoHook("Stop"));
+    expect(corpoDoAviso({ session_id: "s", hook_event_name: "PostToolUse", tool_name: "Edit", tool_use_id: "t1", tool_input: { file_path: "a.ts" } })).toMatchObject({ tool_use_id: "t1" });
+  });
+
   it("o notebook_path vai como file_path no PreToolUse e no PostToolUse", () => {
     for (const evento of ["PreToolUse", "PostToolUse"]) {
       expect(corpoDoAviso({ session_id: "s", hook_event_name: evento, tool_name: "NotebookEdit", tool_input: { notebook_path: "nb/a.ipynb" } })).toMatchObject({

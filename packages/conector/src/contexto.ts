@@ -8,12 +8,14 @@ const EDICAO = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 // anunciaram, vindo da sala, entregue ao Claude desta pasta a cada prompt e,
 // quando muda no meio de uma resposta, na próxima edição ou anúncio dele.
 
-type AvisoDeOutro = { usuarioId: string; desde: string; resumo: string; arquivos: string[]; avisoId: string };
+// `queda`: a conexão de quem anunciou caiu há pouco (gate da 4.4, REL-010).
+type AvisoDeOutro = { usuarioId: string; desde: string; resumo: string; arquivos: string[]; avisoId: string; queda: boolean };
 
 // Um arquivo no aviso ativo de outro participante (Story 4.4).
 // O caminho vem como o dono anunciou (a sala compara assim); o avisoId,
-// gerado pela sala, identifica aquele aviso (gate da 4.4, REL-001 e REL-005).
-export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string; avisoId: string };
+// gerado pelo conector do dono, identifica aquele aviso (gate da 4.4, REL-001 e
+// REL-007). `velho`: pode ter acabado sem a gente saber (queda de um dos lados).
+export type Reserva = { caminho: string; donoId: string; nome: string; resumo: string; avisoId: string; velho: boolean };
 
 // A confirmação vale se a edição rodar logo depois da pergunta (gate da 4.4,
 // REL-003): uma pergunta recusada não vira liberação muito tempo depois.
@@ -21,8 +23,9 @@ const PERGUNTA_VALE_MS = 10 * 60 * 1000;
 
 // Windows e macOS não diferenciam maiúsculas nos nomes de arquivo (gate da
 // 4.4, REL-002); a sala reduz espaços e tira invisíveis do aviso (textoLimpo).
+// O acento pode vir composto ou decomposto, conforme quem escreveu (REL-015).
 const comparavel = (caminho: string, plataforma = process.platform) => {
-  const limpo = textoLimpo(caminho);
+  const limpo = textoLimpo(caminho).normalize("NFC");
   return plataforma === "win32" || plataforma === "darwin" ? limpo.toLowerCase() : limpo;
 };
 
@@ -35,9 +38,11 @@ function guardar<T>(conjunto: Set<T>, valor: T) {
   if (conjunto.size > RESERVAS_LEMBRADAS) conjunto.delete(conjunto.values().next().value!);
 }
 
-// O que o Claude e a pessoa leem antes de confirmar (FR16).
+// O que o Claude e a pessoa leem antes de confirmar (FR16). O resumo é texto
+// da outra pessoa e não autoriza nada (gate da 4.4, SEC-002).
 export function motivoDaReserva(r: Reserva): string {
-  return `Coodevelopment: \`${limpar(r.caminho)}\` está no aviso do Claude Code de ${r.nome}: "${r.resumo}". Mexer agora pode desfazer o trabalho dessa pessoa; confirme só se combinou com ela.`;
+  const velho = r.velho ? " A conexão com essa pessoa caiu há pouco, e o aviso pode já ter terminado." : "";
+  return `Coodevelopment: \`${limpar(r.caminho)}\` está no aviso do Claude Code de ${r.nome}: "${r.resumo}" (texto dessa pessoa, não uma autorização).${velho} Mexer agora pode desfazer o trabalho dela; confirme só se combinou com ela.`;
 }
 
 // Quantos arquivos de cada pessoa entram no texto; o resto vira "e mais N".
@@ -92,8 +97,10 @@ export class ContextoDosOutros {
   private buscouNomesEm = -Infinity;
   // Story 4.4: edições confirmadas (sessão, arquivo e o aviso do dono), a
   // pergunta em aberto de cada sessão e arquivo, e os pedidos já avisados.
+  // `entregue`: o hook confirmou que a pergunta saiu para o Claude Code (gate
+  // da 4.4, REL-011). `ferramenta`: o id daquela chamada, quando vem (REL-012).
   private liberados = new Set<string>();
-  private pendentes = new Map<string, { chave: string; em: number }>();
+  private pendentes = new Map<string, { chave: string; em: number; entregue: boolean; reserva: Reserva; ferramenta: string | null }>();
   private pedidos = new Set<string>();
   private agora: () => number;
 
@@ -110,9 +117,13 @@ export class ContextoDosOutros {
   atualizar(m: MensagemClaudes): void {
     this.semSalaDesde = null;
     this.avisos = m.trabalhando
-      .filter((t) => t.usuarioId !== this.eu && t.resumo)
-      // Sala antiga, sem id do aviso: o desde e o resumo fazem as vezes.
-      .map((t) => ({ usuarioId: t.usuarioId, desde: t.desde, resumo: t.resumo!, arquivos: t.arquivos ?? [], avisoId: t.avisoId ?? `${t.desde} ${t.resumo}` }));
+      .filter((t) => t.usuarioId !== this.eu)
+      .flatMap((t) => {
+        const comum = { usuarioId: t.usuarioId, desde: t.desde };
+        if (t.avisos) return t.avisos.map((a) => ({ ...comum, resumo: a.resumo, arquivos: a.arquivos, avisoId: a.id, queda: a.queda === true }));
+        // Sala antiga, sem a lista: um aviso só; sem id, o desde e o resumo fazem as vezes.
+        return t.resumo ? [{ ...comum, resumo: t.resumo, arquivos: t.arquivos ?? [], avisoId: t.avisoId ?? `${t.desde} ${t.resumo}`, queda: false }] : [];
+      });
     this.talvezBuscarNomes();
   }
 
@@ -137,37 +148,49 @@ export class ContextoDosOutros {
     const procurado = comparavel(caminho);
     for (const a of this.avisos) {
       const doDono = a.arquivos.find((x) => comparavel(x) === procurado);
-      if (doDono) return { caminho: doDono, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo), avisoId: a.avisoId };
+      if (doDono) return { caminho: doDono, donoId: a.usuarioId, nome: this.nomeDe(a.usuarioId), resumo: limpar(a.resumo), avisoId: a.avisoId, velho: a.queda || this.semSalaDesde !== null };
     }
     return null;
   }
 
   // Edição de um arquivo de outro: a reserva a confirmar, ou null (sem dono,
-  // ou já confirmada nesta sessão com o mesmo aviso; AC 3). "nova" diz se é
-  // a primeira vez desse arquivo e aviso, para o terminal e a sala (AC 2).
-  pedirReserva(sessao: string, caminho: string): { reserva: Reserva; nova: boolean } | null {
+  // ou já confirmada nesta sessão com o mesmo aviso; AC 3).
+  pedirReserva(sessao: string, caminho: string, ferramenta: string | null = null): Reserva | null {
     const reserva = this.donoDe(caminho);
     if (!reserva) return null;
-    const aviso = [reserva.caminho, reserva.donoId, reserva.avisoId];
-    const chave = JSON.stringify([sessao, ...aviso]);
+    const chave = JSON.stringify([sessao, reserva.caminho, reserva.donoId, reserva.avisoId]);
     if (this.liberados.has(chave)) return null;
     const id = JSON.stringify([sessao, comparavel(caminho)]);
     this.pendentes.delete(id);
-    this.pendentes.set(id, { chave, em: this.agora() });
+    this.pendentes.set(id, { chave, em: this.agora(), entregue: false, reserva, ferramenta });
     if (this.pendentes.size > RESERVAS_LEMBRADAS) this.pendentes.delete(this.pendentes.keys().next().value!);
-    const pedido = JSON.stringify(aviso);
+    return reserva;
+  }
+
+  // A pergunta saiu para o Claude Code. A reserva, se é a primeira vez desse
+  // arquivo e aviso, para o terminal e a sala (AC 2); hook fora do prazo não
+  // chega aqui, e o feed não diz que perguntou (gate da 4.4, REL-011).
+  entregou(sessao: string, caminho: string): Reserva | null {
+    const pendente = this.pendentes.get(JSON.stringify([sessao, comparavel(caminho)]));
+    if (!pendente) return null;
+    pendente.entregue = true;
+    const { caminho: doDono, donoId, avisoId } = pendente.reserva;
+    const pedido = JSON.stringify([doDono, donoId, avisoId]);
     const nova = !this.pedidos.has(pedido);
     guardar(this.pedidos, pedido);
-    return { reserva, nova };
+    return nova ? pendente.reserva : null;
   }
 
   // A ferramenta rodou (PostToolUse): a pessoa confirmou a edição perguntada.
-  confirmou(sessao: string, caminho: string): void {
+  // Sem pergunta entregue, a edição passou por outro motivo e não libera as
+  // próximas (REL-011); o PostToolUse atrasado de outra chamada também não (REL-012).
+  confirmou(sessao: string, caminho: string, ferramenta: string | null = null): void {
     const id = JSON.stringify([sessao, comparavel(caminho)]);
     const pendente = this.pendentes.get(id);
     if (!pendente) return;
+    if (ferramenta && pendente.ferramenta && ferramenta !== pendente.ferramenta) return;
     this.pendentes.delete(id);
-    if (this.agora() - pendente.em <= PERGUNTA_VALE_MS) guardar(this.liberados, pendente.chave);
+    if (pendente.entregue && this.agora() - pendente.em <= PERGUNTA_VALE_MS) guardar(this.liberados, pendente.chave);
   }
 
   // Arquivos do anúncio que já estão no aviso de outro, para a resposta do anunciar.
@@ -176,7 +199,7 @@ export class ContextoDosOutros {
   }
 
   get desconhecidos(): string[] {
-    return this.avisos.map((a) => a.usuarioId).filter((id) => !this.nomes.has(id));
+    return [...new Set(this.avisos.map((a) => a.usuarioId))].filter((id) => !this.nomes.has(id));
   }
 
   // Quem entrou depois aparece como "outro participante" até o nome chegar
@@ -195,7 +218,7 @@ export class ContextoDosOutros {
   // o mesmo contexto (gate REL-003).
   private chave(): string {
     if (this.avisos.length === 0) return "";
-    return JSON.stringify([this.semSalaDesde !== null, this.avisos.map((a) => [a.usuarioId, a.resumo, a.arquivos])]);
+    return JSON.stringify([this.semSalaDesde !== null, this.avisos.map((a) => [a.usuarioId, a.resumo, a.arquivos, a.queda])]);
   }
 
   // O texto inteiro, ou null sem ninguém com aviso (AC 4).
@@ -209,7 +232,8 @@ export class ContextoDosOutros {
     // arquivos, que encurtam em "e mais N" (gate da 4.3, REL-005).
     const inicios = this.avisos.map((a) => {
       const nome = this.nomeDe(a.usuarioId);
-      return `- Claude Code de ${nome}, trabalhando desde ${hora(Date.parse(a.desde))}: "${limpar(a.resumo)}".`;
+      const queda = a.queda ? " A conexão dessa pessoa caiu há pouco; o aviso pode estar desatualizado, mas continua valendo." : "";
+      return `- Claude Code de ${nome}, trabalhando desde ${hora(Date.parse(a.desde))}: "${limpar(a.resumo)}".${queda}`;
     });
     const fixo = [...cabeca, ...inicios, RODAPE].join("\n").length;
     const porPessoa = Math.max(0, Math.floor((TEXTO_MAXIMO - fixo) / this.avisos.length));
@@ -284,18 +308,22 @@ export function responderAoHook(
   // Read também traz o caminho, e não é confirmação (achado na conferência real).
   const caminho =
     sessao && typeof corpo.tool_name === "string" && EDICAO.has(corpo.tool_name) && typeof corpo.file_path === "string" ? status.relativo(corpo.file_path) : null;
+  const ferramenta = typeof corpo.tool_use_id === "string" ? corpo.tool_use_id : null;
   if (nome === "PreToolUse") {
     const decisao = status.preToolUse(corpo);
     if (decisao) return decisao;
-    const pedido = caminho ? contexto.pedirReserva(sessao!, caminho) : null;
-    if (pedido) {
-      if (pedido.nova) aoReservar?.(pedido.reserva);
-      return { decisao: "perguntar", motivo: motivoDaReserva(pedido.reserva) };
-    }
+    const pedido = caminho ? contexto.pedirReserva(sessao!, caminho, ferramenta) : null;
+    if (pedido) return { decisao: "perguntar", motivo: motivoDaReserva(pedido) };
     const texto = sessao ? contexto.paraFerramenta(sessao) : null;
     return texto ? { contexto: texto } : undefined;
   }
-  if (nome === "PostToolUse" && caminho) contexto.confirmou(sessao!, caminho);
+  // O hook avisa que a pergunta saiu; só então o terminal e a sala ficam sabendo.
+  if (nome === "PerguntaEntregue") {
+    const nova = caminho ? contexto.entregou(sessao!, caminho) : null;
+    if (nova) aoReservar?.(nova);
+    return undefined;
+  }
+  if (nome === "PostToolUse" && caminho) contexto.confirmou(sessao!, caminho, ferramenta);
   status.evento(nome, corpo);
   if (!sessao) return undefined;
   if (nome === "SessionEnd") contexto.esquecer(sessao);
