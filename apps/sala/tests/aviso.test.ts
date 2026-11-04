@@ -7,9 +7,10 @@ import { describe, expect, it } from "vitest";
 
 type Mensagem = { tipo: string; [k: string]: unknown };
 
-async function conectar(jamId: string, usuarioId: string, via: "pagina" | "conector") {
+async function conectar(jamId: string, usuarioId: string, via: "pagina" | "conector", pk?: string) {
   const { token } = await assinarTokenSala({ usuarioId, jamId, via }, env.SEGREDO_SALA);
-  const resposta = await exports.default.fetch(`http://sala/parties/jam/${jamId}?token=${encodeURIComponent(token)}`, { headers: { Upgrade: "websocket" } });
+  // O partysocket reconecta com o mesmo _pk, que vira o id da conexão.
+  const resposta = await exports.default.fetch(`http://sala/parties/jam/${jamId}?token=${encodeURIComponent(token)}${pk ? `&_pk=${pk}` : ""}`, { headers: { Upgrade: "websocket" } });
   const ws = resposta.webSocket!;
   const recebidas: Mensagem[] = [];
   const esperando: { teste: (m: Mensagem) => boolean; resolver: (m: Mensagem) => void }[] = [];
@@ -361,6 +362,59 @@ describe("avisos no SQLite, sessões e quedas (gate da 4.4)", () => {
     await runDurableObjectAlarm(salaDaJam);
     await visto;
     for (const c of [lucas, pagina, novo]) c.ws.close();
+  });
+
+  it("reconexão com o mesmo id: o fechamento atrasado do socket antigo não mexe na reserva, e não há outro item no feed (REL-017 e UX-004)", async () => {
+    for (const antigoTrabalhava of [true, false]) {
+      const jam = `jam-mesmo-pk-${antigoTrabalhava}`;
+      const antigo = await conectar(jam, "pai", "conector", "pk-do-pai");
+      const lucas = await conectar(jam, "lucas", "conector");
+      const pagina = await conectar(jam, "kelson", "pagina");
+      if (antigoTrabalhava) antigo.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+      else {
+        // Sem status no socket antigo: a mensagem de aviso chega sem o Claude trabalhando.
+        antigo.enviar({ tipo: "status", estado: "parado", motivo: null });
+      }
+      const item = pagina.proxima(feedVivo("aviso"));
+      antigo.enviar({ tipo: "aviso", id: "a", resumo: "Plano", arquivos: ["a.ts"] });
+      await item;
+
+      // O socket novo chega e reenvia antes de o antigo fechar.
+      const novo = await conectar(jam, "pai", "conector", "pk-do-pai");
+      const visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes('"id":"a"'));
+      novo.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+      novo.enviar({ tipo: "aviso", id: "a", resumo: "Plano", arquivos: ["a.ts"] });
+      await visto;
+      antigo.ws.close(4000, "rede");
+      await espera();
+
+      expect(JSON.stringify(lucas.recebidas.filter(claudes).at(-1))).not.toContain('"queda"');
+      expect(doPai(lucas.recebidas)?.avisos.map((a) => a.id)).toEqual(["a"]);
+      expect(pagina.recebidas.filter(feedVivo("aviso"))).toHaveLength(1);
+      // O dono continua conectado para a presença e recebe o pedido.
+      expect((pagina.recebidas.filter((m) => m.tipo === "presenca").at(-1) as unknown as { conectados: string[] }).conectados).toContain("pai");
+      const pedida = novo.proxima((m) => m.tipo === "reserva_pedida");
+      lucas.enviar({ tipo: "reserva", caminho: "a.ts" });
+      await pedida;
+      for (const c of [novo, lucas, pagina]) c.ws.close();
+    }
+  });
+
+  it("token recusado com o id de quem está na sala não apaga o aviso (SEC-003)", async () => {
+    const jam = "jam-token-recusado";
+    const pai = await conectar(jam, "pai", "conector", "pk-do-pai");
+    const lucas = await conectar(jam, "lucas", "conector");
+    pai.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    const visto = lucas.proxima((m) => claudes(m) && JSON.stringify(m).includes('"id":"a"'));
+    pai.enviar({ tipo: "aviso", id: "a", resumo: "Plano", arquivos: ["a.ts"] });
+    await visto;
+    const resposta = await exports.default.fetch(`http://sala/parties/jam/${jam}?token=falso&_pk=pk-do-pai`, { headers: { Upgrade: "websocket" } });
+    resposta.webSocket?.accept();
+    await espera();
+    const pedida = pai.proxima((m) => m.tipo === "reserva_pedida");
+    lucas.enviar({ tipo: "reserva", caminho: "a.ts" });
+    await pedida;
+    for (const c of [pai, lucas]) c.ws.close();
   });
 
   it("saída normal do conector (Ctrl+C) encerra a reserva na hora (REL-010)", async () => {

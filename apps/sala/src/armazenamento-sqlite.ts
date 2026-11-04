@@ -134,6 +134,7 @@ export class ArmazenamentoSqlite implements Armazenamento {
 }
 
 export type AvisoGuardado = {
+  // O socket que mandou (o `soquete` do estado da conexão).
   conexao: string;
   usuarioId: string;
   id: string;

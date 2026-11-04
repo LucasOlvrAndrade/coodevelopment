@@ -22,7 +22,10 @@ import { Sincronizacao, type Envio } from "./sincronizacao";
 // o Claude daquela pasta está trabalhando (Story 4.1); null quando parado.
 // Se o Claude da pasta tem aviso ativo (Story 4.2; os avisos ficam no SQLite,
 // gate da 4.4, REL-008) e quando o último terminou, para a folga do "sem aviso".
+// `soquete` identifica este socket: o partysocket reconecta com o mesmo id, e o
+// fechamento atrasado do socket antigo não pode mexer no novo (gate da 4.4, REL-017).
 type Estado = Pick<QuemNaSala, "usuarioId" | "via"> & {
+  soquete: string;
   trabalhandoDesde?: string | null;
   temAviso?: boolean;
   avisoTerminouEm?: string | null;
@@ -109,7 +112,7 @@ export class Jam extends Server<Env> {
       conexao.close(4401, "token inválido");
       return;
     }
-    conexao.setState({ usuarioId: quem.usuarioId, via: quem.via });
+    conexao.setState({ usuarioId: quem.usuarioId, via: quem.via, soquete: crypto.randomUUID() });
     this.soltarOrfaos();
     this.anunciarPresenca();
     // O conector que chega recebe o que mudou desde o baseSha (FR21) e os
@@ -181,7 +184,7 @@ export class Jam extends Server<Env> {
       }
       for (const c of this.getConnections<Estado>()) {
         if (!c.state) continue;
-        if (para === "paginas" ? c.state.via !== "pagina" : c.state.via !== "conector" || (para === "outros" && c.id === autor.id)) continue;
+        if (para === "paginas" ? c.state.via !== "pagina" : c.state.via !== "conector" || (para === "outros" && c.state.soquete === autor.state?.soquete)) continue;
         c.send(texto);
       }
     }
@@ -198,14 +201,17 @@ export class Jam extends Server<Env> {
   // Saída normal encerra os avisos; queda mantém a reserva por um tempo, só
   // para os outros conectores (a página mostra quem está de fato ali).
   private saiu(conexao: Connection<Estado>, normal: boolean) {
-    const desde = conexao.state?.trabalhandoDesde;
-    if (normal || !desde) this.avisos.limpar(conexao.id);
+    // Token recusado: nunca entrou, e nada aqui é dele (gate da 4.4, SEC-003).
+    const estado = conexao.state;
+    if (!estado?.soquete) return;
+    const desde = estado.trabalhandoDesde;
+    if (normal || !desde) this.avisos.limpar(estado.soquete);
     else {
-      this.avisos.caiu(conexao.id, desde, Date.now());
+      this.avisos.caiu(estado.soquete, desde, Date.now());
       this.agendarVencimento();
     }
-    this.anunciarPresenca(conexao.id);
-    if (desde) this.anunciarClaudes(conexao.id);
+    this.anunciarPresenca(estado.soquete);
+    if (desde) this.anunciarClaudes(estado.soquete);
   }
 
   private agendarVencimento() {
@@ -215,7 +221,7 @@ export class Jam extends Server<Env> {
 
   private soltarOrfaos() {
     const vivas = new Set<string>();
-    for (const c of this.getConnections<Estado>()) vivas.add(c.id);
+    for (const c of this.getConnections<Estado>()) if (c.state?.soquete) vivas.add(c.state.soquete);
     this.avisos.soltarOrfaos(vivas, Date.now());
     this.agendarVencimento();
   }
@@ -235,7 +241,7 @@ export class Jam extends Server<Env> {
     const depois = msg.estado === "trabalhando" ? (antes ?? new Date().toISOString()) : null;
     // O aviso termina quando o Claude termina (Story 4.2, AC 6).
     const terminou = !depois && estado.temAviso;
-    if (terminou) this.avisos.limpar(conexao.id);
+    if (terminou) this.avisos.limpar(estado.soquete);
     conexao.setState({
       ...estado,
       trabalhandoDesde: depois,
@@ -250,8 +256,8 @@ export class Jam extends Server<Env> {
     }
   }
 
-  // O Claude da pasta anunciou (Story 4.2): o aviso fica no estado da
-  // conexão, vira item do feed e o resumo vai para o status.
+  // O Claude da pasta anunciou (Story 4.2): o aviso fica no SQLite, vira item
+  // do feed e o resumo vai para o status.
   private anunciar(conexao: Connection<Estado>, aviso: MensagemAviso) {
     const estado = conexao.state!;
     // O texto vai à página e ao Claude dos outros: limpo, e só caminhos de
@@ -267,13 +273,16 @@ export class Jam extends Server<Env> {
     // da 4.2, UX-001 e UX-004).
     const chave = marca(JSON.stringify([msg.resumo, msg.arquivos]));
     const vistos = estado.avisosVistos ?? [];
-    const repetido = vistos.includes(chave);
+    const guardados = this.avisos.todos();
+    // O mesmo id já guardado é a volta de uma reconexão, com o socket novo sem
+    // as marcas do antigo: não é outro item (gate da 4.4, UX-004).
+    const repetido = vistos.includes(chave) || (aviso.id !== undefined && guardados.some((a) => a.usuarioId === estado.usuarioId && a.id === aviso.id));
     // O id vem do conector; o conector antigo não manda, e o mesmo aviso
     // reenviado com a conexão de pé mantém o que a sala gerou (gate da 4.4, REL-005).
-    const atuais = this.avisos.todos().filter((a) => a.conexao === conexao.id);
+    const atuais = guardados.filter((a) => a.conexao === estado.soquete);
     const id = aviso.id ?? atuais.find((a) => mesmoAviso(a, msg))?.id ?? crypto.randomUUID();
     const outros = (aviso.outros ?? []).map((o) => ({ id: o.id, ...limpo(o) })).filter((o) => o.resumo && o.id !== id);
-    this.avisos.trocar(conexao.id, estado.usuarioId, [{ id, ...msg }, ...outros]);
+    this.avisos.trocar(estado.soquete, estado.usuarioId, [{ id, ...msg }, ...outros]);
     conexao.setState({ ...estado, temAviso: true, avisosVistos: repetido ? vistos : [...vistos, chave].slice(-AVISOS_LEMBRADOS) });
     if (repetido) {
       this.anunciarClaudes();
@@ -330,7 +339,7 @@ export class Jam extends Server<Env> {
   private terminarAviso(conexao: Connection<Estado>) {
     const estado = conexao.state!;
     if (!estado.temAviso) return;
-    this.avisos.limpar(conexao.id);
+    this.avisos.limpar(estado.soquete);
     conexao.setState({ ...estado, temAviso: false, avisoTerminouEm: new Date().toISOString() });
     this.anunciarClaudes();
   }
@@ -349,7 +358,7 @@ export class Jam extends Server<Env> {
 
   // Quem está com o Claude trabalhando, uma vez por pessoa (o desde mais
   // antigo, se ela tem duas pastas ligadas, e os arquivos anunciados de todas
-  // elas; Story 4.3). O conector que está saindo fica de fora pelo id. Para os
+  // elas; Story 4.3). O socket que está saindo fica de fora. Para os
   // conectores, entram também os avisos de quem caiu há pouco (gate da 4.4, REL-010).
   private claudes(saindo?: string, comQuedas = false): MensagemClaudes {
     type Dele = { desde: string; resumo: string | null; avisoId?: string; avisos: (AvisoGuardado & { queda?: true })[] };
@@ -362,10 +371,10 @@ export class Jam extends Server<Env> {
     };
     const guardados = this.avisos.todos();
     for (const c of this.getConnections<Estado>()) {
-      const d = c.id === saindo ? null : c.state?.trabalhandoDesde;
+      const d = c.state?.soquete === saindo ? null : c.state?.trabalhandoDesde;
       if (!d || c.state?.via !== "conector") continue;
       const dele = daPessoa(c.state.usuarioId, d);
-      const daConexao = guardados.filter((a) => a.conexao === c.id);
+      const daConexao = guardados.filter((a) => a.conexao === c.state!.soquete && a.caiuEm === null);
       // O primeiro de cada conexão é o mais recente dela.
       if (daConexao[0]) {
         dele.resumo = daConexao[0].resumo;
@@ -406,23 +415,25 @@ export class Jam extends Server<Env> {
   private anunciarClaudes(saindo?: string) {
     const paginas = JSON.stringify(this.claudes(saindo));
     const conectores = JSON.stringify(this.claudes(saindo, true));
-    for (const c of this.getConnections<Estado>()) if (c.id !== saindo && c.state) c.send(c.state.via === "conector" ? conectores : paginas);
+    for (const c of this.getConnections<Estado>()) if (c.state?.soquete && c.state.soquete !== saindo) c.send(c.state.via === "conector" ? conectores : paginas);
   }
 
   private paraAsPaginas(texto: string) {
     for (const c of this.getConnections<Estado>()) if (c.state?.via === "pagina") c.send(texto);
   }
 
-  // Quem está saindo fica de fora pelo id, mesmo se o fechamento ainda corre.
+  // Quem está saindo fica de fora, mesmo se o fechamento ainda corre; o socket
+  // novo da mesma conexão, que tem o mesmo id, continua (gate da 4.4, REL-017).
   // A página aberta conta em `online`; o conector ligado, em `conectados`.
   private anunciarPresenca(saindo?: string) {
     const online = new Set<string>();
     const conectados = new Set<string>();
     for (const conexao of this.getConnections<Estado>()) {
-      if (conexao.id === saindo || !conexao.state) continue;
+      if (!conexao.state?.soquete || conexao.state.soquete === saindo) continue;
       (conexao.state.via === "conector" ? conectados : online).add(conexao.state.usuarioId);
     }
     const mensagem: MensagemPresenca = { v: 1, tipo: "presenca", online: [...online].sort(), conectados: [...conectados].sort() };
-    this.broadcast(JSON.stringify(mensagem), saindo ? [saindo] : undefined);
+    const texto = JSON.stringify(mensagem);
+    for (const c of this.getConnections<Estado>()) if (c.state?.soquete && c.state.soquete !== saindo) c.send(texto);
   }
 }
