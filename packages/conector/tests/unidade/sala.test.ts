@@ -52,7 +52,8 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
       { corpo: { token: "t1", ...SALA } },
       { corpo: { token: "t2", ...SALA } },
     ]);
-    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, WebSocket: WebSocketFalso as unknown as typeof WebSocket });
+    const aoCair = vi.fn();
+    const conexao = await conectarNaSala(amb, "sessao", "k7m2-rbq9", { aoConectar, aoCair, WebSocket: WebSocketFalso as unknown as typeof WebSocket });
     await vi.waitFor(() => expect(conexoes).toHaveLength(1));
     expect(conexoes[0]!.url).toMatch(/^wss:\/\/sala\.teste\/parties\/jam\/k7m2-rbq9\?/);
     expect(tokenDaUrl(conexoes[0]!)).toBe("t1");
@@ -61,6 +62,8 @@ describe("conectarNaSala (Story 3.1, AC 3)", () => {
 
     conexoes[0]!.cair(1006);
     expect(linhas).toContain("A conexão com a jam caiu. Tentando de novo...");
+    // Os avisos dos outros envelhecem (Story 4.3, gate REL-001).
+    expect(aoCair).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(conexoes).toHaveLength(2), { timeout: 15_000 });
     expect(tokenDaUrl(conexoes[1]!)).toBe("t2");
     conexoes[1]!.abrir();

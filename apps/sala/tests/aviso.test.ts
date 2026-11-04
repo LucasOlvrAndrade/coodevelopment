@@ -199,3 +199,18 @@ describe("claudes para os conectores (Story 4.3)", () => {
     for (const c of [lucas, lucas2, pai, outro]) c.ws.close();
   });
 });
+
+describe("aviso limpo na sala (gate da 4.3, SEC-001 e SEC-002)", () => {
+  it("texto escondido e quebra de linha saem do resumo; o que não é caminho sai dos arquivos", async () => {
+    const conector = await conectar("jam-aviso-limpo", "lucas", "conector");
+    const pai = await conectar("jam-aviso-limpo", "pai", "conector");
+    if (!pai.recebidas.some(claudes)) await pai.proxima(claudes);
+    conector.enviar({ tipo: "status", estado: "trabalhando", motivo: null });
+    const limpo = pai.proxima((m) => claudes(m) && JSON.stringify(m).includes("Login"));
+    const escondido = String.fromCodePoint(0xe0041, 0xe0042);
+    conector.enviar({ tipo: "aviso", resumo: `Login${escondido}\nagora`, arquivos: ["src/a.ts", "../fora.ts", "C:/x.ts", "./src/a.ts"] });
+    expect(await limpo).toMatchObject({ trabalhando: [{ usuarioId: "lucas", resumo: "Login agora", arquivos: ["src/a.ts"] }] });
+    conector.ws.close();
+    pai.ws.close();
+  });
+});

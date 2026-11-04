@@ -46,6 +46,14 @@ export const mensagemAviso = z.object({
 // novo depois de um Esc, aviso vencido; gate da 4.2, REL-001 e REL-002).
 export const mensagemFimDoAviso = z.object({ v: z.literal(1), tipo: z.literal("aviso_fim") });
 
+// Texto de uma pessoa que vai para a página e para o Claude de outra (Story
+// 4.3, gate SEC-001): sem caractere de controle, de formatação (direção de
+// texto, largura zero, o bloco Tags, que esconde texto do leitor e não do
+// modelo), seletor de variação nem quebra de linha; espaços juntados.
+export function textoLimpo(texto: string): string {
+  return texto.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\u{FE00}-\u{FE0F}\u{E0000}-\u{E007F}]+/gu, " ").replace(/\s+/g, " ").trim();
+}
+
 // Sala → páginas e conectores: quem está com o Claude trabalhando agora,
 // desde quando, o resumo do aviso ativo, se houver (Story 4.2), e os arquivos
 // anunciados, que o conector passa aos outros Claudes (Story 4.3).

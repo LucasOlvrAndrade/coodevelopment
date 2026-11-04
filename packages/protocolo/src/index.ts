@@ -18,6 +18,7 @@ export {
   ARQUIVOS_DO_AVISO,
   MOTIVOS_DE_PARADA,
   RESUMO_MAXIMO,
+  textoLimpo,
   mensagemAviso,
   mensagemFimDoAviso,
   type MensagemAviso,

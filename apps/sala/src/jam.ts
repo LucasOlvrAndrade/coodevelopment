@@ -1,5 +1,7 @@
 import {
   mensagemDoConector,
+  normalizarCaminho,
+  textoLimpo,
   type MensagemAviso,
   type MensagemClaudes,
   type MensagemFeed,
@@ -175,8 +177,14 @@ export class Jam extends Server<Env> {
 
   // O Claude da pasta anunciou (Story 4.2): o aviso fica no estado da
   // conexão, vira item do feed e o resumo vai para o status.
-  private anunciar(conexao: Connection<Estado>, msg: MensagemAviso) {
+  private anunciar(conexao: Connection<Estado>, aviso: MensagemAviso) {
     const estado = conexao.state!;
+    // O texto vai à página e ao Claude dos outros: limpo, e só caminhos de
+    // verdade (gate da 4.3, SEC-001 e SEC-002).
+    const resumo = textoLimpo(aviso.resumo);
+    if (!resumo) return;
+    const caminhos = aviso.arquivos.map((a) => normalizarCaminho(textoLimpo(a))).filter((a): a is string => Boolean(a) && a!.length <= 1024);
+    const msg = { ...aviso, resumo, arquivos: [...new Set(caminhos)] };
     // Um aviso que já virou item volta (reconexão do conector, duas sessões
     // do Claude alternando): só o status muda, sem outro item no feed (gate
     // da 4.2, UX-001 e UX-004).

@@ -1,4 +1,4 @@
-import { idDeJamValido, type MensagemClaudes, type MensagemDoConector } from "@coodevelopment/protocolo";
+import { idDeJamValido, type MensagemDoConector } from "@coodevelopment/protocolo";
 import type { Ambiente } from "./ambiente";
 import { dadosDaJam, ErroApi, tokenDeClone, type DadosDaJam } from "./api";
 import { apagarSessao, guardarSessao, lerSessao } from "./cofre";
@@ -92,18 +92,18 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   // O Claude Code desta pasta avisa pelos hooks quando trabalha (Story 4.1).
   const status = new StatusDoClaude(enviar, Date.now, pasta);
   // O que os Claudes dos outros anunciaram vai ao Claude desta pasta (Story 4.3).
-  const contexto = new ContextoDosOutros(jam.eu, nomesDe(jam));
-  let procurouNomesEm = Date.now();
-  const receberClaudes = (m: MensagemClaudes) => {
-    contexto.atualizar(m);
-    // Alguém que entrou na jam depois: busca os nomes de novo, no máximo uma vez por minuto.
-    if (contexto.desconhecidos.length && Date.now() - procurouNomesEm > 60_000) {
-      procurouNomesEm = Date.now();
+  let nomesFalharam = false;
+  const contexto = new ContextoDosOutros(jam.eu, nomesDe(jam), {
+    // Alguém que entrou na jam depois: os nomes de novo, do app.
+    buscarNomes: () =>
       dadosDaJam(amb, sessao, jamId)
-        .then((d) => contexto.nomear(nomesDe(d)))
-        .catch(() => {});
-    }
-  };
+        .then(nomesDe)
+        .catch((e: unknown) => {
+          if (!nomesFalharam) amb.escrever("Não consegui buscar os nomes de quem entrou na jam agora; o Claude vai ver \"outro participante\".");
+          nomesFalharam = true;
+          throw e;
+        }),
+  });
   const hooks = await abrirServidorDeHooks({
     aoEvento: (nome, corpo) => responderAoHook(status, contexto, nome, corpo),
     // O anunciar do servidor MCP do plugin (Story 4.2).
@@ -118,7 +118,9 @@ export async function entrar(amb: Ambiente, jamId: string, parar: Promise<void>,
   await sincronizador.preparar();
   const conexao = await conectarNaSala(amb, sessao, jamId, {
     aoConectar: () => amb.escrever(`Conectado à jam ${jam.nome}. Deixe esta janela aberta; Ctrl+C desliga.`),
-    aoReceber: (m) => (m.tipo === "claudes" ? receberClaudes(m) : sincronizador.receber(m)),
+    aoReceber: (m) => (m.tipo === "claudes" ? contexto.atualizar(m) : sincronizador.receber(m)),
+    // Sem a sala, os avisos dos outros podem estar velhos (gate da 4.3, REL-001).
+    aoCair: () => contexto.semSala(),
     aoReconectar: () => {
       sincronizador.reconectou();
       // A sala esquece o status da conexão que caiu: manda de novo, com o aviso.

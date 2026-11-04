@@ -15,6 +15,8 @@ export type OpcoesDaSala = {
   aoReceber?: (mensagem: MensagemDaSala) => void;
   // Voltou depois de cair: a sala manda o estado de novo.
   aoReconectar?: () => void;
+  // Caiu e está tentando de novo (Story 4.3: os avisos dos outros envelhecem).
+  aoCair?: () => void;
   // O WebSocket do Node 22; os testes passam um falso.
   WebSocket?: typeof WebSocket;
 };
@@ -87,6 +89,7 @@ export async function conectarNaSala(amb: Ambiente, sessao: string, jamId: strin
       avisarFim("A sala recusou a entrada. Rode o comando de novo.");
     } else if (conectado) {
       amb.escrever("A conexão com a jam caiu. Tentando de novo...");
+      opcoes.aoCair?.();
     }
   });
 
