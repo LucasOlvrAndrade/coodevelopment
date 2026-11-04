@@ -91,6 +91,11 @@ export function saida(evento, corpo) {
   const decisao = evento === "PreToolUse" && typeof corpo.motivo === "string" ? { recusar: "deny", perguntar: "ask" }[corpo.decisao] : undefined;
   if (!decisao && !contexto) return null;
   return {
+    // A tela da pergunta do Claude Code 2.1.318 não mostra o motivo do hook. A
+    // mensagem de sistema mostra à pessoa quem anunciou e por quê, mas só depois
+    // da resposta; antes dela, valem o terminal do conector, o feed e o contexto
+    // que o Claude recebe (conferido em terminal de verdade, A20).
+    ...(decisao === "ask" ? { systemMessage: corpo.motivo } : {}),
     hookSpecificOutput: {
       hookEventName: evento,
       ...(decisao ? { permissionDecision: decisao, permissionDecisionReason: corpo.motivo } : {}),

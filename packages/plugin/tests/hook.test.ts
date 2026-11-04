@@ -153,6 +153,7 @@ describe("contexto dos outros Claudes (Story 4.3)", () => {
 describe("pergunta antes de mexer em arquivo de outro (Story 4.4)", () => {
   it("a saída do PreToolUse pede confirmação (ask) com o motivo", () => {
     expect(saida("PreToolUse", { decisao: "perguntar", motivo: "é do Kelson" })).toEqual({
+      systemMessage: "é do Kelson",
       hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: "é do Kelson" },
     });
     expect(saida("PreToolUse", { decisao: "outra", motivo: "x" })).toBeNull();
@@ -171,6 +172,12 @@ describe("pergunta antes de mexer em arquivo de outro (Story 4.4)", () => {
 });
 
 describe("caminho do NotebookEdit (gate da 4.4, TEST-001)", () => {
+  it("a pergunta leva o motivo também como mensagem à pessoa; a recusa e o contexto não (AC 1)", () => {
+    expect(saida("PreToolUse", { decisao: "perguntar", motivo: "de Kelson" })).toMatchObject({ systemMessage: "de Kelson", hookSpecificOutput: { permissionDecision: "ask", permissionDecisionReason: "de Kelson" } });
+    expect(saida("PreToolUse", { decisao: "recusar", motivo: "x" })).not.toHaveProperty("systemMessage");
+    expect(saida("PreToolUse", { contexto: "x" })).not.toHaveProperty("systemMessage");
+  });
+
   it("o id da chamada vai junto quando o Claude Code manda (gate da 4.4, REL-012)", () => {
     expect(prazoDoHook("PreToolUse")).toBeGreaterThan(prazoDoHook("Stop"));
     expect(corpoDoAviso({ session_id: "s", hook_event_name: "PostToolUse", tool_name: "Edit", tool_use_id: "t1", tool_input: { file_path: "a.ts" } })).toMatchObject({ tool_use_id: "t1" });
