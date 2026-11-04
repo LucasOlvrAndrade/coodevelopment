@@ -74,7 +74,7 @@ fora de jam.
 | `SessionEnd` | n/a | Tira o status da sessão (Story 4.1); o `SessionStart` não é usado |
 | `Notification` | `idle_prompt` | O Claude ocioso, esperando a pessoa: tira o status quando o `Stop` não vem (Esc; Story 4.1) |
 | `UserPromptSubmit` | n/a | Status "trabalhando"; devolve `additionalContext` com os avisos ativos dos outros (nome, resumo entre aspas, desde, arquivos), marcado como informação e não instrução; sem outros com aviso, nada (FR12, FR15; Story 4.3) |
-| `PreToolUse` | `Edit\|Write\|NotebookEdit` | Sem aviso ativo: `deny` com motivo (FR14). Arquivo reservado por outro: `ask` com quem reservou e por quê, e a pessoa confirma no terminal (FR16) |
+| `PreToolUse` | `Edit\|Write\|MultiEdit\|NotebookEdit` | Sem aviso ativo: `deny` com motivo (FR14). Arquivo no aviso ativo de outro: `ask` com quem anunciou e o resumo, e a pessoa confirma no Claude Code (FR16; Story 4.4). Confirmada (o `PostToolUse` da edição chegou), não pergunta de novo na mesma sessão enquanto o aviso do outro for o mesmo. Conferido no 2.1.316: o `ask` vale mesmo com `acceptEdits` |
 | `PreToolUse` | `Edit\|Write\|MultiEdit\|NotebookEdit\|anunciar` | Injeta (`additionalContext`) os avisos dos outros quando mudaram desde a última entrega à sessão, uma vez por mudança; quando todos terminam depois de uma entrega, diz que os arquivos estão livres (FR15 em respostas longas; Story 4.3). Comandos de terminal não passam por aqui, para não ficarem mais lentos |
 | `PostToolUse` | `Bash\|PowerShell` | Marca o fim de comando para o vigia agrupar as mudanças que ele causou |
 | `Stop` / `StopFailure` | n/a | Status "parado"; encerra o aviso ativo e libera as reservas |

@@ -106,6 +106,8 @@ Todas com `{ v: 1, tipo, ... }`, validadas com zod nas duas pontas. Resumo
 | sala → páginas e conectores | `claudes` | `trabalhando`: `usuarioId` e `desde` de quem está com o Claude trabalhando, ao abrir e a cada mudança; some quando o conector cai (Story 4.1). `resumo` do aviso ativo (4.2) e `arquivos`, a união dos anunciados nas pastas da pessoa (4.3). O conector passa os dos outros ao Claude da pasta |
 | sala → páginas | `parou` | `usuarioId` e `motivo` quando o Claude parou por erro; a página mostra por 8 s (Story 4.1) |
 | conector → sala | `aviso` | `resumo` (até 300) e `arquivos` (até 50, relativos à pasta): o Claude anunciou pelo `anunciar` do MCP do plugin; vale até o status voltar a parado. A sala guarda na conexão, põe um item `aviso` no feed e o resumo no `claudes` (Story 4.2) |
+| conector → sala | `reserva` | `caminho`: o Claude da pasta pediu para mexer num arquivo que está no aviso de outro. A sala confere o dono pelos avisos ativos (o conector não diz quem é), põe um item `reserva` no feed (`autorId`, `donoId`, `caminho`, `resumo`) e avisa os conectores do dono (Story 4.4) |
+| sala → conectores do dono | `reserva_pedida` | `autorId`, `caminho`, `donoId`: o conector de quem anunciou mostra no terminal (Story 4.4) |
 | sala → todos | `presenca`, `status`, `aviso`, `evento` | atualizações incrementais |
 | sala → conector | `divergencia-pedido` / conector → sala `divergencia` | lista de arquivos diferentes ao reabrir (D17) |
 | página → sala | `divergencia-escolha` | `atualizar` ou `soLocal` |
